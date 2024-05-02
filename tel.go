@@ -127,6 +127,17 @@ From § 3.3.33 of RFC 4517:
 	actual-number = PrintableString
 	country-code  = PrintableString
 	answerback    = PrintableString
+
+From § 3.2 of RFC 4517:
+
+	PrintableCharacter = ALPHA / DIGIT / SQUOTE / LPAREN / RPAREN /
+	                     PLUS / COMMA / HYPHEN / DOT / EQUALS /
+	                     SLASH / COLON / QUESTION / SPACE
+	PrintableString    = 1*PrintableCharacter
+
+From § 1.4 of RFC 4512:
+
+	DOLLAR  = %x24 ; dollar sign ("$")
 */
 func TelexNumber(x any) (err error) {
 	var raw string
@@ -174,6 +185,18 @@ From § 3.3.32 of RFC 4517:
 	                  / %x25-5B
 	                  / (%x5C "5C")  ; escaped "\"
 	                  / %x5D-FF
+
+From § 3.2 of RFC 4517:
+
+	PrintableCharacter = ALPHA / DIGIT / SQUOTE / LPAREN / RPAREN /
+	                     PLUS / COMMA / HYPHEN / DOT / EQUALS /
+	                     SLASH / COLON / QUESTION / SPACE
+	PrintableString    = 1*PrintableCharacter
+	COLON              = %x3A  ; colon (":")
+
+From § 1.4 of RFC 4512:
+
+	DOLLAR  = %x24 ; dollar sign ("$")
 */
 func TeletexTerminalIdentifier(x any) (err error) {
 	var (

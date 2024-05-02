@@ -288,7 +288,7 @@ or Distinguished Name.
 
 Note: DN, RDN and ATV parsing capabilities derived from go-ldap/ldap/v3/dn.go
 
-From § 3 RFC 4514:
+From § 3 of RFC 4514:
 
 	distinguishedName = [ relativeDistinguishedName *( COMMA relativeDistinguishedName ) ]
 	relativeDistinguishedName = attributeTypeAndValue *( PLUS attributeTypeAndValue )
@@ -330,6 +330,73 @@ func DN(x any) (err error) {
 	}
 
 	_, err = parseDN(raw)
+
+	return
+}
+
+/*
+NameAndOptionalUID returns an error following an analysis of x in the
+context of a Name and Optional UID.
+
+From § 3.3.21 of RFC 4517:
+
+	NameAndOptionalUID = distinguishedName [ SHARP BitString ]
+
+From § 3.3.2 of RFC 4517:
+
+	BitString    = SQUOTE *binary-digit SQUOTE "B"
+	binary-digit = "0" / "1"
+
+From § 1.4 of RFC 4512:
+
+	SHARP  = %x23	; octothorpe (or sharp sign) ("#")
+	SQUOTE = %x27	; single quote ("'")
+*/
+func NameAndOptionalUID(x any) (err error) {
+	var raw string
+	switch tv := x.(type) {
+	case string:
+		if len(tv) == 0 {
+			err = fmt.Errorf("Zero length Name and Optional UID")
+			return
+		}
+		raw = tv
+	default:
+		err = fmt.Errorf("Incompatible type '%T' for Name and Optional UID", tv)
+		return
+	}
+
+	var rev string
+	for i := 0; i < len(raw); i++ {
+		rev += string(raw[len(raw)-i-1])
+	}
+
+	var _l int = len(raw)
+	if strings.HasPrefix(rev, `B'`) {
+		var bitstring string = `'`
+
+		for i := len(raw) - 2; i > 0; i-- {
+
+			if raw[i-1] == '\'' || isDigit(rune(raw[i-1])) {
+				bitstring += string(raw[i-1])
+				continue
+			}
+			break
+		}
+
+		bitstring += `B`
+		if err = BitString(bitstring); err != nil {
+			return
+		}
+
+		_l = _l - len(bitstring) - 1
+		if delim := raw[_l]; delim != '#' {
+			err = fmt.Errorf("Missing '#' delimiter for Name/UID pair; found '%c'", delim)
+			return
+		}
+	}
+
+	err = DN(raw[:_l])
 
 	return
 }

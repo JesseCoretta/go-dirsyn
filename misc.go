@@ -5,6 +5,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/google/uuid"
 )
 
 var utf0Range *unicode.RangeTable
@@ -27,6 +29,28 @@ func isLAlpha(r rune) bool {
 
 func isBinChar(r rune) bool {
 	return r == '0' || r == '1'
+}
+
+func isKeystring(x string) bool {
+	if len(x) == 0 {
+		return false
+	}
+
+	if !isAlpha(rune(x[0])) || rune(x[len(x)-1]) == '-' {
+		return false
+	}
+
+	var last rune
+	for i := 1; i < len(x); i++ {
+		if last == '-' && rune(x[i]) == last {
+			return false
+		} else if !(isAlpha(rune(x[i])) || isDigit(rune(x[i])) || rune(x[i]) == '-') {
+			return false
+		}
+		last = rune(x[i])
+	}
+
+	return true
 }
 
 func isNegativeInteger(x any) (is bool) {
@@ -79,6 +103,49 @@ func Boolean(x any) (err error) {
 }
 
 /*
+UUID returns an error following an analysis of x in the context of a UUID.
+
+Note: this function utilizes Google's uuid.Parse method under the hood.
+
+From § 3 of RFC 4122:
+
+	UUID                   = time-low "-" time-mid "-"
+	                         time-high-and-version "-"
+	                         clock-seq-and-reserved
+	                         clock-seq-low "-" node
+	time-low               = 4hexOctet
+	time-mid               = 2hexOctet
+	time-high-and-version  = 2hexOctet
+	clock-seq-and-reserved = hexOctet
+	clock-seq-low          = hexOctet
+	node                   = 6hexOctet
+	hexOctet               = hexDigit hexDigit
+	hexDigit =
+	      "0" / "1" / "2" / "3" / "4" / "5" / "6" / "7" / "8" / "9" /
+	      "a" / "b" / "c" / "d" / "e" / "f" /
+	      "A" / "B" / "C" / "D" / "E" / "F"
+*/
+func UUID(x any) (err error) {
+	var raw string
+
+	switch tv := x.(type) {
+	case string:
+		if l := len(tv); l != 36 {
+			err = fmt.Errorf("Invalid length for UUID; want 36, got %d", l)
+			return
+		}
+		raw = tv
+	default:
+		err = fmt.Errorf("Incompatible type '%T' for UUID", tv)
+		return
+	}
+
+	_, err = uuid.Parse(raw)
+
+	return
+}
+
+/*
 OID returns an error following an analysis of x in the context of either
 a numeric OID or descriptor (descr) value.
 
@@ -107,10 +174,11 @@ From § 1.4 of RFC 4512:
 	keystring = leadkeychar *keychar
 	leadkeychar = ALPHA
 	keychar = ALPHA / DIGIT / HYPHEN
+
 	ALPHA   = %x41-5A / %x61-7A   ; "A"-"Z" / "a"-"z"
 	DIGIT   = %x30 / LDIGIT       ; "0"-"9"
 	LDIGIT  = %x31-39             ; "1"-"9"
-	HYPHEN  = %x2D ; hyphen ("-")
+	HYPHEN  = %x2D                ; hyphen ("-")
 */
 func Descriptor(x any) (err error) {
 	var raw string
@@ -172,9 +240,10 @@ From § 1.4 of RFC 4512:
 
 	numericoid = number 1*( DOT number )
 	number  = DIGIT / ( LDIGIT 1*DIGIT )
-	DIGIT   = %x30 / LDIGIT       ; "0"-"9"
-	LDIGIT  = %x31-39             ; "1"-"9"
-	DOT     = %x2E ; period (".")
+
+	DIGIT   = %x30 / LDIGIT	  ; "0"-"9"
+	LDIGIT  = %x31-39         ; "1"-"9"
+	DOT     = %x2E            ; period (".")
 */
 func NumericOID(x any) (err error) {
 	var raw string
@@ -341,8 +410,52 @@ From § 3.3.30 of RFC 4517:
 	                      / UTFMB
 */
 func SubstringAssertion(x any) (err error) {
+	var raw string
+	switch tv := x.(type) {
+	case string:
+		if len(tv) == 0 {
+			err = fmt.Errorf("Zero-length Substring Assertion")
+			return
+		}
+		raw = tv
+	default:
+		err = fmt.Errorf("Incompatible type '%T' for Substring Assertion", tv)
+		return
+	}
+
+	substrings := splitUnescaped(raw, `*`, `\`)
+	for i, substring := range substrings {
+		if len(substring) == 0 {
+			continue
+		} else if !isValidSubstring(substring) {
+			err = fmt.Errorf("Invalid Substring Assertion at component %d", i)
+			break
+		}
+	}
 
 	return
+}
+
+func isValidSubstring(s string) bool {
+
+	for i := 0; i < len(s); i++ {
+		r := rune(s[i])
+		if r == 0x5C {
+			inc := utf8.RuneLen(r)
+			if i+inc < len(s) && (s[i+inc] == 0x2A || s[i+inc] == 0x5C) {
+				i += inc
+				continue
+			}
+		} else if err := uTFMB(r); err == nil {
+			continue
+		} else if (r >= 0x00 && r <= 0x29) || (r >= 0x2B && r <= 0x5B) || (r >= 0x5D && r <= 0x7F) {
+			continue
+		}
+
+		return false
+	}
+
+	return true
 }
 
 /*
@@ -350,14 +463,18 @@ uTFMB returns an error following an analysis of x in the context of
 one (1) or more UTFMB characters.
 */
 func uTFMB(x any) (err error) {
-	var raw string
+	var raw []rune
 	switch tv := x.(type) {
+	case rune:
+		raw = append(raw, tv)
 	case string:
 		if len(tv) == 0 {
 			err = fmt.Errorf("Invalid UTFMB string")
 			return
 		}
-		raw = tv
+		for i := 0; i < len(tv); i++ {
+			raw = append(raw, rune(tv[i]))
+		}
 	default:
 		err = fmt.Errorf("Incompatible type '%T' for UTFMB", tv)
 		return

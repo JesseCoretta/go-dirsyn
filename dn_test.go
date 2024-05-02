@@ -24,3 +24,14 @@ func TestDN(t *testing.T) {
 		}
 	}
 }
+
+func TestNameAndOptionalUID(t *testing.T) {
+	for idx, noptuid := range []string{
+		`uid=jesse,ou=People,o=example\, co#'10100011'B`,
+		`uid=jesse,ou=People,o=example\, co`,
+	} {
+		if err := NameAndOptionalUID(noptuid); err != nil {
+			t.Errorf("%s[%d] failed: %v", t.Name(), idx, err)
+		}
+	}
+}
