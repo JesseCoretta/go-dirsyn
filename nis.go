@@ -1,13 +1,9 @@
 package dirsyn
 
-import (
-	"fmt"
-	"strings"
-)
-
 /*
-NISNetgroupTriple returns an error following an analysis of x in the
-context of a NIS Netgroup Triple.
+NetgroupTriple implements the NIS Netgroup Triple type.  Instances of
+this type are produced following a successful execution of the
+[RFC2307.NetgroupTriple] function.
 
 From § 2.4 of RFC 2307:
 
@@ -19,9 +15,9 @@ From § 2.4 of RFC 2307:
 ASN.1 definition:
 
 	nisNetgroupTripleSyntax ::= SEQUENCE {
-		hostname   [0] IA5String OPTIONAL,
-		username   [1] IA5String OPTIONAL,
-		domainname [2] IA5String OPTIONAL
+	        hostname   [0] IA5String OPTIONAL,
+	        username   [1] IA5String OPTIONAL,
+	        domainname [2] IA5String OPTIONAL
 	}
 
 From § 1.4 of RFC 4512:
@@ -30,48 +26,91 @@ From § 1.4 of RFC 4512:
 	leadkeychar = ALPHA
 	keychar = ALPHA / DIGIT / HYPHEN
 
-	ALPHA   = %x41-5A / %x61-7A   	; "A"-"Z" / "a"-"z"
-	DIGIT   = %x30 / LDIGIT       	; "0"-"9"
+	ALPHA   = %x41-5A / %x61-7A     ; "A"-"Z" / "a"-"z"
+	DIGIT   = %x30 / LDIGIT         ; "0"-"9"
 	LDIGIT  = %x31-39               ; "1"-"9"
 	HYPHEN  = %x2D                  ; hyphen ("-")
+
+From § 3.2 of RFC 4517:
+
+	IA5String          = *(%x00-7F)
 */
-func NISNetgroupTriple(x any) (err error) {
+type NetgroupTriple [3]string
+
+/*
+String returns the string representation of the receiver instance.
+*/
+func (r NetgroupTriple) String() string {
+	var trips []string
+	for _, keystr := range r {
+		if len(keystr) == 0 {
+			// Yes, a zero string is also acceptable,
+			// but a hyphen Just Looks Better™.
+			trips = append(trips, `-`)
+		} else {
+			trips = append(trips, keystr)
+		}
+	}
+
+	return `(` + join(trips, `,`) + `)`
+}
+
+/*
+NISNetgroupTriple returns an error following an analysis of x in the
+context of a NIS Netgroup Triple.
+*/
+func (r RFC2307) NetgroupTriple(x any) (trip NetgroupTriple, err error) {
 	var raw string
 	switch tv := x.(type) {
 	case string:
 		if len(tv) < 4 {
-			err = fmt.Errorf("Insufficient length '%d' for NIS Netgroup Triple", len(tv))
+			err = errorBadLength("NIS Netgroup Triple", 0)
 			return
 		}
 		raw = tv
 	default:
-		err = fmt.Errorf("Incompatible type '%T' for NIS Netgroup Triple", tv)
+		err = errorBadType("NIS Netgroup Triple")
 		return
 	}
 
 	if !(raw[0] == '(' && raw[len(raw)-1] == ')') {
-		err = fmt.Errorf("NIS Netgroup Triple encapsulation error")
+		err = errorTxt("NIS Netgroup Triple encapsulation error")
 		return
 	}
 
 	value := raw[1 : len(raw)-1]
-
 	ngt := splitUnescaped(value, `,`, `\`)
-	for _, slice := range ngt {
+
+	if len(ngt) != 3 {
+		err = errorTxt("NIS Netgroup Triple does not contain exactly three (3) keystring/hyphen/null values")
+		return
+	}
+
+	var id RFC4517
+
+	var _trip NetgroupTriple
+	for idx, slice := range ngt {
 		if len(slice) == 0 || slice == `-` {
 			continue
-		} else if !isKeystring(slice) {
-			fmt.Errorf("NIS Netgroup Triple element '%s'", slice)
+		} else if _, err = id.IA5String(slice); err != nil {
 			break
 		}
+		_trip[idx] = slice
+	}
+
+	if err == nil {
+		trip = _trip
 	}
 
 	return
 }
 
 /*
-BootParameter returns an error following an analysis of x in the context
-of a NIS Boot Parameter.
+BootParameter implements the NIS BootParameter type.  Instances of this type
+are produced following a successful execution of the [RFC2307.BootParameter]
+function.
+
+From § 2.4 of RFC 2307:
 
 	bootparameter     = key "=" server ":" path
 	key               = keystring
@@ -81,46 +120,93 @@ of a NIS Boot Parameter.
 ASN.1 definition:
 
 	bootParameterSyntax ::= SEQUENCE {
-	 key     IA5String,
-	 server  IA5String,
-	 path    IA5String
+		key     IA5String,
+		server  IA5String,
+		path    IA5String
 	}
+
+From § 1.4 of RFC 4512:
+
+	keystring = leadkeychar *keychar
+	leadkeychar = ALPHA
+	keychar = ALPHA / DIGIT / HYPHEN
+
+	ALPHA   = %x41-5A / %x61-7A   ; "A"-"Z" / "a"-"z"
+	DIGIT   = %x30 / LDIGIT       ; "0"-"9"
+	LDIGIT  = %x31-39             ; "1"-"9"
+	HYPHEN  = %x2D ; hyphen ("-")
+
+From § 3.2 of RFC 4517:
+
+	IA5String          = *(%x00-7F)
 */
-func BootParameter(x any) (err error) {
+type BootParameter [3]string
+
+/*
+String returns the string representation of the receiver instance.
+*/
+func (r BootParameter) String() (bp string) {
+	var boots []string
+	for _, keystr := range r {
+		if len(keystr) > 0 {
+			boots = append(boots, keystr)
+		}
+	}
+
+	if len(boots) == 3 {
+		bp = boots[0] + `=` + boots[1] + `:` + boots[2]
+	}
+
+	return
+}
+
+/*
+BootParameter returns an error following an analysis of x in the context
+of a NIS Boot Parameter.
+*/
+func (r RFC2307) BootParameter(x any) (bp BootParameter, err error) {
 	var raw string
 
 	switch tv := x.(type) {
 	case string:
 		if len(tv) < 5 {
-			err = fmt.Errorf("Insufficient length '%d' for Boot Parameter", len(tv))
+			err = errorBadLength("Boot Parameter", 0)
 			return
 		}
 		raw = tv
 	default:
-		err = fmt.Errorf("Incompatible type '%T' for Boot Parameter", tv)
+		err = errorBadType("Boot Parameter")
 		return
 	}
 
-	idx := strings.IndexRune(raw, '=')
+	idx := idxr(raw, '=')
 	if idx == -1 {
-		err = fmt.Errorf("Missing '=' delimiter for NIS Boot Parameter")
+		err = errorTxt("Missing '=' delimiter for NIS Boot Parameter")
 		return
 	}
 
-	idx2 := strings.IndexRune(raw[idx+1:], ':')
+	idx2 := idxr(raw, ':')
 	if idx2 == -1 {
-		err = fmt.Errorf("Missing ':' delimiter for NIS Boot Parameter")
+		err = errorTxt("Missing ':' delimiter for NIS Boot Parameter")
 		return
 	}
 
-	for _, slice := range []string{
+	var bps BootParameter
+	var id RFC4517
+
+	for iidx, slice := range []string{
 		raw[:idx],         // key
 		raw[idx+1 : idx2], // server
 		raw[idx2+1:],      // path
 	} {
-		if err := IA5String(slice); err != nil {
+		if _, err = id.IA5String(slice); err != nil {
 			break
 		}
+		bps[iidx] = slice
+	}
+
+	if err == nil {
+		bp = bps
 	}
 
 	return

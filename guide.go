@@ -1,10 +1,5 @@
 package dirsyn
 
-import (
-	"fmt"
-	"strings"
-)
-
 /*
 EnhancedGuide returns an error following an analysis of x in the context
 of an Enhanced Guide.
@@ -14,7 +9,7 @@ From § 3.3.10 of RFC 4517:
 	EnhancedGuide = object-class SHARP WSP criteria WSP
 	                   SHARP WSP subset
 	object-class  = WSP oid WSP
-	subset        = "baseobject" / "oneLevel" / "wholeSubtree"
+	subset        = "baseObject" / "oneLevel" / "wholeSubtree"
 
 	criteria   = and-term *( BAR and-term )
 	and-term   = term *( AMPERSAND term )
@@ -30,53 +25,50 @@ From § 3.3.10 of RFC 4517:
 	AMPERSAND  = %x26  ; ampersand ("&")
 	EXCLAIM    = %x21  ; exclamation mark ("!")
 */
-func EnhancedGuide(x any) (err error) {
+func (r RFC4517) EnhancedGuide(x any) (err error) {
 	var raw string
 	switch tv := x.(type) {
 	case string:
 		if len(tv) == 0 {
-			err = fmt.Errorf("Zero length Enhanced Guide value")
+			err = errorBadLength(`Enhanced Guide`, 0)
 			return
 		}
 		raw = tv
 	default:
-		err = fmt.Errorf("Incompatible type '%T' for Enhanced Guide", tv)
+		err = errorBadType(`Enhanced Guide`)
 		return
 	}
 
 	raws := splitUnescaped(raw, `#`, `\`)
 	if len(raws) != 3 {
-		err = fmt.Errorf("Invalid Enhanced Guide value")
+		err = errorTxt("Invalid Enhanced Guide value")
 		return
 	}
 
 	// object-class is the first of three (3)
 	// mandatory Enhanced Guide components.
-	oc := strings.TrimSpace(raws[0])
-	if err = OID(oc); err != nil {
-		err = fmt.Errorf("Invalid object-class '%s' for Enhanced Guide", oc)
+	oc := trimS(raws[0])
+	if err = r.OID(oc); err != nil {
+		err = errorTxt("Invalid object-class for Enhanced Guide: " + oc)
 		return
 	}
 
 	// criteria is the second of three (3)
 	// mandatory Enhanced Guide components.
-	crit := strings.TrimSpace(raws[1])
+	crit := trimS(raws[1])
 	if err = guideCriteria(crit); err != nil {
 		return
 	}
 
 	// subset is the last of three (3)
 	// mandatory Enhanced Guide components.
-	subs := strings.TrimSpace(raws[2])
+	subs := trimS(raws[2])
 	if !strInSlice(subs, []string{
-		// technically `baseobject` should be
-		// `baseObject`, IINM; see Errata for
-		// RFC 4517.
 		`baseObject`,
 		`oneLevel`,
 		`wholeSubtree`,
 	}) {
-		err = fmt.Errorf("Incompatible subset '%s' for Enhanced Guide", subs)
+		err = errorTxt("Incompatible subset for Enhanced Guide: " + subs)
 	}
 
 	return
@@ -107,38 +99,39 @@ From § 3.3.14 of RFC 4517:
 	AMPERSAND  = %x26  ; ampersand ("&")
 	EXCLAIM    = %x21  ; exclamation mark ("!")
 */
-func Guide(x any) (err error) {
+func (r RFC4517) Guide(x any) (err error) {
 	var raw string
 	switch tv := x.(type) {
 	case string:
 		if len(tv) == 0 {
-			err = fmt.Errorf("Zero length Guide value")
+			err = errorBadLength("Guide value", 0)
 			return
 		}
 		raw = tv
 	default:
-		err = fmt.Errorf("Incompatible type '%T' for Guide", tv)
+		err = errorBadType("Guide")
 		return
 	}
 
 	raws := splitUnescaped(raw, `#`, `\`)
 	switch l := len(raws); l {
 	case 0:
-		err = fmt.Errorf("Zero length Guide value")
+		err = errorBadLength("Guide", 0)
 	case 1:
 		// Assume single value is the criteria
 		err = guideCriteria(raws[0])
 	case 2:
 		// Assume two (2) components represent the
 		// object-class and criteria respectively.
-		oc := strings.TrimSpace(raws[0])
-		if err = OID(oc); err != nil {
-			err = fmt.Errorf("Invalid object-class '%s' for Guide", oc)
+		oc := trimS(raws[0])
+		if err = r.OID(oc); err != nil {
+			err = errorTxt("Invalid object-class for Guide: " + oc)
 			break
 		}
 		err = guideCriteria(raws[1])
 	default:
-		err = fmt.Errorf("Unexpected component length for Guide; want 2, got %d", l)
+		err = errorTxt("Unexpected component length for Guide; want 2, got " +
+			fmtInt(int64(l), 10))
 	}
 
 	return
@@ -154,17 +147,17 @@ func guideCriteria(x any) (err error) {
 	switch tv := x.(type) {
 	case string:
 		if len(tv) == 0 {
-			err = fmt.Errorf("Zero length criteria")
+			err = errorBadLength("criteria", 0)
 			return
 		}
 		raw = tv
 	default:
-		err = fmt.Errorf("Incompatible type '%T' for criteria", tv)
+		err = errorBadType(`criteria`)
 		return
 	}
 
 	if r := newCriteriaParser(raw); !r.parse() {
-		err = fmt.Errorf("Invalid criteria '%s'", r.input[r.pos:])
+		err = errorTxt("Invalid criteria " + r.input[r.pos:])
 	}
 
 	return
@@ -182,7 +175,7 @@ func (p *criteriaParser) criteria() bool {
 	if !p.andTerm() {
 		return false
 	}
-	for strings.HasPrefix(p.input[p.pos:], "|") {
+	for hasPfx(p.input[p.pos:], "|") {
 		p.pos++
 		if !p.andTerm() {
 			return false
@@ -195,7 +188,7 @@ func (p *criteriaParser) andTerm() bool {
 	if !p.term() {
 		return false
 	}
-	for strings.HasPrefix(p.input[p.pos:], "&") {
+	for hasPfx(p.input[p.pos:], "&") {
 		p.pos++
 		return p.term()
 	}
@@ -228,9 +221,9 @@ func (p criteriaParser) isValidDollar() bool {
 
 func (p criteriaParser) isValidBoolean() (is bool) {
 	switch {
-	case strings.HasPrefix(p.input[p.pos:], "?true"):
+	case hasPfx(p.input[p.pos:], "?true"):
 		is = true
-	case strings.HasPrefix(p.input[p.pos:], "?false"):
+	case hasPfx(p.input[p.pos:], "?false"):
 		is = true
 	default:
 		return
@@ -259,18 +252,18 @@ func (p *criteriaParser) term() bool {
 	case p.isValidAmp():
 		p.pos++
 		return p.andTerm()
-	case strings.HasPrefix(p.input[p.pos:], "!") && !p.isPrevious('!'):
+	case hasPfx(p.input[p.pos:], "!") && !p.isPrevious('!'):
 		p.pos++
 		return p.term()
-	case strings.HasPrefix(p.input[p.pos:], "("):
+	case hasPfx(p.input[p.pos:], "("):
 		p.pos++
-		if !(p.criteria() || strings.HasPrefix(p.input[p.pos:], ")")) {
+		if !(p.criteria() || hasPfx(p.input[p.pos:], ")")) {
 			return false
 		}
 		p.pos++
 		return true
 	case p.isValidBoolean():
-		if strings.HasPrefix(p.input[p.pos:], "?true") {
+		if hasPfx(p.input[p.pos:], "?true") {
 			p.pos += 5
 			return true
 		}
@@ -301,7 +294,8 @@ func (r *criteriaParser) isAttrMatch() (is bool) {
 		return
 	}
 
-	if err := OID(attr); err != nil {
+	var s RFC4512
+	if err := s.OID(attr); err != nil {
 		return
 	}
 
@@ -324,7 +318,7 @@ func isMatchType(x string) (is bool, idx int) {
 		`APPROX`,
 		`SUBSTR`,
 	} {
-		if is = strings.HasPrefix(x, mt); is {
+		if is = hasPfx(x, mt); is {
 			idx = len(mt)
 			break
 		}

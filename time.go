@@ -5,16 +5,11 @@ time.go implements all temporal syntaxes -- namely Generalized Time and
 the (deprecated) UTC Time.
 */
 
-import (
-	"fmt"
-	"time"
-)
+import "time"
 
 /*
-GeneralizedTime returns an error following an analysis of x in the context
-of a Generalized Time value.
-
-From § 3.3.13 of RFC 4517:
+GeneralizedTime aliases an instance of [time.Time] to implement § 3.3.13
+of RFC 4517:
 
 	GeneralizedTime = century year month day hour
 	                     [ minute [ second / leap-second ] ]
@@ -40,7 +35,20 @@ From § 3.3.13 of RFC 4517:
 	g-differential  = ( MINUS / PLUS ) hour [ minute ]
 	MINUS           = %x2D  ; minus sign ("-")
 */
-func GeneralizedTime(x any) (err error) {
+type GeneralizedTime time.Time
+
+/*
+String returns the string representation of the receiver instance.
+*/
+func (r GeneralizedTime) String() string {
+	return time.Time(r).Format(`20060102150405`) + `Z`
+}
+
+/*
+GeneralizedTime returns an error following an analysis of x in the context
+of a Generalized Time value.
+*/
+func (r RFC4517) GeneralizedTime(x any) (gt GeneralizedTime, err error) {
 	var (
 		format string = `20060102150405` // base format
 		diff   string = `-0700`
@@ -53,7 +61,7 @@ func GeneralizedTime(x any) (err error) {
 	switch tv := x.(type) {
 	case string:
 		if len(tv) < 15 {
-			err = fmt.Errorf("Invalid length '%d' for Generalized Time", len(tv))
+			err = errorBadLength(`Generalized Time`, len(tv))
 			return
 		}
 		raw = tv
@@ -61,7 +69,7 @@ func GeneralizedTime(x any) (err error) {
 			raw = raw[:len(raw)-1]
 		}
 	default:
-		err = fmt.Errorf("Incompatible type '%T' for Generalized Time", tv)
+		err = errorBadType(`Generalized Time`)
 		return
 	}
 
@@ -69,7 +77,10 @@ func GeneralizedTime(x any) (err error) {
 	// without any fractional or differential
 	// components
 	if base = raw[14:]; len(base) == 0 {
-		_, err = time.Parse(format, raw)
+		var _gt time.Time
+		if _gt, err = time.Parse(format, raw); err == nil {
+			gt = GeneralizedTime(_gt)
+		}
 		return
 	}
 
@@ -79,7 +90,7 @@ func GeneralizedTime(x any) (err error) {
 		format += string(".")
 		for fidx, ch = range base[1:] {
 			if fidx > 6 {
-				err = fmt.Errorf("Fraction exceeds Generalized Time fractional limit")
+				err = errorTxt(`Fraction exceeds Generalized Time fractional limit`)
 				return
 			} else if isDigit(ch) {
 				format += string(ch)
@@ -95,9 +106,31 @@ func GeneralizedTime(x any) (err error) {
 		format += diff
 	}
 
-	_, err = time.Parse(format, raw)
+	var _gt time.Time
+	if _gt, err = time.Parse(format, raw); err == nil {
+		gt = GeneralizedTime(_gt)
+	}
 
 	return
+}
+
+/*
+UTCTime implements § 3.3.34 of RFC 4517.
+
+	UTCTime         = year month day hour minute [ second ] [ u-time-zone ]
+	u-time-zone     = %x5A  ; "Z"
+	                  / u-differential
+	u-differential  = ( MINUS / PLUS ) hour minute
+
+Note this type is deprecated; use [RFC4517.GeneralizedTime] instead.
+*/
+type UTCTime time.Time
+
+/*
+String returns the string representation of the receiver instance.
+*/
+func (r UTCTime) String() string {
+	return time.Time(r).Format(`0601021504`) + `Z`
 }
 
 /*
@@ -106,15 +139,8 @@ instead.
 
 UTCTime returns an error following an analysis of x in the context of a
 (deprecated) UTC Time value.
-
-From § 3.3.34 of RFC 4517.
-
-	UTCTime         = year month day hour minute [ second ] [ u-time-zone ]
-	u-time-zone     = %x5A  ; "Z"
-	                  / u-differential
-	u-differential  = ( MINUS / PLUS ) hour minute
 */
-func UTCTime(x any) (err error) {
+func (r RFC4517) UTCTime(x any) (utc UTCTime, err error) {
 	var (
 		format string = `0601021504` // base format
 		sec    string = `05`
@@ -131,35 +157,41 @@ func UTCTime(x any) (err error) {
 		}
 
 		if len(raw) < 10 {
-			err = fmt.Errorf("Invalid length '%d' for UTC Time", len(tv))
+			err = errorBadLength(`UTC Time`, len(tv))
 			return
 		}
 	default:
-		err = fmt.Errorf("Incompatible type '%T' for UTC Time", tv)
+		err = errorBadType(`UTC Time`)
 		return
 	}
 
-	switch l := len(raw); l {
+	var _utc time.Time
+
+	switch len(raw) {
 	case 10:
 		// base time containing neither seconds
 		// nor a differential.
-		_, err = time.Parse(format, raw)
+		if _utc, err = time.Parse(format, raw); err == nil {
+			utc = UTCTime(_utc)
+		}
 		return
 	case 12:
 		// base time containing only seconds.
-		format += sec
-		_, err = time.Parse(format, raw)
+		if _utc, err = time.Parse(format+sec, raw); err == nil {
+			utc = UTCTime(_utc)
+		}
 		return
-	default:
-		format += sec
 	}
+	format += sec
 
 	// Handle differential component
 	if raw[len(raw)-5] == '+' || raw[len(raw)-5] == '-' {
 		format += diff
 	}
 
-	_, err = time.Parse(format, raw)
+	if _utc, err = time.Parse(format, raw); err == nil {
+		utc = UTCTime(_utc)
+	}
 
 	return
 

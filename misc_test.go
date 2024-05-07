@@ -4,7 +4,52 @@ import (
 	"testing"
 )
 
+func TestOID(t *testing.T) {
+	var r RFC4512
+
+	for idx, raw := range []string{
+		`1.3.6.1.4.1.56521`,
+		`cn`,
+		`2.5.4.3`,
+		`l`,
+	} {
+		if err := r.OID(raw); err != nil {
+			t.Errorf("%s[%d] failed: %v\n", t.Name(), idx, err)
+		}
+	}
+}
+
+func TestNumericOID(t *testing.T) {
+	var r RFC4512
+
+	for idx, raw := range []string{
+		`1.3.6.1.4.1.56521`,
+		`2.5.4.3`,
+	} {
+		if err := r.NumericOID(raw); err != nil {
+			t.Errorf("%s[%d] failed: %v\n", t.Name(), idx, err)
+		}
+	}
+}
+
+func TestDescriptor(t *testing.T) {
+	var r RFC4512
+
+	for idx, raw := range []string{
+		`cn`,
+		`sn`,
+		`randomAttr-v2`,
+		`l`,
+		`n`,
+	} {
+		if err := r.Descriptor(raw); err != nil {
+			t.Errorf("%s[%d] failed: %v\n", t.Name(), idx, err)
+		}
+	}
+}
+
 func TestSubstringAssertion(t *testing.T) {
+	var r RFC4517
 	for idx, raw := range []string{
 		`substring*substring`,
 		`substri\\\\n*stringy`,
@@ -13,18 +58,39 @@ func TestSubstringAssertion(t *testing.T) {
 		`substring*substring*substring`,
 		`substr\\*ing*end`,
 	} {
-		if err := SubstringAssertion(raw); err != nil {
+		if err := r.SubstringAssertion(raw); err != nil {
 			t.Errorf("%s[%d] failed: %v", t.Name(), idx, err)
 		}
 	}
 }
 
 func TestUUID(t *testing.T) {
+	var r RFC4530
+
 	for idx, raw := range []string{
 		`f81d4fae-7dec-11d0-a765-00a0c91e6bf6`,
 	} {
-		if err := UUID(raw); err != nil {
+		if err := r.UUID(raw); err != nil {
 			t.Errorf("%s[%d] failed: %v", t.Name(), idx, err)
 		}
 	}
 }
+
+func TestJPEG(t *testing.T) {
+	var r RFC4517
+	if err := r.JPEG(testJPEGData); err != nil {
+		t.Errorf("%s failed: %v", t.Name(), err)
+	}
+}
+
+/*
+testJPEGData contains a byte sequence of a heavily truncated JPEG file (my github avatar).
+
+Envelope-wise, this is a valid byte block and is used purely for unit testing, but really
+only contains a couple of pixels worth of "image data". Even a heavily scaled-down -- but
+complete -- JPEG block was too big to put in its raw byte form as in-line code.
+*/
+var testJPEGData []byte = []byte{
+	0xff, 0xd8, 0xff, 0xe0, 0x0, 0x10,
+	0x4a, 0x46, 0x49, 0x46, 0x0, 0x1,
+	0x1, 0x1, 0xac, 0xff, 0xd9}

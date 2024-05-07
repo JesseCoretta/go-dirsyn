@@ -34,13 +34,7 @@ See also the go-ldap.LICENSE file in the repository root.
 
 import (
 	"encoding/hex"
-	"errors"
-	"fmt"
 	ber "github.com/go-asn1-ber/asn1-ber"
-	//"sort"
-	"strings"
-	"unicode"
-	"unicode/utf8"
 )
 
 // attributeTypeAndValue represents an attributeTypeAndValue from https://tools.ietf.org/html/rfc4514
@@ -133,7 +127,7 @@ func (r *distinguishedName) String() string {
 */
 
 func stripLeadingAndTrailingSpaces(inVal string) string {
-	noSpaces := strings.Trim(inVal, " ")
+	noSpaces := trim(inVal, " ")
 
 	// Re-add the trailing space if it was an escaped space
 	if len(noSpaces) > 0 && noSpaces[len(noSpaces)-1] == '\\' && inVal[len(inVal)-1] == ' ' {
@@ -150,7 +144,7 @@ func stripLeadingAndTrailingSpaces(inVal string) string {
 func decodeString(str string) (string, error) {
 	s := []rune(stripLeadingAndTrailingSpaces(str))
 
-	builder := strings.Builder{}
+	builder := newStrBuilder()
 	for i := 0; i < len(s); i++ {
 		char := s[i]
 
@@ -164,7 +158,7 @@ func decodeString(str string) (string, error) {
 		// If the escape character is the last character, it's a corrupted
 		// escaped character
 		if i+1 >= len(s) {
-			return "", fmt.Errorf("got corrupted escaped character: '%s'", string(s))
+			return "", errorTxt("got corrupted escaped character: " + string(s))
 		}
 
 		// If the escaped character is a special character, just add it to
@@ -180,7 +174,8 @@ func decodeString(str string) (string, error) {
 		// be a hex-encoded character of the form \XX if it's not at least
 		// two characters long, it's a corrupted escaped character
 		if i+2 >= len(s) {
-			return "", errors.New("failed to decode escaped character: encoding/hex: invalid byte: " + string(s[i+1]))
+			return "", errorTxt("failed to decode escaped character: encoding/hex: invalid byte: " +
+				string(s[i+1]))
 		}
 
 		// Get the runes for the two characters after the escape character
@@ -191,15 +186,15 @@ func decodeString(str string) (string, error) {
 		// two bytes when converted to a byte slice, it's a corrupted
 		// escaped character
 		if len(xx) != 2 {
-			return "", errors.New("failed to decode escaped character: invalid byte: " + string(xx))
+			return "", errorTxt("failed to decode escaped character: invalid byte: " + string(xx))
 		}
 
 		// Decode the hex-encoded character and add it to the builder
 		dst := []byte{0}
 		if n, err := hex.Decode(dst, xx); err != nil {
-			return "", errors.New("failed to decode escaped character: " + err.Error())
+			return "", errorTxt("failed to decode escaped character: " + err.Error())
 		} else if n != 1 {
-			return "", fmt.Errorf("failed to decode escaped character: encoding/hex: expected 1 byte when un-escaping, got %d", n)
+			return "", errorTxt("failed to decode escaped character: encoding/hex: expected 1 byte when un-escaping, got " + fmtInt(int64(n), 10))
 		}
 
 		builder.WriteByte(dst[0])
@@ -211,7 +206,7 @@ func decodeString(str string) (string, error) {
 
 // Escape a string according to RFC 4514
 func encodeString(value string, isValue bool) string {
-	builder := strings.Builder{}
+	builder := newStrBuilder()
 
 	escapeChar := func(c byte) {
 		builder.WriteByte('\\')
@@ -271,12 +266,12 @@ func encodeString(value string, isValue bool) string {
 func decodeEncodedString(str string) (string, error) {
 	decoded, err := hex.DecodeString(str)
 	if err != nil {
-		return "", fmt.Errorf("failed to decode BER encoding: %w", err)
+		return "", errorTxt("failed to decode BER encoding: " + err.Error())
 	}
 
 	packet, err := ber.DecodePacketErr(decoded)
 	if err != nil {
-		return "", fmt.Errorf("failed to decode BER encoding: %w", err)
+		return "", errorTxt("failed to decode BER encoding: " + err.Error())
 	}
 
 	return packet.Data.String(), nil
@@ -312,7 +307,7 @@ From § 3 of RFC 4514:
 	hexstring = SHARP 1*hexpair
 	hexpair = HEX HEX
 */
-func DN(x any) (err error) {
+func (r RFC4514) DN(x any) (err error) {
 	var raw string
 	switch tv := x.(type) {
 	case string:
@@ -322,15 +317,24 @@ func DN(x any) (err error) {
 		}
 		raw = tv
 	case []byte:
-		err = DN(string(tv))
+		err = r.DN(string(tv))
 		return
 	default:
-		fmt.Errorf("Incompatible type '%T' for DN", tv)
+		err = errorBadType("Distinguished Name")
 		return
 	}
 
 	_, err = parseDN(raw)
 
+	return
+}
+
+/*
+DN is a wrapping alias for [RFC4514.DN].
+*/
+func (r RFC4517) DN(x any) (err error) {
+	var s RFC4514
+	err = s.DN(x)
 	return
 }
 
@@ -352,17 +356,17 @@ From § 1.4 of RFC 4512:
 	SHARP  = %x23	; octothorpe (or sharp sign) ("#")
 	SQUOTE = %x27	; single quote ("'")
 */
-func NameAndOptionalUID(x any) (err error) {
+func (r RFC4517) NameAndOptionalUID(x any) (err error) {
 	var raw string
 	switch tv := x.(type) {
 	case string:
 		if len(tv) == 0 {
-			err = fmt.Errorf("Zero length Name and Optional UID")
+			err = errorBadLength("Name and Optional UID", 0)
 			return
 		}
 		raw = tv
 	default:
-		err = fmt.Errorf("Incompatible type '%T' for Name and Optional UID", tv)
+		err = errorBadType("Name and Optional UID")
 		return
 	}
 
@@ -372,7 +376,7 @@ func NameAndOptionalUID(x any) (err error) {
 	}
 
 	var _l int = len(raw)
-	if strings.HasPrefix(rev, `B'`) {
+	if hasPfx(rev, `B'`) {
 		var bitstring string = `'`
 
 		for i := len(raw) - 2; i > 0; i-- {
@@ -385,18 +389,18 @@ func NameAndOptionalUID(x any) (err error) {
 		}
 
 		bitstring += `B`
-		if err = BitString(bitstring); err != nil {
+		if _, err = r.BitString(bitstring); err != nil {
 			return
 		}
 
 		_l = _l - len(bitstring) - 1
 		if delim := raw[_l]; delim != '#' {
-			err = fmt.Errorf("Missing '#' delimiter for Name/UID pair; found '%c'", delim)
+			err = errorTxt("Missing '#' delimiter for Name/UID pair; found " + string(delim))
 			return
 		}
 	}
 
-	err = DN(raw[:_l])
+	err = r.DN(raw[:_l])
 
 	return
 }
@@ -405,7 +409,7 @@ func NameAndOptionalUID(x any) (err error) {
 // function respects https://tools.ietf.org/html/rfc4514
 func parseDN(str string) (*distinguishedName, error) {
 	var dn = &distinguishedName{RDNs: make([]*relativeDistinguishedName, 0)}
-	if strings.TrimSpace(str) == "" {
+	if trimS(str) == "" {
 		return dn, nil
 	}
 
@@ -442,7 +446,7 @@ func parseDN(str string) (*distinguishedName, error) {
 			startPos = i + 1
 		case char == ',' || char == '+' || char == ';':
 			if len(attr.Type) == 0 {
-				return dn, errors.New("incomplete type, value pair")
+				return dn, errorTxt("incomplete type, value pair")
 			}
 			if err := attr.setValue(str[startPos:i]); err != nil {
 				return nil, err
@@ -455,7 +459,7 @@ func parseDN(str string) (*distinguishedName, error) {
 	}
 
 	if len(attr.Type) == 0 {
-		return dn, errors.New("DN ended with incomplete type, value pair")
+		return dn, errorTxt("DN ended with incomplete type, value pair")
 	}
 
 	if err := attr.setValue(str[startPos:]); err != nil {
@@ -620,10 +624,10 @@ func (r *attributeTypeAndValue) EqualFold(other *attributeTypeAndValue) bool {
 // is identical to bytes.EqualFold(x, y).
 // based on https://go.dev/src/encoding/json/fold.go
 func foldString(s string) string {
-	builder := strings.Builder{}
+	builder := newStrBuilder()
 	for _, char := range s {
 		// Handle single-byte ASCII.
-		if char < utf8.RuneSelf {
+		if char < runeSelf {
 			if 'A' <= char && char <= 'Z' {
 				char += 'a' - 'A'
 			}
@@ -639,7 +643,7 @@ func foldString(s string) string {
 // foldRune is returns the smallest rune for all runes in the same fold set.
 func foldRune(r rune) rune {
 	for {
-		r2 := unicode.SimpleFold(r)
+		r2 := sfold(r)
 		if r2 <= r {
 			return r
 		}

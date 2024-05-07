@@ -4,24 +4,29 @@ package dirsyn
 postal.go contains implementations for various postal and mail constructs.
 */
 
-import (
-	"fmt"
-	"strings"
-	"unicode"
-	"unicode/utf8"
-)
-
 /*
-DeliveryMethod returns an error following an analysis of x in the context
-of a DeliveryMethod.
-
-From § 3.3.5 of RFC 4517:
+DeliveryMethod implements § 3.3.5 of RFC 4517:
 
 	DeliveryMethod = pdm *( WSP DOLLAR WSP pdm )
 	pdm = "any" / "mhs" / "physical" / "telex" / "teletex" /
 	      "g3fax" / "g4fax" / "ia5" / "videotex" / "telephone"
+
+From § 1.4 of RFC 4512:
+
+	DOLLAR  = %x24	  ; dollar sign ("$")
+	WSP     = 0*SPACE ; zero or more " "
 */
-func DeliveryMethod(x any) (err error) {
+type DeliveryMethod []string
+
+func (r DeliveryMethod) String() string {
+	return join(r, ` $ `)
+}
+
+/*
+DeliveryMethod returns an error following an analysis of x in the context
+of a DeliveryMethod.
+*/
+func (r RFC4517) DeliveryMethod(x any) (dm DeliveryMethod, err error) {
 	postalDeliveryMethods := []string{
 		// Method	ASN.1 Type Integer [X.520]
 		`any`,       // 0
@@ -40,20 +45,27 @@ func DeliveryMethod(x any) (err error) {
 	switch tv := x.(type) {
 	case string:
 		if len(tv) < 3 {
-			err = fmt.Errorf("Zero length or incomplete Delivery Method value")
+			err = errorBadLength("Delivery Method", 0)
 			return
 		}
 		raw = tv
 	default:
-		err = fmt.Errorf("Incompatible type '%T' for Delivery Method", tv)
+		err = errorBadType("Delivery Method")
 		return
 	}
 
-	raws := strings.Split(strings.ReplaceAll(raw, ` `, ``), `$`)
+	raws := split(repAll(raw, ` `, ``), `$`)
+	var dms DeliveryMethod
 	for i := 0; i < len(raws) && err == nil; i++ {
 		if !strInSlice(raws[i], postalDeliveryMethods) {
-			err = fmt.Errorf("Invalid PDM type '%s' for Delivery Method", raws[i])
+			err = errorTxt("Invalid PDM type for Delivery Method: " + raws[i])
+		} else {
+			dms = append(dms, raws[i])
 		}
+	}
+
+	if err == nil {
+		dm = dms
 	}
 
 	return
@@ -73,83 +85,146 @@ From § 3.3.28 of RFC 4517:
 	                / (%x5C "5C")  ; escaped "\"
 	                / %x5D-7F
 	                / UTFMB
+
+From § 1.4 of RFC 4512:
+
+	DOLLAR  = %x24	  ; dollar sign ("$")
+	UTFMB   = UTF2 / UTF3 / UTF4
+	UTF0    = %x80-BF
+	UTF1    = %x00-7F
+	UTF2    = %xC2-DF UTF0
+	UTF3    = %xE0 %xA0-BF UTF0 / %xE1-EC 2(UTF0) /
+	          %xED %x80-9F UTF0 / %xEE-EF 2(UTF0)
+	UTF4    = %xF0 %x90-BF 2(UTF0) / %xF1-F3 3(UTF0) /
+	          %xF4 %x80-8F 2(UTF0)
 */
-func PostalAddress(x any) (err error) {
-	for _, err = range []error{
-		IA5String(x),
-		pSOrIA5s(x),
-		lineChar(x),
-	} {
-		if err == nil {
-			break
-		}
+type PostalAddress []string
+
+func (r PostalAddress) String() string {
+	return join(r, `$`)
+}
+
+/*
+PostalAddress returns an error following an analysis of x in the context
+of a PostalAddress.
+*/
+func (r RFC4517) PostalAddress(x any) (pa PostalAddress, err error) {
+	var lc []string
+	if lc, err = lineChar(x); err == nil {
+		pa = PostalAddress(lc)
 	}
 
 	return
 }
 
 /*
-OtherMailbox returns an error following an analysis of x in the context
-of an OtherMailbox.
-
-From § 3.3.27 of RFC 4517:
+OtherMailbox implements § 3.3.27 of RFC 4517:
 
 	OtherMailbox = mailbox-type DOLLAR mailbox
 	mailbox-type = PrintableString
 	mailbox      = IA5String
+	IA5String    = *(%x00-7F)
+
+From § 1.4 of RFC 4512:
+
+	        PrintableCharacter = ALPHA / DIGIT / SQUOTE / LPAREN / RPAREN /
+	                             PLUS / COMMA / HYPHEN / DOT / EQUALS /
+	                             SLASH / COLON / QUESTION / SPACE
+	        PrintableString    = 1*PrintableCharacter
+
+	        ALPHA   = %x41-5A / %x61-7A    ; "A"-"Z" / "a"-"z"
+	        DIGIT   = %x30 / LDIGIT        ; "0"-"9"
+	        SQUOTE  = %x27                 ; single quote ("'")
+	        SPACE   = %x20                 ; space (" ")
+	        LPAREN  = %x28                 ; left paren ("(")
+	        RPAREN  = %x29                 ; right paren (")")
+	        PLUS    = %x2B                 ; plus sign ("+")
+	        COMMA   = %x2C                 ; comma (",")
+	        HYPHEN  = %x2D                 ; hyphen ("-")
+	        DOT     = %x2E                 ; period (".")
+	        EQUALS  = %x3D                 ; equals sign ("=")
+		DOLLAR  = %x24	               ; dollar sign ("$")
+
+From § 3.2 of RFC 4517:
+
+	IA5String          = *(%x00-7F)
 */
-func OtherMailbox(x any) (err error) {
+type OtherMailbox [2]string
+
+/*
+OtherMailbox returns an error following an analysis of x in the context
+of an OtherMailbox.
+*/
+func (r RFC4517) OtherMailbox(x any) (om OtherMailbox, err error) {
 	var raw string
 	switch tv := x.(type) {
 	case string:
+		if len(tv) == 0 {
+			err = errorBadLength("Other Mailbox", 0)
+			return
+		}
 		raw = tv
 	default:
-		err = fmt.Errorf("Incompatible type '%T' for Other Mailbox", tv)
+		err = errorBadType("Other Mailbox")
 		return
 	}
 
 	raws := splitUnescaped(raw, `$`, `\`)
 
 	if len(raws) != 2 {
-		err = fmt.Errorf("Invalid Other Mailbox value")
+		err = errorTxt("Invalid Other Mailbox value")
 		return
 	}
 
-	if err = PrintableString(raws[0]); err != nil {
+	if _, err = r.PrintableString(raws[0]); err != nil {
 		return
 	}
-	err = IA5String(raws[1])
+	if _, err = r.IA5String(raws[1]); err != nil {
+		return
+	}
+
+	om[0] = raws[0]
+	om[1] = raws[1]
 
 	return
 }
 
-func pSOrIA5s(x any) (err error) {
+func pSOrIA5s(x any) (psia5 []string, err error) {
 	sep := `$`
 	esc := `\`
 
 	var raw string
 	switch tv := x.(type) {
 	case string:
+		if len(tv) == 0 {
+			err = errorBadLength("PrintableString OR IA5String", 0)
+			return
+		}
 		raw = tv
 	default:
-		err = fmt.Errorf("Incompatible type '%T' for PrintableString postal address", tv)
+		err = errorBadType("PrintableString/IA5String")
 		return
 	}
 
 	raws := splitUnescaped(raw, sep, esc)
 	if len(raws) == 0 {
-		err = fmt.Errorf("No values found for PrintableString/IA5 postal address")
+		err = errorTxt("No values found for PrintableString/IA5 postal address")
 		return
 	}
 
-	if err = PrintableString(raws[0]); err != nil {
+	var r RFC4517
+
+	if _, err = r.PrintableString(raws[0]); err != nil {
 		return
 	}
+	psia5 = append(psia5, raws[0])
 
 	for i := 1; i < len(raws); i++ {
-		if err = PrintableString(raws[i]); err == nil {
+		if _, err = r.PrintableString(raws[i]); err == nil {
+			psia5 = append(psia5, raws[i])
 			continue
-		} else if IA5String(raws[i]); err == nil {
+		} else if _, err = r.IA5String(raws[i]); err == nil {
+			psia5 = append(psia5, raws[i])
 			continue
 		}
 		break
@@ -158,56 +233,57 @@ func pSOrIA5s(x any) (err error) {
 	return
 }
 
-func lineChar(x any) (err error) {
-
-	lCRange := &unicode.RangeTable{R16: []unicode.Range16{
-		{0x0000, 0x0023, 1},
-		{0x0025, 0x005B, 1},
-		{0x005D, 0x007F, 1},
-	}}
+func lineChar(x any) (lineChars []string, err error) {
 
 	var raw string
 	switch tv := x.(type) {
 	case string:
 		if len(tv) == 0 {
-			err = fmt.Errorf("Invalid line-char string")
+			err = errorBadLength("line-char", 0)
 			return
 		}
 		raw = tv
 	default:
-		err = fmt.Errorf("Incompatible type '%T' for line-char", tv)
+		err = errorBadType("line-char")
 		return
 	}
 
 	var last rune
+	value := newStrBuilder()
 	for _, r := range raw {
-		if runeLength := utf8.RuneLen(r); runeLength == 1 {
+		if rL := runeLen(r); rL == 1 {
 			// UTF0
 			if r == '\\' {
 				last = r
 				continue
 			} else if r == '$' {
 				if last == r {
-					err = fmt.Errorf("Contiguous '$' runes; invalid line-char sequence")
+					err = errorTxt("Contiguous '$' runes; invalid line-char sequence")
 					break
 				} else if last == '\\' {
+					value.WriteString(string(last))
+					value.WriteString(string(r))
 					last = rune(0)
 				} else {
+					lineChars = append(lineChars, value.String())
+					value.Reset()
 					last = '$'
 				}
 				continue
 			}
 
 			last = r
-			if unicode.Is(lCRange, r) {
+			if ucIs(lineCharRange, r) {
+				value.WriteString(string(r))
 				continue
-			} else if err = uTFMB(x); err == nil {
+			} else if err = uTFMB(r); err == nil {
+				value.WriteString(string(r))
 				continue
 			}
 
 			break
 		} else {
-			err = fmt.Errorf("Incompatible rune length '%d' for UTF0 (in line-char)", runeLength)
+			err = errorTxt("Incompatible rune length for UTF0 (in line-char): " + fmtInt(int64(rL), 10))
 			break
 		}
 	}
