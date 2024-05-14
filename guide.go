@@ -1,6 +1,44 @@
 package dirsyn
 
 /*
+EnhancedGuide implements the Enhanced Guide syntax per ITU-T Rec. X.520.
+
+	EnhancedGuide ::= SEQUENCE {
+		objectClass	[0] OBJECT-CLASS.&id,
+		criteria	[1] Criteria,
+		subset		[2] INTEGER {
+			baseObject	(0),
+			oneLevel	(1),
+			wholeSubtree	(2)} DEFAULT oneLevel,
+	... }
+*/
+type EnhancedGuide struct {
+	ObjectClass string   `asn1:"tag:0"`
+	Criteria    Criteria `asn1:"tag:1"`
+	Subset      int      `asn1:"tag:2,default:1"`
+}
+
+/*
+EnhancedGuide implements the Criteria syntax per ITU-T Rec. X.520.
+
+	Criteria ::= CHOICE {
+		type [0] CriteriaItem
+		and  [1] SET OF Criteria,
+		or   [2] SET OF Criteria,
+		not  [3] Criteria,
+	... }
+
+	CriteriaItem ::= CHOICE {
+		equality         [0] AttributeType,
+		substrings       [1] AttributeType,
+		greaterOrEqual   [2] AttributeType,
+		lessOrEqual      [3] AttributeType,
+		approximateMatch [4] AttributeType,
+	... }
+*/
+type Criteria struct{}
+
+/*
 EnhancedGuide returns an error following an analysis of x in the context
 of an Enhanced Guide.
 

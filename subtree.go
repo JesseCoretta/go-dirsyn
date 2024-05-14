@@ -1,10 +1,11 @@
 package dirsyn
 
-import "github.com/JesseCoretta/go-stackage"
+import (
+	"github.com/JesseCoretta/go-stackage"
+)
 
 /*
-SubtreeSpecification returns an error following an analysis of x in the
-context of a Subtree Specification.
+SubtreeSpecification implements the Subtree Specification construct.
 
 From Appendix A of RFC 3672:
 
@@ -20,30 +21,6 @@ From Appendix A of RFC 3672:
 	ss-minimum             = id-minimum             msp BaseDistance
 	ss-maximum             = id-maximum             msp BaseDistance
 	ss-specificationFilter = id-specificationFilter msp Refinement
-
-	id-base                = %x62.61.73.65 ; "base"
-	id-specificExclusions  = %x73.70.65.63.69.66.69.63.45.78.63.6C.75.73.69.6F.6E.73 ; "specificExclusions"
-	id-minimum             = %x6D.69.6E.69.6D.75.6D ; "minimum"
-	id-maximum             = %x6D.61.78.69.6D.75.6D ; "maximum"
-	id-specificationFilter = %x73.70.65.63.69.66.69.63.61.74.69.6F.6E.46.69.6C.74.65.72 ; "specificationFilter"
-
-	SpecificExclusions = "{" [ sp SpecificExclusion *( "," sp SpecificExclusion ) ] sp "}"
-	SpecificExclusion  = chopBefore / chopAfter
-	chopBefore         = id-chopBefore ":" LocalName
-	chopAfter          = id-chopAfter  ":" LocalName
-	id-chopBefore      = %x63.68.6F.70.42.65.66.6F.72.65 ; "chopBefore"
-	id-chopAfter       = %x63.68.6F.70.41.66.74.65.72    ; "chopAfter"
-
-	Refinement  = item / and / or / not
-	item        = id-item ":" OBJECT-IDENTIFIER
-	and         = id-and  ":" Refinements
-	or          = id-or   ":" Refinements
-	not         = id-not  ":" Refinement
-	Refinements = "{" [ sp Refinement *( "," sp Refinement ) ] sp "}"
-	id-item     = %x69.74.65.6D ; "item"
-	id-and      = %x61.6E.64    ; "and"
-	id-or       = %x6F.72       ; "or"
-	id-not      = %x6E.6F.74    ; "not"
 
 	BaseDistance = INTEGER-0-MAX
 
@@ -63,6 +40,18 @@ From § 6 of RFC 3642:
 	numeric-oid       = oid-component 1*( "." oid-component )
 	oid-component     = "0" / positive-number
 */
+type SubtreeSpecification struct {
+	Base                LocalName
+	SpecificExclusions  SpecificExclusions
+	Min                 BaseDistance
+	Max                 BaseDistance
+	SpecificationFilter Refinement
+}
+
+/*
+SubtreeSpecification returns an error following an analysis of x in the
+context of a Subtree Specification.
+*/
 func (r RFC3672) SubtreeSpecification(x any) (ss SubtreeSpecification, err error) {
 	var raw string
 	switch tv := x.(type) {
@@ -77,17 +66,96 @@ func (r RFC3672) SubtreeSpecification(x any) (ss SubtreeSpecification, err error
 		return
 	}
 
-	ss.SpecificationFilter, err = subtreeSpecificationFilter(raw)
+	if raw[0] != '{' || raw[len(raw)-1] != '}' {
+		err = errorTxt("SubtreeSpecification {} encapsulation error")
+		return
+	}
+	raw = trimS(raw[1 : len(raw)-1])
+
+	var ranges map[string][]int = make(map[string][]int, 0)
+
+	var pos int
+	if begin := stridx(raw, `base `); begin != -1 {
+		var end int
+		begin += 5
+		if ss.Base, end, err = subtreeBase(raw[begin:]); err != nil {
+			return
+		}
+		pos += begin
+		end += pos + 1
+		ranges[`base`] = []int{begin, end}
+	}
+
+	if begin := stridx(raw, `specificExclusions `); begin != -1 {
+		var end int
+		begin += 19
+		if ss.SpecificExclusions, end, err = subtreeExclusions(raw, begin); err != nil {
+			return
+		}
+		end = begin + end
+		ranges[`specificExclusions`] = []int{begin, end}
+	}
+
+	if begin := stridx(raw, `minimum `); begin != -1 {
+		var end int
+		begin += 8
+		if ss.Min, end, err = subtreeMinMax(raw, begin); err != nil {
+			return
+		}
+		end = begin + end
+		ranges[`minimum`] = []int{begin, end}
+	}
+
+	if begin := stridx(raw, `maximum `); begin != -1 {
+		var end int
+		begin += 8
+		if ss.Max, end, err = subtreeMinMax(raw, begin); err != nil {
+			return
+		}
+		end = begin + end
+		ranges[`maximum`] = []int{begin, end}
+	}
+
+	if begin := stridx(raw, `specificationFilter `); begin != -1 {
+		var end int
+		begin += 20
+		if ss.SpecificationFilter, end, err = subtreeRefinement(raw, begin); err != nil {
+			return
+		}
+		end = begin + end
+		ranges[`specificationFilter`] = []int{begin, end}
+	}
 
 	return
 }
 
-type SubtreeSpecification struct {
-	Base string
-	Min,
-	Max int
-	SpecificationFilter SpecificationFilter
+/*
+SpecificExclusions implements the Subtree Specification exclusions construct.
+
+From Appendix A of RFC 3672:
+
+	SpecificExclusions = "{" [ sp SpecificExclusion *( "," sp SpecificExclusion ) ] sp "}"
+*/
+type SpecificExclusions []SpecificExclusion
+
+/*
+SpecificExclusion implements the Subtree Specification exclusion construct.
+
+From Appendix A of RFC 3672:
+
+	SpecificExclusion  = chopBefore / chopAfter
+	chopBefore         = id-chopBefore ":" LocalName
+	chopAfter          = id-chopAfter  ":" LocalName
+	id-chopBefore      = %x63.68.6F.70.42.65.66.6F.72.65 ; "chopBefore"
+	id-chopAfter       = %x63.68.6F.70.41.66.74.65.72    ; "chopAfter"
+*/
+type SpecificExclusion struct {
+	Name  LocalName
+	After bool // false = Before
 }
+
+type BaseDistance int
+type LocalName string
 
 type cop stackage.ComparisonOperator
 
@@ -96,41 +164,36 @@ const equalityOperator cop = cop(0)
 func (r cop) String() string  { return `:` }
 func (r cop) Context() string { return `Subtree Specification Filter Equality Operator` }
 
-/*
-SpecificationFilter is a type alias of the [stackage.Condition] type.
-Instances of this type circumscribe the following construct:
+func (r SpecificExclusions) String() string {
+	var _s []string
+	for i := 0; i < len(r); i++ {
+		_s = append(_s, r[i].String())
+	}
 
-	"specificationFilter"           ":"              { ... }
-	      keyword           comparison operator    Refinements
-
-Instances of this type are used as the top-level component in the
-parsing operation.
-*/
-type SpecificationFilter stackage.Condition
-
-func (r SpecificationFilter) Refinements() Refinements {
-	_ex := r.cast().Expression()
-	ex, _ := _ex.(Refinements)
-	return ex
+	return join(_s, `, `)
 }
 
-func newSpecificationFilter(sfp *specificationFilterParser) (r SpecificationFilter, err error) {
-	if sfp == nil {
+func (r SpecificExclusion) String() string {
+	if r.After {
+		return `chopAfter ` + `"` + string(r.Name) + `"`
+	}
+	return `chopBefore ` + `"` + string(r.Name) + `"`
+}
+
+func newRefinement(rp *refinementParser) (r Refinement, err error) {
+	if rp == nil {
 		err = errorTxt("nil specFilterParser instance")
 		return
 	}
 
-	var c stackage.Condition = newCondition(`specificationFilter`, sfp)
-	c.SetExpression(Refinements(newStack(`refinements`, sfp)))
-	r = SpecificationFilter(c)
+	r = Refinement(newStack(`refinements`, rp))
 
 	return
-
 }
 
-func newStack(name string, sfp *specificationFilterParser) (s stackage.Stack) {
+func newStack(name string, rp *refinementParser) (s stackage.Stack) {
 	var aux stackage.Auxiliary = make(stackage.Auxiliary, 0)
-	aux.Set(`sfp`, sfp)
+	aux.Set(`sfp`, rp)
 	aux.Set(`pct`, 0)
 
 	return stackage.List().
@@ -140,123 +203,226 @@ func newStack(name string, sfp *specificationFilterParser) (s stackage.Stack) {
 		SetAuxiliary(aux)
 }
 
+func subtreeExclusions(raw string, begin int) (excl SpecificExclusions, end int, err error) {
+	end = -1
+
+	if raw[begin] != '{' {
+		err = errorTxt("Bad exclusion encapsulation")
+		return
+	}
+
+	var pos int
+	if pos, end, err = deconstructExclusions(raw, begin); err != nil {
+		return
+	}
+
+	values := fields(raw[pos:end])
+	excl = make(SpecificExclusions, 0)
+
+	for i := 0; i < len(values); i += 2 {
+		var ex SpecificExclusion
+		if !strInSlice(values[i], []string{`chopBefore`, `chopAfter`}) {
+			err = errorTxt("Unexpected key '" + values[i] + "'")
+			break
+
+		}
+		ex.After = values[i] == `chopAfter`
+
+		localName := trim(trimR(values[i+1], `,`), `"`)
+		if err = isSafeUTF8(localName); err == nil {
+			ex.Name = LocalName(localName)
+			excl = append(excl, ex)
+		}
+	}
+
+	return
+}
+
+func deconstructExclusions(raw string, begin int) (pos, end int, err error) {
+	pos = -1
+	if idx := stridx(raw[begin:], `chop`); idx != -1 {
+		var (
+			before int = -1
+			after  int = -1
+		)
+
+		if hasPfx(raw[begin+idx+4:], `Before`) {
+			before = begin + idx
+		}
+
+		if hasPfx(raw[begin+idx+4:], `After`) {
+			after = begin + idx
+		}
+
+		if after == -1 && before > after {
+			pos = before
+		} else if before == -1 && before < after {
+			pos = after
+		}
+	}
+
+	if pos == -1 {
+		err = errorTxt("No chop directive found in value")
+		return
+	}
+
+	for i, char := range raw[pos:] {
+		switch char {
+		case '}':
+			end = pos + i
+			break
+		}
+	}
+
+	return
+}
+
+func subtreeMinMax(raw string, begin int) (minmax BaseDistance, end int, err error) {
+	end = -1
+
+	var (
+		max string
+		m   int
+	)
+
+	for i := 0; i < len(raw[begin:]); i++ {
+		if isDigit(rune(raw[begin+i])) {
+			max += string(raw[begin+i])
+			continue
+		}
+		break
+	}
+
+	if m, err = atoi(max); err == nil {
+		minmax = BaseDistance(m)
+		end = len(max)
+	}
+
+	return
+}
+
 /*
 newCondition returns a valueless instance of Condition. Everything other than
 Expression has been set, and a new value may be set at any time by the user.
 */
-func newCondition(name string, sfp *specificationFilterParser) (c stackage.Condition) {
+func newCondition(name string, rp *refinementParser) (c stackage.Condition) {
 	c.Init()
 	c.NoPadding(true)
 	c.SetKeyword(name)
 	c.SetOperator(equalityOperator)
-	c.SetExpression(Refinements(newStack(`refinements`, sfp)))
+	c.SetExpression(Refinement(newStack(`refinements`, rp)))
 
 	var aux stackage.Auxiliary = make(stackage.Auxiliary, 0)
-	aux.Set(`sfp`, sfp)
+	aux.Set(`sfp`, rp)
 	c.SetAuxiliary(aux)
 
 	return
 }
 
-func newAnd(sfp *specificationFilterParser) AndRefinement {
-	_and := newCondition(`and`, sfp)
+func newAnd(rp *refinementParser) And {
+	_and := newCondition(`and`, rp)
 	_refs := _and.Expression()
-	if ands, ok := _refs.(Refinements); ok {
+	if ands, ok := _refs.(Refinement); ok {
 		ands.cast().Encap([]string{`{`, `}`})
 	}
 
-	return AndRefinement(_and)
+	return And(_and)
 }
 
-func newOr(sfp *specificationFilterParser) OrRefinement {
-	_or := newCondition(`or`, sfp)
+func newOr(rp *refinementParser) Or {
+	_or := newCondition(`or`, rp)
 	_refs := _or.Expression()
-	if ors, ok := _refs.(Refinements); ok {
+	if ors, ok := _refs.(Refinement); ok {
 		ors.cast().Encap([]string{`{`, `}`})
 	}
 
-	return OrRefinement(_or)
+	return Or(_or)
 }
 
-func newNot(sfp *specificationFilterParser) NotRefinement {
-	_not := newCondition(`not`, sfp)
+func newNot(rp *refinementParser) Not {
+	_not := newCondition(`not`, rp)
 	_refs := _not.Expression()
-	if nots, ok := _refs.(Refinements); ok {
+	if nots, ok := _refs.(Refinement); ok {
 		nots.cast().Encap([]string{`{`, `}`})
 	}
 
-	return NotRefinement(_not)
+	return Not(_not)
 }
 
-func (r SpecificationFilter) cast() stackage.Condition {
-	return stackage.Condition(r)
-}
-
-func (r Refinements) cast() stackage.Stack {
+func (r Refinement) cast() stackage.Stack {
 	return stackage.Stack(r)
 }
 
-func (r Refinement) cast() stackage.Condition {
-	return stackage.Condition(r)
-}
-
-func (r AndRefinement) String() string {
-	_refs := r.cast().Expression()
-	ands, _ := _refs.(Refinements)
-
-	return r.cast().Keyword() + `:` + `{` + ands.String() + `}`
-}
-
-func (r OrRefinement) String() string {
-	_refs := r.cast().Expression()
-	ors, _ := _refs.(Refinements)
-
-	return r.cast().Keyword() + `:` + `{` + ors.String() + `}`
-}
-
-func (r NotRefinement) String() string {
-	_refs := r.cast().Expression()
-	not, _ := _refs.(Refinements)
-
-	return r.cast().Keyword() + `:` + not.String()
-}
-
-func (r Refinement) String() (str string) {
-	_refs := r.cast().Expression()
-	switch tv := _refs.(type) {
-	case string:
-		str = r.cast().Keyword() + r.cast().Operator().String() + tv
-	case Refinement:
-		str = r.cast().Keyword() + r.cast().Operator().String() + tv.String()
-	case Refinements:
-		str = r.cast().Keyword() + r.cast().Operator().String() + tv.String()
-	case AndRefinement:
-		str = r.cast().Keyword() + r.cast().Operator().String() + tv.String()
-	case OrRefinement:
-		str = r.cast().Keyword() + r.cast().Operator().String() + tv.String()
-	case NotRefinement:
-		str = r.cast().Keyword() + r.cast().Operator().String() + tv.String()
+func (r SubtreeSpecification) String() (s string) {
+	var _s []string
+	if len(r.Base) > 0 {
+		_s = append(_s, `base `+`"`+string(r.Base)+`"`)
 	}
+
+	if x := r.SpecificExclusions.String(); len(x) > 0 {
+		_s = append(_s, `specificExclusions `+x)
+	}
+
+	if r.Min > 0 {
+		_s = append(_s, `minimum `+itoa(int(r.Min)))
+
+	}
+
+	if r.Max > 0 {
+		_s = append(_s, `maximum `+itoa(int(r.Max)))
+
+	}
+
+	if x := r.SpecificationFilter.String(); len(x) > 0 {
+		_s = append(_s, `specificationFilter `+x)
+	}
+
+	s = `{ ` + join(_s, `, `) + ` }`
 
 	return
 }
 
-func (r Refinements) String() string {
+func (r And) String() string {
+	_refs := r.cast().Expression()
+	ands, _ := _refs.(Refinement)
+
+	return r.cast().Keyword() + `:` + `{` + ands.String() + `}`
+}
+
+func (r Item) String() string {
+	return `item:` + string(r)
+}
+
+func (r Or) String() string {
+	_refs := r.cast().Expression()
+	ors, _ := _refs.(Refinement)
+
+	return r.cast().Keyword() + `:` + `{` + ors.String() + `}`
+}
+
+func (r Not) String() string {
+	_refs := r.cast().Expression()
+	not, _ := _refs.(Refinement)
+
+	return r.cast().Keyword() + `:` + not.String()
+}
+
+func (r Refinement) String() string {
 	var str []string
 	s := r.cast()
 
 	for i := 0; i < s.Len(); i++ {
 		slice, _ := s.Index(i)
 		switch tv := slice.(type) {
+		case Item:
+			str = append(str, tv.String())
 		case Refinement:
 			str = append(str, tv.String())
-		case Refinements:
+		case And:
 			str = append(str, tv.String())
-		case AndRefinement:
+		case Or:
 			str = append(str, tv.String())
-		case OrRefinement:
-			str = append(str, tv.String())
-		case NotRefinement:
+		case Not:
 			str = append(str, tv.String())
 		}
 	}
@@ -264,138 +430,162 @@ func (r Refinements) String() string {
 	return join(str, `,`)
 }
 
-func (r SpecificationFilter) String() string {
-	casted := r.cast()
-	ex := casted.Expression().(Refinements)
-	return casted.Keyword() + string(rune(32)) + ex.String()
-}
-
-func (r AndRefinement) cast() stackage.Condition {
+func (r And) cast() stackage.Condition {
 	return stackage.Condition(r)
 }
 
-func (r OrRefinement) cast() stackage.Condition {
+func (r Or) cast() stackage.Condition {
 	return stackage.Condition(r)
 }
 
-func (r NotRefinement) cast() stackage.Condition {
+func (r Not) cast() stackage.Condition {
 	return stackage.Condition(r)
 }
 
-func (r SpecificationFilter) sfp() (sfp *specificationFilterParser) {
+func (r Refinement) rp() (rp *refinementParser) {
 	x := r.cast().Auxiliary()
-	_sfp, _ := x.Get(`sfp`)
-	sfp = _sfp.(*specificationFilterParser)
+	_rp, _ := x.Get(`sfp`)
+	rp = _rp.(*refinementParser)
 
 	return
 }
 
-func (r Refinements) sfp() (sfp *specificationFilterParser) {
+func (r Refinement) pct() int {
 	x := r.cast().Auxiliary()
-	_sfp, _ := x.Get(`sfp`)
-	sfp = _sfp.(*specificationFilterParser)
-
-	return
+	_rp, _ := x.Get(`pct`)
+	return _rp.(int)
 }
 
-func (r Refinements) pct() int {
-	x := r.cast().Auxiliary()
-	_sfp, _ := x.Get(`pct`)
-	return _sfp.(int)
-}
-
-func (r Refinements) incrPct() {
+func (r Refinement) incrPct() {
 	x := r.cast().Auxiliary()
 	_pct, _ := x.Get(`pct`)
 	pct := _pct.(int) + 1
 	x.Set(`pct`, pct)
 }
 
-func (r Refinements) decrPct() {
+func (r Refinement) decrPct() {
 	x := r.cast().Auxiliary()
 	_pct, _ := x.Get(`pct`)
 	pct := _pct.(int) - 1
 	x.Set(`pct`, pct)
 }
 
-func (r SpecificationFilter) push(refs any) {
-	_ref := r.cast().Expression()
-	if _refs, ok := _ref.(Refinements); ok {
-		_refs.push(refs)
-	}
-}
-
-func (r Refinements) push(refs any) {
+func (r Refinement) push(refs any) {
 	switch tv := refs.(type) {
-	case Refinements:
+	case Refinement:
 		r.cast().Push(tv)
-	case Refinement, AndRefinement, OrRefinement:
+	case And, Or, Item:
 		r.cast().Push(tv)
 	}
 }
 
-func (r AndRefinement) push(refs any) {
+func (r And) push(refs any) {
 	_refs := r.cast().Expression()
-	ands, _ := _refs.(Refinements)
+	ands, _ := _refs.(Refinement)
 
 	switch tv := refs.(type) {
-	case Refinements:
+	case Refinement:
 		ands.cast().Push(tv)
-	case Refinement, AndRefinement, OrRefinement:
+	case And, Or, Item:
 		ands.cast().Push(tv)
 	}
 }
 
-func (r OrRefinement) push(refs any) {
+func (r Or) push(refs any) {
 	_refs := r.cast().Expression()
-	ors, _ := _refs.(Refinements)
+	ors, _ := _refs.(Refinement)
 
 	switch tv := refs.(type) {
-	case Refinements:
+	case Refinement:
 		ors.cast().Push(tv)
-	case Refinement, AndRefinement, OrRefinement, NotRefinement:
+	case And, Or, Not, Item:
 		ors.cast().Push(tv)
 	}
 }
 
-func (r NotRefinement) push(refs any) {
+func (r Not) push(refs any) {
 	_refs := r.cast().Expression()
-	nots, _ := _refs.(Refinements)
+	nots, _ := _refs.(Refinement)
 
 	switch tv := refs.(type) {
-	case Refinements:
+	case Refinement:
 		nots.cast().Push(tv)
-	case Refinement, AndRefinement, OrRefinement, NotRefinement:
+	case And, Or, Not, Item:
 		nots.cast().Push(tv)
 	}
 }
 
 /*
-Refinements is a type alias of the [stackage.Stack] type. Instances of
-this type circumscribe a specificationFilter statement in the form of
-nested [stackage.Stack] instances which, ultimately, contain a core
-[Refinement] instance.
+Refinement implements the Subtree Specification Refinement construct.
+
+	Refinement  = item / and / or / not
+	item        = id-item ":" OBJECT-IDENTIFIER
+	and         = id-and  ":" Refinements
+	or          = id-or   ":" Refinements
+	not         = id-not  ":" Refinement
+	Refinements = "{" [ sp Refinement *( "," sp Refinement ) ] sp "}"
+	id-item     = %x69.74.65.6D ; "item"
+	id-and      = %x61.6E.64    ; "and"
+	id-or       = %x6F.72       ; "or"
+	id-not      = %x6E.6F.74    ; "not"
 */
-type Refinements stackage.Stack
+type Refinement stackage.Stack
 
 /*
-Refinement is a type alias of the [stakage.Condition] type.  Instances of
-this type represent the core "atom" or component of the specificationFilter
-value, typically in the form of a specificationFilter "item", or a negation
-of same.  A value may also be an instance of [AndRefinement], [NotRefinement]
-and [OrRefinement]
+Refinement ::= CHOICE {
+item [0] OBJECT-CLASS.&id,
+and  [1] SET SIZE (1..MAX) OF Refinement,
+or   [2] SET SIZE (1..MAX) OF Refinement,
+not  [3] Refinement,
+... }
 */
-type Refinement stackage.Condition
-type AndRefinement stackage.Condition
-type NotRefinement stackage.Condition
-type OrRefinement stackage.Condition
 
-type specificationFilterParser struct {
+type Item string
+type And stackage.Condition
+type Not stackage.Condition
+type Or stackage.Condition
+
+type refinementParser struct {
 	input string
 	pos   int
 }
 
-func subtreeSpecificationFilter(x any) (ssf SpecificationFilter, err error) {
+func subtreeBase(x any) (base LocalName, end int, err error) {
+	end = -1
+	var raw string
+	switch tv := x.(type) {
+	case string:
+		if len(tv) == 0 {
+			err = errorBadLength("Subtree Base", 0)
+			return
+		}
+		raw = tv
+	default:
+		err = errorBadType("Subtree Base")
+		return
+	}
+
+	if raw[0] != '"' {
+		err = errorTxt("Missing encapsulation (\") for LocalName")
+		return
+	}
+
+	for i := 1; i < len(raw) && end == -1; i++ {
+		switch char := rune(raw[i]); char {
+		case '"':
+			end = i
+			break
+		}
+	}
+
+	if err = isSafeUTF8(raw[1:end]); err == nil {
+		base = LocalName(raw[1:end])
+	}
+
+	return
+}
+
+func subtreeRefinement(x any, begin int) (refs Refinement, end int, err error) {
 	var raw string
 	switch tv := x.(type) {
 	case string:
@@ -403,74 +593,48 @@ func subtreeSpecificationFilter(x any) (ssf SpecificationFilter, err error) {
 			err = errorBadLength("Specification Filter", 0)
 			return
 		}
-		raw = tv
+		raw = tv[begin:]
 	default:
 		err = errorBadType("Specification Filter")
 		return
 	}
 
-	var sfp *specificationFilterParser
-	//var start, end int
-	if sfp, _, _, err = newSpecificationFilterParser(raw); err != nil {
+	var rp *refinementParser
+	if rp, _, end, err = newRefinementParser(raw); err != nil {
 		return
 	}
 
-	if ssf, err = newSpecificationFilter(sfp); err != nil {
+	if refs, err = newRefinement(rp); err != nil {
 		return
 	}
 
-	if !ssf.Refinements().refinement() {
+	if !refs.refinement() {
 		err = errorTxt("Refinement failed")
 		return
 	}
-	ssf.Refinements().cast().Reveal() // in case of any needlessly enveloped stacks ...
-
-	//fmt.Printf("%s\n", ssf)
-
-	/*
-		refs := ssf.Refinements()
-		slice, _ := refs.cast().Index(0)
-		casted := slice.(AndRefinement).cast()
-		subslice1, _ := casted.Expression().(Refinements).cast().Index(0)
-		subslice2, _ := casted.Expression().(Refinements).cast().Index(1)
-		subslice2a, _ := subslice2.(OrRefinement).cast().Expression().(Refinements).cast().Index(0)
-		subslice2b, _ := subslice2.(OrRefinement).cast().Expression().(Refinements).cast().Index(1)
-		fmt.Printf("AndRefs:%s/%s/%s/%s\n", subslice1,subslice2,subslice2a.(Refinement),subslice2b.(Refinement))
-	*/
+	refs.cast().Reveal() // in case of any needlessly enveloped stacks ...
 
 	return
 }
 
-func newSpecificationFilterParser(x string) (r *specificationFilterParser, start, end int, err error) {
-	label := `specificationFilter`
-
-	start = -1
+func newRefinementParser(x string) (r *refinementParser, start, end int, err error) {
 	end = -1
+	r = new(refinementParser)
 
-	idx := stridx(x, label)
-	if idx == -1 {
-		// specFilter is optional, no errors plz.
-		return
-	}
-
-	r = new(specificationFilterParser)
-	z := x[idx+20:]
-
-	ctl, ctr := strcnt(z, `{`), strcnt(z, `}`)
-	if ctl != ctr-1 || z[len(z)-1] != '}' {
+	ctl, ctr := strcnt(x, `{`), strcnt(x, `}`)
+	if ctl != ctr {
 		err = errorTxt("Malformed brace ({}) encapsulation for specificationFilter refinement statement")
 		return
 	}
 
-	start = idx
-	end = len(x) - 1
-	r.input = trimS(z[:len(z)-1])
+	end = len(x)
+	r.input = trimS(x[:])
 
 	return
 }
 
-func (r Refinements) and() bool {
-	sfp := r.sfp()
+func (r Refinement) and() bool {
+	sfp := r.rp()
 
 	if hasPfx(sfp.input[sfp.pos:], `and:`) {
 		sfp.pos += 4
@@ -482,8 +646,8 @@ func (r Refinements) and() bool {
 	return false
 }
 
-func (r Refinements) or() bool {
-	sfp := r.sfp()
+func (r Refinement) or() bool {
+	sfp := r.rp()
 
 	if hasPfx(sfp.input[sfp.pos:], `or:`) {
 		sfp.pos += 3
@@ -495,8 +659,8 @@ func (r Refinements) or() bool {
 	return false
 }
 
-func (r Refinements) not() bool {
-	sfp := r.sfp()
+func (r Refinement) not() bool {
+	sfp := r.rp()
 
 	if hasPfx(sfp.input[sfp.pos:], `not:`) {
 		sfp.pos += 4
@@ -508,17 +672,15 @@ func (r Refinements) not() bool {
 	return false
 }
 
-func (r Refinements) item() bool {
-	sfp := r.sfp()
+func (r Refinement) item() bool {
+	sfp := r.rp()
 	sfp.pos += 5
 
 	// If we only received a single item, try to
 	// handle it now.
 	var s RFC4512
 	if err := s.OID(sfp.input[sfp.pos:]); err == nil {
-		c := newCondition(`item`, sfp)
-		c.SetExpression(sfp.input[sfp.pos:])
-		r.push(Refinement(c))
+		r.push(Item(sfp.input[sfp.pos:]))
 		return true
 	}
 
@@ -531,9 +693,7 @@ func (r Refinements) item() bool {
 			return false
 		}
 
-		c := newCondition(`item`, sfp)
-		c.SetExpression(sfp.input[sfp.pos : sfp.pos+idx])
-		r.push(Refinement(c))
+		r.push(Item(sfp.input[sfp.pos : sfp.pos+idx]))
 
 		sfp.pos += idx
 
@@ -543,32 +703,26 @@ func (r Refinements) item() bool {
 	return r.refinement()
 }
 
-func (r AndRefinement) refinement() bool {
+func (r And) refinement() bool {
 	_refs := r.cast().Expression()
-	refs, _ := _refs.(Refinements)
+	refs, _ := _refs.(Refinement)
 	return refs.refinement()
 }
 
-func (r OrRefinement) refinement() bool {
+func (r Or) refinement() bool {
 	_refs := r.cast().Expression()
-	refs, _ := _refs.(Refinements)
+	refs, _ := _refs.(Refinement)
 	return refs.refinement()
 }
 
-func (r NotRefinement) refinement() bool {
+func (r Not) refinement() bool {
 	_refs := r.cast().Expression()
-	refs, _ := _refs.(Refinements)
+	refs, _ := _refs.(Refinement)
 	return refs.refinement()
 }
 
 func (r Refinement) refinement() bool {
-	_refs := r.cast().Expression()
-	refs, _ := _refs.(Refinements)
-	return refs.refinement()
-}
-
-func (r Refinements) refinement() bool {
-	sfp := r.sfp()
+	sfp := r.rp()
 
 	switch {
 	case sfp.input[sfp.pos] == ',':

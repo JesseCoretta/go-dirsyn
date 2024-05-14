@@ -30,14 +30,19 @@ var (
 	ttxRange,
 	t61Ranges,
 	lineCharRange,
+	asciiRange,
 	utf0Range,
 	utf1Range,
 	utf2Range,
+	utf2aSafeRange,
+	utf2bSafeRange,
 	utf3aRange,
+	utf3SafeRange,
 	utf3bRange,
 	utf3cRange,
 	utf3dRange,
 	utf4aRange,
+	utf4SafeRange,
 	utf4bRange,
 	utf4cRange *unicode.RangeTable
 )
@@ -209,13 +214,26 @@ func init() {
 	utf1Range = &unicode.RangeTable{R16: []unicode.Range16{
 		{0x0000, 0x007F, 1},
 	}}
+	asciiRange = utf1Range
 
 	utf2Range = &unicode.RangeTable{R16: []unicode.Range16{
 		{0x00C2, 0x00DF, 1},
 	}}
 
+	utf2aSafeRange = &unicode.RangeTable{R16: []unicode.Range16{
+		{0x00C0, 0x00DF, 1},
+	}}
+
+	utf2bSafeRange = &unicode.RangeTable{R16: []unicode.Range16{
+		{0x0080, 0x00BF, 1},
+	}}
+
 	utf3aRange = &unicode.RangeTable{R16: []unicode.Range16{
 		{0x00A0, 0x00BF, 1},
+	}}
+
+	utf3SafeRange = &unicode.RangeTable{R16: []unicode.Range16{
+		{0x00E0, 0x00EF, 1},
 	}}
 
 	utf3bRange = &unicode.RangeTable{R16: []unicode.Range16{
@@ -232,6 +250,10 @@ func init() {
 
 	utf4aRange = &unicode.RangeTable{R16: []unicode.Range16{
 		{0x0090, 0x00BF, 1},
+	}}
+
+	utf4SafeRange = &unicode.RangeTable{R16: []unicode.Range16{
+		{0x00F0, 0x00F7, 1},
 	}}
 
 	utf4bRange = &unicode.RangeTable{R16: []unicode.Range16{

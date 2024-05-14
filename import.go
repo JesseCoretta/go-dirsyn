@@ -9,8 +9,12 @@ import (
 
 var (
 	fmtInt func(int64, int) string                = strconv.FormatInt
+	atoi   func(string) (int, error)              = strconv.Atoi
+	itoa   func(int) string                       = strconv.Itoa
 	newErr func(string) error                     = errors.New
+	fields func(string) []string                  = strings.Fields
 	trimS  func(string) string                    = strings.TrimSpace
+	trimR  func(string, string) string            = strings.TrimRight
 	hasPfx func(string, string) bool              = strings.HasPrefix
 	hasSfx func(string, string) bool              = strings.HasSuffix
 	join   func([]string, string) string          = strings.Join

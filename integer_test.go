@@ -14,7 +14,7 @@ func TestInteger(t *testing.T) {
 		`4839058392687026702779083590780972360798625907867923470670934207967924076924`,
 		`-4839058392687026702779083590780972360798625907867923470670934207967924076924`,
 	} {
-		if err := r.Integer(strint); err != nil {
+		if _, err := r.Integer(strint); err != nil {
 			t.Errorf("%s failed: %v", t.Name(), err)
 		}
 	}

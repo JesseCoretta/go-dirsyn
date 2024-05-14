@@ -198,14 +198,14 @@ func (r RFC4517) TelephoneNumber(x any) (tn TelephoneNumber, err error) {
 		return
 	}
 
-	runes := []rune{'\'', '\\', '"', '(', ')', '+', ',', '-', '.', '/', ':', '?'}
+	runes := []rune{'\'', '\\', '"', '(', ')', '+', ',', '-', '.', '/', ':', '?', ' '}
 
 	// TODO: conform more closely to E.123.
 	for _, ch := range raw {
 		char := rune(ch)
 		if !(isAlphaNumeric(char) || runeInSlice(char, runes)) {
 			err = errorBadType("Invalid Telephone Number character: " + string(char))
-			break
+			return
 		}
 	}
 

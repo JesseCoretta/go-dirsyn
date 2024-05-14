@@ -164,6 +164,7 @@ func (r RFC4517) CountryString(x any) (cs CountryString, err error) {
 	if !isUAlpha(rune(raw[0])) || !isUAlpha(rune(raw[1])) {
 		err = errorTxt("Incompatible characters for Country String: " +
 			string(raw[0]) + "/" + string(raw[0]))
+		return
 	}
 
 	var mdata []byte
@@ -265,7 +266,7 @@ func (r RFC4517) PrintableString(x any) (ps PrintableString, err error) {
 		r := rune(raw[i])
 		if !(isAlphaNumeric(r) || runeInSlice(r, chars)) {
 			err = errorTxt("Invalid Printable String character: " + string(r))
-			break
+			return
 		}
 	}
 

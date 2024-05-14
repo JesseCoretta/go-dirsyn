@@ -449,6 +449,107 @@ func isValidSubstring(s string) bool {
 }
 
 /*
+UTF8String        = StringValue
+StringValue       = dquote *SafeUTF8Character dquote
+
+dquote            = %x22 ; " (double quote)
+SafeUTF8Character = %x00-21 / %x23-7F /   ; ASCII minus dquote
+
+	dquote dquote /       ; escaped double quote
+	%xC0-DF %x80-BF /     ; 2 byte UTF-8 character
+	%xE0-EF 2(%x80-BF) /  ; 3 byte UTF-8 character
+	%xF0-F7 3(%x80-BF)    ; 4 byte UTF-8 character
+*/
+func isSafeUTF8(x any) (err error) {
+	var raw []rune
+	switch tv := x.(type) {
+	case rune:
+		raw = append(raw, tv)
+	case string:
+		if len(tv) == 0 {
+			err = errorBadLength("UTF8 Safe Ranges", 0)
+			return
+		}
+		for i := 0; i < len(tv); i++ {
+			raw = append(raw, rune(tv[i]))
+		}
+	default:
+		err = errorBadType("UTF8 Safe Ranges")
+		return
+	}
+
+	var last rune
+	for i := 0; i < len(raw) && err == nil; i++ {
+		r := raw[i]
+		switch runeLen(r) {
+		case 1:
+			// ASCII range w/o double-quote
+			err = isSafeUTF1(string(r))
+			if '"' == r && last != '\u005C' {
+				err = errorTxt("Unescaped double-quote; not a UTF8 Safe Character")
+			}
+			last = r
+		case 2:
+			// UTF2 char
+			err = isSafeUTF2(string(r))
+		case 3:
+			// UTF3 char
+			err = isSafeUTF3(string(r))
+		case 4:
+			// UTF4 char
+			err = isSafeUTF4(string(r))
+		}
+	}
+
+	return
+}
+
+func isSafeUTF1(x string) (err error) {
+	z := rune([]byte(x)[0])
+	if !(ucIs(asciiRange, z) && z != '"') {
+		err = errorTxt("Incompatible char for UTF0 (in ASCII Safe Range):" + x)
+	}
+
+	return
+}
+
+func isSafeUTF2(x string) (err error) {
+	z := []byte(string(x))
+	ch1 := rune(z[0])
+	ch2 := rune(z[1])
+	if !(ucIs(utf2aSafeRange, ch1) && ucIs(utf2bSafeRange, ch2)) {
+		err = errorTxt("Incompatible chars for UTF2 (in UTF2 Safe Range): " + x)
+	}
+
+	return
+}
+
+func isSafeUTF3(x string) (err error) {
+	z := []byte(string(x))
+	ch1 := rune(z[0])
+	ch2 := rune(z[1])
+	ch3 := rune(z[2])
+	if !(ucIs(utf3SafeRange, ch1) && ucIs(utf2bSafeRange, ch2) && ucIs(utf2bSafeRange, ch3)) {
+		err = errorTxt("Incompatible chars for UTF3 (in UTF3 Safe Range): " + x)
+	}
+
+	return
+}
+
+func isSafeUTF4(x string) (err error) {
+	z := []byte(string(x))
+	ch1 := rune(z[0])
+	ch2 := rune(z[1])
+	ch3 := rune(z[2])
+	ch4 := rune(z[3])
+	if !(ucIs(utf4SafeRange, ch1) && ucIs(utf2bSafeRange, ch2) && ucIs(utf2bSafeRange, ch3) && ucIs(utf2bSafeRange, ch4)) {
+		err = errorTxt("Incompatible chars for UTF4 (in UTF4 Safe Range): " + x)
+	}
+
+	return
+}
+
+/*
 uTF8 returns an error following an analysis of x in the context of
 one (1) or more UTF8 characters.
 
