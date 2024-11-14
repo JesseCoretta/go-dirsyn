@@ -51,14 +51,16 @@ func (r Integer) String() (s string) {
 }
 
 /*
-Equal returns a boolean value indicative of whether the receiver is equal to
+Eq returns a Boolean value indicative of whether the receiver is equal to
 the value provided.
 
 Valid input types are string, uint64, int, uint, *[math/big.Int] and [Integer].
 
 Any input that represents a negative or unspecified number guarantees a false return.
+
+See also [Integer.Ne].
 */
-func (r Integer) Equal(n any) (is bool) {
+func (r Integer) Eq(n any) (is bool) {
 	switch tv := n.(type) {
 	case *big.Int:
 		is = r.cast().Cmp(tv) == 0
@@ -83,6 +85,15 @@ func (r Integer) Equal(n any) (is bool) {
 
 	return
 }
+
+/*
+Ne returns a Boolean value indicative of whether the receiver is NOT equal
+to the value provided.
+
+This method wraps [Integer.Eq] in negated context, and operates under the
+same constraints.
+*/
+func (r Integer) Ne(n any) bool { return !r.Eq(n) }
 
 /*
 Gt returns a boolean value indicative of whether the receiver is greater than
@@ -129,7 +140,7 @@ Valid input types are string, uint64, int, uint, *[math/big.Int] and [Integer].
 Any input that represents a negative or unspecified number guarantees a false return.
 */
 func (r Integer) Ge(n any) (is bool) {
-	return r.Gt(n) || r.Equal(n)
+	return r.Gt(n) || r.Eq(n)
 }
 
 /*
@@ -177,7 +188,7 @@ Valid input types are string, uint64, int, uint, *[math/big.Int] and [Integer].
 Any input that represents a negative or unspecified number guarantees a false return.
 */
 func (r Integer) Le(n any) (is bool) {
-	return r.Lt(n) || r.Equal(n)
+	return r.Lt(n) || r.Eq(n)
 }
 
 func assertInt(x any) (i *big.Int, err error) {

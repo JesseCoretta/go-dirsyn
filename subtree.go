@@ -1,9 +1,5 @@
 package dirsyn
 
-import (
-	"github.com/JesseCoretta/go-stackage"
-)
-
 /*
 SubtreeSpecification implements the Subtree Specification construct.
 
@@ -54,15 +50,7 @@ context of a Subtree Specification.
 */
 func (r RFC3672) SubtreeSpecification(x any) (ss SubtreeSpecification, err error) {
 	var raw string
-	switch tv := x.(type) {
-	case string:
-		if len(tv) == 0 {
-			err = errorBadLength("Subtree Specification", 0)
-			return
-		}
-		raw = tv
-	default:
-		err = errorBadType("Subtree Specification")
+	if raw, err = assertString(x, 1, "Subtree Specification"); err != nil {
 		return
 	}
 
@@ -117,13 +105,35 @@ func (r RFC3672) SubtreeSpecification(x any) (ss SubtreeSpecification, err error
 	}
 
 	if begin := stridx(raw, `specificationFilter `); begin != -1 {
-		var end int
 		begin += 20
-		if ss.SpecificationFilter, end, err = subtreeRefinement(raw, begin); err != nil {
+		if ss.SpecificationFilter, err = subtreeRefinement(raw, begin); err != nil {
 			return
 		}
-		end = begin + end
+		end := begin + len(raw) - begin
 		ranges[`specificationFilter`] = []int{begin, end}
+	}
+
+	return
+}
+
+/*
+Encode returns the ASN.1 encoding of the receiver instance alongside an error.
+*/
+func (r SubtreeSpecification) Encode() (b []byte, err error) {
+	b, err = asn1m(r)
+	return
+}
+
+/*
+Decode returns an error following an attempt to decode ASN.1 encoded bytes b into
+the receiver instance. This results in the receiver being overwritten with new data.
+*/
+func (r *SubtreeSpecification) Decode(b []byte) (err error) {
+	var rest []byte
+	if rest, err = asn1um(b, r); err == nil {
+		if len(rest) > 0 {
+			err = errorTxt("Extra left-over content found during ASN.1 unmarshal: '" + string(rest) + "'")
+		}
 	}
 
 	return
@@ -157,50 +167,29 @@ type SpecificExclusion struct {
 type BaseDistance int
 type LocalName string
 
-type cop stackage.ComparisonOperator
-
-const equalityOperator cop = cop(0)
-
-func (r cop) String() string  { return `:` }
-func (r cop) Context() string { return `Subtree Specification Filter Equality Operator` }
-
 func (r SpecificExclusions) String() string {
+	if len(r) == 0 {
+		return `{ }`
+	}
+
 	var _s []string
 	for i := 0; i < len(r); i++ {
 		_s = append(_s, r[i].String())
 	}
 
-	return join(_s, `, `)
+	return `{ ` + join(_s, `, `) + ` }`
 }
 
-func (r SpecificExclusion) String() string {
-	if r.After {
-		return `chopAfter ` + `"` + string(r.Name) + `"`
+func (r SpecificExclusion) String() (s string) {
+	if len(r.Name) > 0 {
+		if r.After {
+			s = `chopAfter ` + `"` + string(r.Name) + `"`
+		} else {
+			s = `chopBefore ` + `"` + string(r.Name) + `"`
+		}
 	}
-	return `chopBefore ` + `"` + string(r.Name) + `"`
-}
-
-func newRefinement(rp *refinementParser) (r Refinement, err error) {
-	if rp == nil {
-		err = errorTxt("nil specFilterParser instance")
-		return
-	}
-
-	r = Refinement(newStack(`refinements`, rp))
 
 	return
-}
-
-func newStack(name string, rp *refinementParser) (s stackage.Stack) {
-	var aux stackage.Auxiliary = make(stackage.Auxiliary, 0)
-	aux.Set(`sfp`, rp)
-	aux.Set(`pct`, 0)
-
-	return stackage.List().
-		SetID(name).
-		NoPadding(true).
-		SetDelimiter(',').
-		SetAuxiliary(aux)
 }
 
 func subtreeExclusions(raw string, begin int) (excl SpecificExclusions, end int, err error) {
@@ -301,66 +290,14 @@ func subtreeMinMax(raw string, begin int) (minmax BaseDistance, end int, err err
 	return
 }
 
-/*
-newCondition returns a valueless instance of Condition. Everything other than
-Expression has been set, and a new value may be set at any time by the user.
-*/
-func newCondition(name string, rp *refinementParser) (c stackage.Condition) {
-	c.Init()
-	c.NoPadding(true)
-	c.SetKeyword(name)
-	c.SetOperator(equalityOperator)
-	c.SetExpression(Refinement(newStack(`refinements`, rp)))
-
-	var aux stackage.Auxiliary = make(stackage.Auxiliary, 0)
-	aux.Set(`sfp`, rp)
-	c.SetAuxiliary(aux)
-
-	return
-}
-
-func newAnd(rp *refinementParser) And {
-	_and := newCondition(`and`, rp)
-	_refs := _and.Expression()
-	if ands, ok := _refs.(Refinement); ok {
-		ands.cast().Encap([]string{`{`, `}`})
-	}
-
-	return And(_and)
-}
-
-func newOr(rp *refinementParser) Or {
-	_or := newCondition(`or`, rp)
-	_refs := _or.Expression()
-	if ors, ok := _refs.(Refinement); ok {
-		ors.cast().Encap([]string{`{`, `}`})
-	}
-
-	return Or(_or)
-}
-
-func newNot(rp *refinementParser) Not {
-	_not := newCondition(`not`, rp)
-	_refs := _not.Expression()
-	if nots, ok := _refs.(Refinement); ok {
-		nots.cast().Encap([]string{`{`, `}`})
-	}
-
-	return Not(_not)
-}
-
-func (r Refinement) cast() stackage.Stack {
-	return stackage.Stack(r)
-}
-
 func (r SubtreeSpecification) String() (s string) {
 	var _s []string
 	if len(r.Base) > 0 {
 		_s = append(_s, `base `+`"`+string(r.Base)+`"`)
 	}
 
-	if x := r.SpecificExclusions.String(); len(x) > 0 {
-		_s = append(_s, `specificExclusions `+x)
+	if x := r.SpecificExclusions; len(x) > 0 {
+		_s = append(_s, `specificExclusions `+x.String())
 	}
 
 	if r.Min > 0 {
@@ -373,195 +310,240 @@ func (r SubtreeSpecification) String() (s string) {
 
 	}
 
-	if x := r.SpecificationFilter.String(); len(x) > 0 {
+	if r.SpecificationFilter != nil {
+		x := r.SpecificationFilter.String()
 		_s = append(_s, `specificationFilter `+x)
 	}
 
-	s = `{ ` + join(_s, `, `) + ` }`
+	s = `{` + join(_s, `, `) + `}`
 
 	return
-}
-
-func (r And) String() string {
-	_refs := r.cast().Expression()
-	ands, _ := _refs.(Refinement)
-
-	return r.cast().Keyword() + `:` + `{` + ands.String() + `}`
-}
-
-func (r Item) String() string {
-	return `item:` + string(r)
-}
-
-func (r Or) String() string {
-	_refs := r.cast().Expression()
-	ors, _ := _refs.(Refinement)
-
-	return r.cast().Keyword() + `:` + `{` + ors.String() + `}`
-}
-
-func (r Not) String() string {
-	_refs := r.cast().Expression()
-	not, _ := _refs.(Refinement)
-
-	return r.cast().Keyword() + `:` + not.String()
-}
-
-func (r Refinement) String() string {
-	var str []string
-	s := r.cast()
-
-	for i := 0; i < s.Len(); i++ {
-		slice, _ := s.Index(i)
-		switch tv := slice.(type) {
-		case Item:
-			str = append(str, tv.String())
-		case Refinement:
-			str = append(str, tv.String())
-		case And:
-			str = append(str, tv.String())
-		case Or:
-			str = append(str, tv.String())
-		case Not:
-			str = append(str, tv.String())
-		}
-	}
-
-	return join(str, `,`)
-}
-
-func (r And) cast() stackage.Condition {
-	return stackage.Condition(r)
-}
-
-func (r Or) cast() stackage.Condition {
-	return stackage.Condition(r)
-}
-
-func (r Not) cast() stackage.Condition {
-	return stackage.Condition(r)
-}
-
-func (r Refinement) rp() (rp *refinementParser) {
-	x := r.cast().Auxiliary()
-	_rp, _ := x.Get(`sfp`)
-	rp = _rp.(*refinementParser)
-
-	return
-}
-
-func (r Refinement) pct() int {
-	x := r.cast().Auxiliary()
-	_rp, _ := x.Get(`pct`)
-	return _rp.(int)
-}
-
-func (r Refinement) incrPct() {
-	x := r.cast().Auxiliary()
-	_pct, _ := x.Get(`pct`)
-	pct := _pct.(int) + 1
-	x.Set(`pct`, pct)
-}
-
-func (r Refinement) decrPct() {
-	x := r.cast().Auxiliary()
-	_pct, _ := x.Get(`pct`)
-	pct := _pct.(int) - 1
-	x.Set(`pct`, pct)
-}
-
-func (r Refinement) push(refs any) {
-	switch tv := refs.(type) {
-	case Refinement:
-		r.cast().Push(tv)
-	case And, Or, Item:
-		r.cast().Push(tv)
-	}
-}
-
-func (r And) push(refs any) {
-	_refs := r.cast().Expression()
-	ands, _ := _refs.(Refinement)
-
-	switch tv := refs.(type) {
-	case Refinement:
-		ands.cast().Push(tv)
-	case And, Or, Item:
-		ands.cast().Push(tv)
-	}
-}
-
-func (r Or) push(refs any) {
-	_refs := r.cast().Expression()
-	ors, _ := _refs.(Refinement)
-
-	switch tv := refs.(type) {
-	case Refinement:
-		ors.cast().Push(tv)
-	case And, Or, Not, Item:
-		ors.cast().Push(tv)
-	}
-}
-
-func (r Not) push(refs any) {
-	_refs := r.cast().Expression()
-	nots, _ := _refs.(Refinement)
-
-	switch tv := refs.(type) {
-	case Refinement:
-		nots.cast().Push(tv)
-	case And, Or, Not, Item:
-		nots.cast().Push(tv)
-	}
 }
 
 /*
-Refinement implements the Subtree Specification Refinement construct.
+Refinement implements Appendix A of RFC 3672, and serves as
+the "SpecificationFilter" optionally found within a Subtree
+Specification. It is qualified through instances of:
+
+  - [ItemRefinement]
+  - [AndRefinement]
+  - [OrRefinement]
+  - [NotRefinement]
+
+From Appendix A of RFC 3672:
 
 	Refinement  = item / and / or / not
 	item        = id-item ":" OBJECT-IDENTIFIER
 	and         = id-and  ":" Refinements
 	or          = id-or   ":" Refinements
 	not         = id-not  ":" Refinement
+
 	Refinements = "{" [ sp Refinement *( "," sp Refinement ) ] sp "}"
 	id-item     = %x69.74.65.6D ; "item"
 	id-and      = %x61.6E.64    ; "and"
 	id-or       = %x6F.72       ; "or"
 	id-not      = %x6E.6F.74    ; "not"
+
+From § 12.3.5 of X.501:
+
+	Refinement ::= CHOICE {
+		item [0] OBJECT-CLASS.&id,
+		and  [1] SET SIZE (1..MAX) OF Refinement,
+		or   [2] SET SIZE (1..MAX) OF Refinement,
+		not  [3] Refinement,
+		... }
 */
-type Refinement stackage.Stack
+type Refinement interface {
+	IsZero() bool
+	String() string
+	Type() string
+	Len() int
+}
 
 /*
-Refinement ::= CHOICE {
-item [0] OBJECT-CLASS.&id,
-and  [1] SET SIZE (1..MAX) OF Refinement,
-or   [2] SET SIZE (1..MAX) OF Refinement,
-not  [3] Refinement,
-... }
+And implements slices of [Refinement], all of which are expected to
+evaluate as true during processing.
+
+Instances of this type qualify the [Refinement] interface type.
 */
+type AndRefinement []Refinement
 
-type Item string
-type And stackage.Condition
-type Not stackage.Condition
-type Or stackage.Condition
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r AndRefinement) IsZero() bool {
+	return &r == nil
+}
 
-type refinementParser struct {
-	input string
-	pos   int
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r OrRefinement) IsZero() bool {
+	return &r == nil
+}
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r NotRefinement) IsZero() bool {
+	return &(r.Refinement) == nil
+}
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r ItemRefinement) IsZero() bool {
+	return &r == nil
+}
+
+/*
+String returns the string representation of the receiver instance.
+*/
+func (r AndRefinement) String() string {
+	if r.IsZero() {
+		return ``
+	}
+
+	var parts []string
+	for _, ref := range r {
+		parts = append(parts, ref.String())
+	}
+	return "and:{" + join(parts, ",") + "}"
+}
+
+/*
+Type returns the string literal "and".
+*/
+func (r AndRefinement) Type() string {
+	return "and"
+}
+
+/*
+Len returns the integer length of the receiver instance.
+*/
+func (r AndRefinement) Len() int {
+	return len(r)
+}
+
+/*
+Or implements slices of [Refinement], at least one of which is
+expected to evaluate as true during processing.
+
+Instances of this type qualify the [Refinement] interface type.
+*/
+type OrRefinement []Refinement
+
+/*
+String returns the string representation of the receiver instance.
+*/
+func (r OrRefinement) String() string {
+	if r.IsZero() {
+		return ``
+	}
+
+	var parts []string
+	for _, ref := range r {
+		parts = append(parts, ref.String())
+	}
+	return "or:{" + join(parts, ",") + "}"
+}
+
+/*
+Type returns the string literal "or".
+*/
+func (r OrRefinement) Type() string {
+	return "or"
+}
+
+/*
+Len returns the integer length of the receiver instance.
+*/
+func (r OrRefinement) Len() int {
+	return len(r)
+}
+
+/*
+NotRefinement implements a negated, recursive instance of
+[Refinement]. Normally during processing, instances
+of this type are processed first when present among
+other qualifiers as siblings (slices), such as with
+[AndRefinement] and [OrRefinement] instances.
+
+Instances of this type qualify the [Refinement] interface type.
+*/
+type NotRefinement struct {
+	Refinement
+}
+
+/*
+String returns the string representation of the receiver instance.
+*/
+func (r NotRefinement) String() string {
+	if r.IsZero() {
+		return ``
+	}
+
+	return "not:" + r.Refinement.String()
+}
+
+/*
+Type returns the string literal "not".
+*/
+func (r NotRefinement) Type() string {
+	return "not"
+}
+
+/*
+Len returns the integer length of the receiver instance.
+*/
+func (r NotRefinement) Len() int {
+	return r.Refinement.Len()
+}
+
+/*
+ItemRefinement implements the core ("atom") value type to be used in
+[Refinement] statements, and appears in [AndRefinement], [OrRefinement]
+and [NotRefinement] [Refinement] qualifier type instances.
+
+This is the only "tangible" type in the "specificationFilter" formula,
+as all other types simply act as contextual "envelopes" meant to,
+ultimately, store instances of this type.
+
+Instances of this type qualify the [Refinement] interface type.
+*/
+type ItemRefinement string
+
+/*
+String returns the string representation of the receiver instance.
+*/
+func (r ItemRefinement) String() string {
+	if r.IsZero() {
+		return ``
+	}
+
+	return `item:` + string(r)
+}
+
+/*
+Type returns the string literal "item".
+*/
+func (r ItemRefinement) Type() string {
+	return "item"
+}
+
+/*
+Len always returns the integer 1 (one).  This
+method only exists to satisfy Go's interface
+signature requirements.
+*/
+func (r ItemRefinement) Len() int {
+	return 1
 }
 
 func subtreeBase(x any) (base LocalName, end int, err error) {
 	end = -1
 	var raw string
-	switch tv := x.(type) {
-	case string:
-		if len(tv) == 0 {
-			err = errorBadLength("Subtree Base", 0)
-			return
-		}
-		raw = tv
-	default:
-		err = errorBadType("Subtree Base")
+	if raw, err = assertString(x, 1, "Subtree Base"); err != nil {
 		return
 	}
 
@@ -585,170 +567,102 @@ func subtreeBase(x any) (base LocalName, end int, err error) {
 	return
 }
 
-func subtreeRefinement(x any, begin int) (refs Refinement, end int, err error) {
-	var raw string
-	switch tv := x.(type) {
-	case string:
-		if len(tv) == 0 {
-			err = errorBadLength("Specification Filter", 0)
-			return
-		}
-		raw = tv[begin:]
-	default:
-		err = errorBadType("Specification Filter")
+func subtreeRefinement(x any, begin ...int) (ref Refinement, err error) {
+	var input string
+	if input, err = assertString(x, 1, "Specification Filter"); err != nil {
 		return
+	}
+	if len(begin) > 0 {
+		input = trimS(input[begin[0]:])
+	} else {
+		input = trimS(input)
 	}
 
-	var rp *refinementParser
-	if rp, _, end, err = newRefinementParser(raw); err != nil {
-		return
+	if hasPfx(input, "item:") {
+		ref, err = parseItem(input)
+	} else if hasPfx(input, "and:") {
+		ref, err = parseAnd(input)
+	} else if hasPfx(input, "or:") {
+		ref, err = parseOr(input)
+	} else if hasPfx(input, "not:") {
+		ref, err = parseNot(input)
+	} else {
+		err = newErr("invalid refinement: " + input)
 	}
-
-	if refs, err = newRefinement(rp); err != nil {
-		return
-	}
-
-	if !refs.refinement() {
-		err = errorTxt("Refinement failed")
-		return
-	}
-	refs.cast().Reveal() // in case of any needlessly enveloped stacks ...
 
 	return
 }
 
-func newRefinementParser(x string) (r *refinementParser, start, end int, err error) {
-	end = -1
-	r = new(refinementParser)
-
-	ctl, ctr := strcnt(x, `{`), strcnt(x, `}`)
-	if ctl != ctr {
-		err = errorTxt("Malformed brace ({}) encapsulation for specificationFilter refinement statement")
-		return
+func parseItem(input string) (Refinement, error) {
+	parts := splitN(input, ":", 2)
+	if len(parts) != 2 {
+		return nil, newErr("invalid item: " + input)
 	}
-
-	end = len(x)
-	r.input = trimS(x[:])
-
-	return
+	return ItemRefinement(parts[1]), nil
 }
 
-func (r Refinement) and() bool {
-	sfp := r.rp()
-
-	if hasPfx(sfp.input[sfp.pos:], `and:`) {
-		sfp.pos += 4
-		ref := newAnd(sfp)
-		r.push(ref)
-		return ref.refinement()
-	}
-
-	return false
+func parseAnd(input string) (Refinement, error) {
+	return parseComplexRefinement(input, "and:")
 }
 
-func (r Refinement) or() bool {
-	sfp := r.rp()
-
-	if hasPfx(sfp.input[sfp.pos:], `or:`) {
-		sfp.pos += 3
-		ref := newOr(sfp)
-		r.push(ref)
-		return ref.refinement()
-	}
-
-	return false
+func parseOr(input string) (Refinement, error) {
+	return parseComplexRefinement(input, "or:")
 }
 
-func (r Refinement) not() bool {
-	sfp := r.rp()
-
-	if hasPfx(sfp.input[sfp.pos:], `not:`) {
-		sfp.pos += 4
-		ref := newNot(sfp)
-		r.push(ref)
-		return ref.refinement()
+func parseNot(input string) (Refinement, error) {
+	input = trimPfx(input, "not:")
+	subRef, err := subtreeRefinement(input)
+	if err != nil {
+		return nil, err
 	}
-
-	return false
+	return NotRefinement{subRef}, nil
 }
 
-func (r Refinement) item() bool {
-	sfp := r.rp()
-	sfp.pos += 5
+func parseComplexRefinement(input, prefix string) (Refinement, error) {
+	input = trimPfx(input, prefix)
+	input = trimS(input)
+	input = trimPfx(input, "{")
+	input = trimSfx(input, "}")
 
-	// If we only received a single item, try to
-	// handle it now.
-	var s RFC4512
-	if err := s.OID(sfp.input[sfp.pos:]); err == nil {
-		r.push(Item(sfp.input[sfp.pos:]))
-		return true
+	var refs []Refinement
+	parts := splitRefinementParts(input)
+	for _, part := range parts {
+		subRef, err := subtreeRefinement(part)
+		if err != nil {
+			return nil, err
+		}
+		refs = append(refs, subRef)
 	}
 
-	for idx, ch := range sfp.input[sfp.pos:] {
-		if ch == '-' || ch == '.' || isAlphaNumeric(rune(ch)) {
-			continue
+	if prefix == "and:" {
+		return AndRefinement(refs), nil
+	}
+	return OrRefinement(refs), nil
+}
+
+func splitRefinementParts(input string) []string {
+	var parts []string
+	currentPart := newStrBuilder()
+	depth := 0
+
+	for _, char := range input {
+		if char == '{' {
+			depth++
+		} else if char == '}' {
+			depth--
 		}
 
-		if err := s.OID(sfp.input[sfp.pos : sfp.pos+idx]); err != nil {
-			return false
+		if char == ',' && depth == 0 {
+			parts = append(parts, trimS(currentPart.String()))
+			currentPart.Reset()
+		} else {
+			currentPart.WriteRune(char)
 		}
-
-		r.push(Item(sfp.input[sfp.pos : sfp.pos+idx]))
-
-		sfp.pos += idx
-
-		break
 	}
 
-	return r.refinement()
-}
-
-func (r And) refinement() bool {
-	_refs := r.cast().Expression()
-	refs, _ := _refs.(Refinement)
-	return refs.refinement()
-}
-
-func (r Or) refinement() bool {
-	_refs := r.cast().Expression()
-	refs, _ := _refs.(Refinement)
-	return refs.refinement()
-}
-
-func (r Not) refinement() bool {
-	_refs := r.cast().Expression()
-	refs, _ := _refs.(Refinement)
-	return refs.refinement()
-}
-
-func (r Refinement) refinement() bool {
-	sfp := r.rp()
-
-	switch {
-	case sfp.input[sfp.pos] == ',':
-		sfp.pos++
-		return r.refinement()
-	case hasPfx(sfp.input[sfp.pos:], "{"):
-		r.incrPct()
-
-		sfp.pos++
-		if !(r.refinement() || hasPfx(sfp.input[sfp.pos:], "}")) {
-			return false
-		}
-		sfp.pos++
-		return true
-	case hasPfx(sfp.input[sfp.pos:], ` `):
-		sfp.pos++
-		return r.refinement()
-	case hasPfx(sfp.input[sfp.pos:], `item:`):
-		return r.item()
-	case hasPfx(sfp.input[sfp.pos:], `and:`):
-		return r.and()
-	case hasPfx(sfp.input[sfp.pos:], `not:`):
-		return r.not()
-	case hasPfx(sfp.input[sfp.pos:], `or:`):
-		return r.or()
+	if currentPart.Len() > 0 {
+		parts = append(parts, trimS(currentPart.String()))
 	}
 
-	return false
+	return parts
 }

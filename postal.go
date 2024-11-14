@@ -42,15 +42,7 @@ func (r RFC4517) DeliveryMethod(x any) (dm DeliveryMethod, err error) {
 	}
 
 	var raw string
-	switch tv := x.(type) {
-	case string:
-		if len(tv) < 3 {
-			err = errorBadLength("Delivery Method", 0)
-			return
-		}
-		raw = tv
-	default:
-		err = errorBadType("Delivery Method")
+	if raw, err = assertString(x, 3, "Delivery Method"); err != nil {
 		return
 	}
 
@@ -110,7 +102,13 @@ of a PostalAddress.
 */
 func (r RFC4517) PostalAddress(x any) (pa PostalAddress, err error) {
 	var lc []string
-	if lc, err = lineChar(x); err == nil {
+
+	var raw string
+	if raw, err = assertString(x, 1, "line-char"); err != nil {
+		return
+	}
+
+	if lc, err = lineChar(raw); err == nil {
 		pa = PostalAddress(lc)
 	}
 
@@ -157,15 +155,7 @@ of an OtherMailbox.
 */
 func (r RFC4517) OtherMailbox(x any) (om OtherMailbox, err error) {
 	var raw string
-	switch tv := x.(type) {
-	case string:
-		if len(tv) == 0 {
-			err = errorBadLength("Other Mailbox", 0)
-			return
-		}
-		raw = tv
-	default:
-		err = errorBadType("Other Mailbox")
+	if raw, err = assertString(x, 1, "Other Mailbox"); err != nil {
 		return
 	}
 
@@ -194,15 +184,7 @@ func pSOrIA5s(x any) (psia5 []string, err error) {
 	esc := `\`
 
 	var raw string
-	switch tv := x.(type) {
-	case string:
-		if len(tv) == 0 {
-			err = errorBadLength("PrintableString OR IA5String", 0)
-			return
-		}
-		raw = tv
-	default:
-		err = errorBadType("PrintableString/IA5String")
+	if raw, err = assertString(x, 1, "PrintableString OR IA5String"); err != nil {
 		return
 	}
 
@@ -233,25 +215,12 @@ func pSOrIA5s(x any) (psia5 []string, err error) {
 	return
 }
 
-func lineChar(x any) (lineChars []string, err error) {
-
-	var raw string
-	switch tv := x.(type) {
-	case string:
-		if len(tv) == 0 {
-			err = errorBadLength("line-char", 0)
-			return
-		}
-		raw = tv
-	default:
-		err = errorBadType("line-char")
-		return
-	}
-
+func lineChar(raw string) (lineChars []string, err error) {
 	var last rune
 	value := newStrBuilder()
 	for _, r := range raw {
-		if rL := runeLen(r); rL == 1 {
+		rL := runeLen(r)
+		if rL == 1 {
 			// UTF0
 			if r == '\\' {
 				last = r
@@ -282,10 +251,10 @@ func lineChar(x any) (lineChars []string, err error) {
 			}
 
 			break
-		} else {
-			err = errorTxt("Incompatible rune length for UTF0 (in line-char): " + fmtInt(int64(rL), 10))
-			break
 		}
+
+		err = errorTxt("Incompatible rune length for UTF0 (in line-char): " + fmtInt(int64(rL), 10))
+		break
 	}
 
 	return

@@ -96,11 +96,16 @@ func TestPrintableString(t *testing.T) {
 func TestDirectoryString(t *testing.T) {
 	var r RFC4517
 
-	for _, raw := range []string{
+	for _, raw := range []any{
 		`This is a Directory String.`,
+		PrintableString(`this is a printable string`),
+		UTF8String(`ZFKJ345325^&*$`),
+		TeletexString(`maybe`),
 	} {
-		if err := r.DirectoryString(raw); err != nil {
+		if ds, err := r.DirectoryString(raw); err != nil {
 			t.Errorf("%s failed: %v", t.Name(), err)
+		} else {
+			t.Logf("%s\n", ds)
 		}
 	}
 }

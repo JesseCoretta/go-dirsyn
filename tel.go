@@ -108,15 +108,7 @@ From § 1.4 of RFC 4512:
 */
 func (r RFC4517) FacsimileTelephoneNumber(x any) (ftn FacsimileTelephoneNumber, err error) {
 	var raw string
-	switch tv := x.(type) {
-	case string:
-		if len(tv) == 0 {
-			err = errorBadLength("Facsimile Telephone Number", 0)
-			return
-		}
-		raw = tv
-	default:
-		err = errorBadType("Facsimile Telephone Number")
+	if raw, err = assertString(x, 1, "Facsimile Telephone Number"); err != nil {
 		return
 	}
 
@@ -149,16 +141,27 @@ func (r RFC4517) FacsimileTelephoneNumber(x any) (ftn FacsimileTelephoneNumber, 
 		ftn.set(bit)
 	}
 
+	return
+}
+
+/*
+Encode returns the ASN.1 encoding of the receiver instance alongside an error.
+*/
+func (r FacsimileTelephoneNumber) Encode() (b []byte, err error) {
+	b, err = asn1m(r)
+	return
+}
+
+/*
+Decode returns an error following an attempt to decode ASN.1 encoded bytes b into
+the receiver instance. This results in the receiver being overwritten with new data.
+*/
+func (r *FacsimileTelephoneNumber) Decode(b []byte) (err error) {
+	var rest []byte
+	rest, err = asn1um(b, r)
 	if err == nil {
-		var mdata []byte
-		if mdata, err = asn1m(ftn); err == nil {
-			var testftn FacsimileTelephoneNumber
-			if _, err = asn1um(mdata, &testftn); err == nil {
-				if string(testftn.G3FacsimileNonBasicParameters.Bytes) !=
-					string(ftn.G3FacsimileNonBasicParameters.Bytes) {
-					err = errorTxt("Malformed ASN.1 content for Facsimile Telephone Number")
-				}
-			}
+		if len(rest) > 0 {
+			err = errorTxt("Extra left-over content found during ASN.1 unmarshal: '" + string(rest) + "'")
 		}
 	}
 
@@ -248,15 +251,7 @@ From § 1.4 of RFC 4512:
 */
 func (r RFC4517) TelexNumber(x any) (err error) {
 	var raw string
-	switch tv := x.(type) {
-	case string:
-		if len(tv) == 0 {
-			err = errorBadLength("Telex Number", 0)
-			return
-		}
-		raw = tv
-	default:
-		err = errorBadType("Telex Number")
+	if raw, err = assertString(x, 1, "Telex Number"); err != nil {
 		return
 	}
 
@@ -338,41 +333,12 @@ func (r RFC4517) TeletexTerminalIdentifier(x any) (err error) {
 		raws []string
 	)
 
-	switch tv := x.(type) {
-	case string:
-		if len(tv) == 0 {
-			err = errorBadLength("Teletex Terminal Identifier", 0)
-			return
-		}
-		raw = tv
-	default:
-		err = errorBadType("Teletex Terminal Identifier")
+	if raw, err = assertString(x, 1, "Teletex Terminal Identifier"); err != nil {
 		return
 	}
 
 	_raws := splitUnescaped(raw, `$`, `\`)
-	var cfound bool
-	for i := 0; i < len(_raws); i++ {
-		if idx := idxr(_raws[i], ':'); idx != -1 {
-			cfound = true
-			raws = append(raws, _raws[i][:idx])
-			if len(raws[i][idx:]) > 1 {
-				if err = teletexSuffixValue(raws[i][idx+1:]); err != nil {
-					return
-				}
-			}
-		} else {
-			raws = append(raws, _raws[i])
-		}
-	}
-
-	if !cfound {
-		err = errorTxt("Teletex Terminal Identifier missing ':' token")
-		return
-	}
-
-	if len(raws) == 0 {
-		err = errorTxt("Missing Teletex Terminal Identifier value")
+	if raws, err = r.processTeletex(_raws); err != nil {
 		return
 	} else if _, err = r.PrintableString(raws[0]); err != nil || len(raws) == 1 {
 		return
@@ -398,6 +364,31 @@ func (r RFC4517) TeletexTerminalIdentifier(x any) (err error) {
 			break
 		}
 		ct |= bit
+	}
+
+	return
+}
+
+func (r RFC4517) processTeletex(_raws []string) (raws []string, err error) {
+	var cfound bool
+	for i := 0; i < len(_raws); i++ {
+		if idx := idxr(_raws[i], ':'); idx != -1 {
+			cfound = true
+			raws = append(raws, _raws[i][:idx])
+			if len(raws[i][idx:]) > 1 {
+				if err = teletexSuffixValue(raws[i][idx+1:]); err != nil {
+					return
+				}
+			}
+		} else {
+			raws = append(raws, _raws[i])
+		}
+	}
+
+	if !cfound {
+		err = errorTxt("Teletex Terminal Identifier missing ':' token")
+	} else if len(raws) == 0 {
+		err = errorTxt("Missing Teletex Terminal Identifier value")
 	}
 
 	return

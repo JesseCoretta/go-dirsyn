@@ -61,20 +61,11 @@ context of a NIS Netgroup Triple.
 */
 func (r RFC2307) NetgroupTriple(x any) (trip NetgroupTriple, err error) {
 	var raw string
-	switch tv := x.(type) {
-	case string:
-		if len(tv) < 4 {
-			err = errorBadLength("NIS Netgroup Triple", 0)
-			return
-		}
-		raw = tv
-	default:
-		err = errorBadType("NIS Netgroup Triple")
+	if raw, err = assertString(x, 4, "NIS Netgroup Triple"); err != nil {
 		return
 	}
 
-	if !(raw[0] == '(' && raw[len(raw)-1] == ')') {
-		err = errorTxt("NIS Netgroup Triple encapsulation error")
+	if err = validTripleEncap(raw); err != nil {
 		return
 	}
 
@@ -100,6 +91,14 @@ func (r RFC2307) NetgroupTriple(x any) (trip NetgroupTriple, err error) {
 
 	if err == nil {
 		trip = _trip
+	}
+
+	return
+}
+
+func validTripleEncap(raw string) (err error) {
+	if !(raw[0] == '(' && raw[len(raw)-1] == ')') {
+		err = errorTxt("NIS Netgroup Triple encapsulation error")
 	}
 
 	return

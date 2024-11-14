@@ -2,6 +2,7 @@ package dirsyn
 
 import "github.com/google/uuid"
 
+type X520 struct{}
 type RFC2307 struct{}
 type RFC3672 struct{}
 type RFC4512 struct{}
@@ -9,6 +10,21 @@ type RFC4514 struct{}
 type RFC4517 struct{}
 type RFC4523 struct{}
 type RFC4530 struct{}
+
+func assertString(x any, min int, name string) (str string, err error) {
+	switch tv := x.(type) {
+	case string:
+		if len(tv) < min && min != 0 {
+			err = errorBadLength(name, 0)
+			break
+		}
+		str = tv
+	default:
+		err = errorBadType(name)
+	}
+
+	return
+}
 
 func isKeystring(x string) bool {
 	if len(x) == 0 {
@@ -23,13 +39,17 @@ func isKeystring(x string) bool {
 	for i := 1; i < len(x); i++ {
 		if last == '-' && rune(x[i]) == last {
 			return false
-		} else if !(isAlpha(rune(x[i])) || isDigit(rune(x[i])) || rune(x[i]) == '-') {
+		} else if !isXString(rune(x[i])) {
 			return false
 		}
 		last = rune(x[i])
 	}
 
 	return true
+}
+
+func isXString(r rune) bool {
+	return isAlpha(r) || isDigit(r) || r == '-'
 }
 
 func isNegativeInteger(x any) (is bool) {
@@ -53,7 +73,44 @@ func isIntegerType(x any) (is bool) {
 	switch x.(type) {
 	case int, int8, int16, int32, int64:
 		is = true
-		return
+	}
+
+	return
+}
+
+func castInt64(x any) (i int64, err error) {
+	switch tv := x.(type) {
+	case int:
+		i = int64(tv)
+	case int8:
+		i = int64(tv)
+	case int16:
+		i = int64(tv)
+	case int32:
+		i = int64(tv)
+	case int64:
+		i = tv
+	default:
+		err = errorBadType("any2int64")
+	}
+
+	return
+}
+
+func castUint64(x any) (i uint64, err error) {
+	switch tv := x.(type) {
+	case uint:
+		i = uint64(tv)
+	case uint8:
+		i = uint64(tv)
+	case uint16:
+		i = uint64(tv)
+	case uint32:
+		i = uint64(tv)
+	case uint64:
+		i = tv
+	default:
+		err = errorBadType("any2uint64")
 	}
 
 	return
@@ -121,174 +178,6 @@ func (r RFC4530) UUID(x any) (err error) {
 
 	_, err = uuid.Parse(raw)
 
-	return
-}
-
-/*
-OID returns an error following an analysis of x in the context of either
-a numeric OID or descriptor (descr) value.
-
-From § 1.4 of RFC 4512:
-
-	oid = descr / numericoid
-
-See also [NumericOID] and [Descriptor] for ABNF productions.
-*/
-func (r RFC4512) OID(x any) (err error) {
-	for _, err = range []error{
-		r.NumericOID(x),
-		r.Descriptor(x),
-	} {
-		if err == nil {
-			break
-		}
-	}
-
-	return
-}
-
-/*
-OID is a wrapping alias of [RFC4512.OID].
-*/
-func (r RFC4517) OID(x any) (err error) {
-	var s RFC4512
-	err = s.OID(x)
-	return
-}
-
-/*
-Descriptor returns an error following an analysis of x in the context of
-a descr, or descriptor, value.  See also [RFC4512.OID].
-
-From § 1.4 of RFC 4512:
-
-	descr = keystring
-	keystring = leadkeychar *keychar
-	leadkeychar = ALPHA
-	keychar = ALPHA / DIGIT / HYPHEN
-
-	ALPHA   = %x41-5A / %x61-7A   ; "A"-"Z" / "a"-"z"
-	DIGIT   = %x30 / LDIGIT       ; "0"-"9"
-	LDIGIT  = %x31-39             ; "1"-"9"
-	HYPHEN  = %x2D                ; hyphen ("-")
-*/
-func (r RFC4512) Descriptor(x any) (err error) {
-	var raw string
-	switch tv := x.(type) {
-	case string:
-		if len(tv) == 0 {
-			err = errorBadLength("Descriptor", 0)
-			return
-		}
-		raw = tv
-	default:
-		err = errorBadType("Descriptor")
-		return
-	}
-
-	// must begin with an alpha.
-	if !isAlpha(rune(raw[0])) {
-		err = errorTxt("Incompatible leading character: " + string(raw[0]))
-		return
-	}
-
-	// can only end in alnum.
-	if !isAlphaNumeric(rune(raw[len(raw)-1])) {
-		err = errorTxt("Incompatible trailing character: " + string(raw[len(raw)-1]))
-		return
-	}
-
-	// watch hyphens to avoid contiguous use
-	var lastHyphen bool
-
-	// iterate all characters in raw, checking
-	// each one for "descr" validity.
-	for i := 0; i < len(raw) && err == nil; i++ {
-		ch := rune(raw[i])
-		switch {
-		case isAlphaNumeric(ch):
-			lastHyphen = false
-		case ch == '-':
-			if lastHyphen {
-				// cannot use consecutive hyphens
-				err = errorTxt("Consecutive hyphens in descriptor")
-				break
-			}
-			lastHyphen = true
-		default:
-			// invalid character (none of [a-zA-Z0-9\-])
-			err = errorTxt("Incompatible character " + string(ch))
-		}
-	}
-
-	return
-}
-
-/*
-Descriptor is a wrapping alias of [RFC4512.Descriptor].
-*/
-func (r RFC4517) Descriptor(x any) (err error) {
-	var s RFC4512
-	err = s.Descriptor(x)
-	return
-}
-
-/*
-NumericOID returns an error following an analysis of x in the context of
-a numeric OID.  See also [RFC4512.OID].
-
-From § 1.4 of RFC 4512:
-
-	numericoid = number 1*( DOT number )
-	number  = DIGIT / ( LDIGIT 1*DIGIT )
-
-	DIGIT   = %x30 / LDIGIT	  ; "0"-"9"
-	LDIGIT  = %x31-39         ; "1"-"9"
-	DOT     = %x2E            ; period (".")
-*/
-func (r RFC4512) NumericOID(x any) (err error) {
-	var raw string
-	switch tv := x.(type) {
-	case string:
-		if len(tv) == 0 {
-			err = errorBadLength("DN", 0)
-			return
-		}
-		raw = tv
-	default:
-		err = errorBadType("DN")
-		return
-	}
-
-	if !('0' <= rune(raw[0]) && rune(raw[0]) <= '2') || raw[len(raw)-1] == '.' {
-		err = errorTxt("Incompatible NumericOID leading character " + string(raw[len(raw)-1]))
-		return
-	}
-
-	var last rune
-	for _, c := range raw {
-		switch {
-		case c == '.':
-			if last == c {
-				err = errorTxt("Consecutive dots for NumericOID; cannot process")
-				return
-			}
-			last = '.'
-		case isDigit(c):
-			last = c
-			continue
-		}
-	}
-
-	return
-}
-
-/*
-NumericOID is a wrapping alias of [RFC4512.NumericOID].
-*/
-func (r RFC4517) NumericOID(x any) (err error) {
-	var s RFC4512
-	err = s.NumericOID(x)
 	return
 }
 
@@ -438,7 +327,7 @@ func isValidSubstring(s string) bool {
 			}
 		} else if err := uTFMB(r); err == nil {
 			continue
-		} else if (r >= 0x00 && r <= 0x29) || (r >= 0x2B && r <= 0x5B) || (r >= 0x5D && r <= 0x7F) {
+		} else if ucIs(substrRange, r) {
 			continue
 		}
 
@@ -462,26 +351,20 @@ SafeUTF8Character = %x00-21 / %x23-7F /   ; ASCII minus dquote
 */
 func isSafeUTF8(x any) (err error) {
 	var raw []rune
-	switch tv := x.(type) {
-	case rune:
-		raw = append(raw, tv)
-	case string:
-		if len(tv) == 0 {
-			err = errorBadLength("UTF8 Safe Ranges", 0)
-			return
-		}
-		for i := 0; i < len(tv); i++ {
-			raw = append(raw, rune(tv[i]))
-		}
-	default:
-		err = errorBadType("UTF8 Safe Ranges")
+	if raw, err = assertRunes(x); err != nil {
 		return
+	}
+
+	funcs := map[int]func(string) error{
+		2: isSafeUTF2,
+		3: isSafeUTF3,
+		4: isSafeUTF4,
 	}
 
 	var last rune
 	for i := 0; i < len(raw) && err == nil; i++ {
 		r := raw[i]
-		switch runeLen(r) {
+		switch rL := runeLen(r); rL {
 		case 1:
 			// ASCII range w/o double-quote
 			err = isSafeUTF1(string(r))
@@ -489,15 +372,9 @@ func isSafeUTF8(x any) (err error) {
 				err = errorTxt("Unescaped double-quote; not a UTF8 Safe Character")
 			}
 			last = r
-		case 2:
-			// UTF2 char
-			err = isSafeUTF2(string(r))
-		case 3:
-			// UTF3 char
-			err = isSafeUTF3(string(r))
-		case 4:
-			// UTF4 char
-			err = isSafeUTF4(string(r))
+		case 2, 3, 4:
+			// UTF2/3/4
+			err = funcs[rL](string(r))
 		}
 	}
 
@@ -565,21 +442,9 @@ From § 1.4 of RFC 4512:
 	UTF4    = %xF0 %x90-BF 2(UTF0) / %xF1-F3 3(UTF0) /
 	          %xF4 %x80-8F 2(UTF0)
 */
-func uTF8(x any) (err error) {
+func uTF8(x any) (u UTF8String, err error) {
 	var raw []rune
-	switch tv := x.(type) {
-	case rune:
-		raw = append(raw, tv)
-	case string:
-		if len(tv) == 0 {
-			err = errorBadLength("UTF-8", 0)
-			return
-		}
-		for i := 0; i < len(tv); i++ {
-			raw = append(raw, rune(tv[i]))
-		}
-	default:
-		err = errorBadType("UTF-8")
+	if raw, err = assertRunes(x); err != nil {
 		return
 	}
 
@@ -591,6 +456,31 @@ func uTF8(x any) (err error) {
 		}
 	}
 
+	if err == nil {
+		for i := 0; i < len(raw); i++ {
+			u += UTF8String(raw[i])
+		}
+	}
+
+	return
+}
+
+func assertRunes(x any) (runes []rune, err error) {
+	switch tv := x.(type) {
+	case rune:
+		runes = append(runes, tv)
+	case string:
+		if len(tv) == 0 {
+			err = errorBadLength("Zero length rune", 0)
+			break
+		}
+		for i := 0; i < len(tv); i++ {
+			runes = append(runes, rune(tv[i]))
+		}
+	default:
+		err = errorBadType("Not rune compatible")
+	}
+
 	return
 }
 
@@ -600,140 +490,132 @@ one (1) or more UTFMB characters.
 */
 func uTFMB(x any) (err error) {
 	var raw []rune
-	switch tv := x.(type) {
-	case rune:
-		raw = append(raw, tv)
-	case string:
-		if len(tv) == 0 {
-			err = errorBadLength("UTFMB", 0)
-			return
-		}
-		for i := 0; i < len(tv); i++ {
-			raw = append(raw, rune(tv[i]))
-		}
-	default:
-		err = errorBadType("UTFMB")
+	if raw, err = assertRunes(x); err != nil {
 		return
 	}
 
-	for _, r := range raw {
+	funcs := map[int]func(rune) error{
+		1: isUTF0,
+		2: isUTF2,
+		3: isUTF3,
+		4: isUTF4,
+	}
 
-		switch runeLen(r) {
-		case 1:
-			// UTF0
-			if !ucIs(utf0Range, r) {
-				err = errorTxt("Incompatible char for UTF0 (in UTFMB):" + string(r))
-				return
-			}
-		case 2:
-			// UTF2
-			z := []byte(string(r))
-			ch1 := rune(z[0])
-			ch2 := rune(z[1])
-
-			if !ucIs(utf2Range, ch1) || !ucIs(utf0Range, ch2) {
-				err = errorTxt("Incompatible char for UTF2 (in UTFMB):" + string(r))
-				return
-			}
-
-		case 3:
-			z := []byte(string(r))
-			z0 := rune(z[0])
-			z1 := rune(z[1])
-			z2 := rune(z[2])
-			switch z0 {
-			case '\u00e0':
-				if !ucIs(utf3aRange, z1) {
-					err = errorTxt("Incompatible char for UTF3 (in UTFMB):" + string(z1))
-					return
-				}
-				if !ucIs(utf0Range, z2) {
-					err = errorTxt("Incompatible char for UTF3 (in UTFMB):" + string(z2))
-					return
-				}
-			case '\u00ed':
-				if !ucIs(utf3cRange, z1) {
-					err = errorTxt("Incompatible char for UTF3 (in UTFMB):" + string(z1))
-					return
-				}
-				if !ucIs(utf0Range, z2) {
-					err = errorTxt("Incompatible char for UTF3 (in UTFMB):" + string(z2))
-					return
-				}
-			default:
-				if !ucIs(utf3bRange, z0) && !ucIs(utf3dRange, z0) {
-					err = errorTxt("Incompatible char for UTF3 (in UTFMB):" + string(z0))
-					return
-				}
-				if !ucIs(utf0Range, z1) {
-					err = errorTxt("Incompatible char for UTF3 (in UTFMB):" + string(z1))
-					return
-				}
-				if !ucIs(utf0Range, z2) {
-					err = errorTxt("Incompatible char for UTF3 (in UTFMB):" + string(z2))
-					return
-				}
-			}
-
-		case 4:
-			// UTF4
-
-			z := []byte(string(r))
-			z0 := rune(z[0])
-			z1 := rune(z[1])
-			z2 := rune(z[2])
-			z3 := rune(z[3])
-
-			switch z0 {
-			case '\u00f0':
-				if !ucIs(utf4aRange, z1) {
-					err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z1))
-					return
-				}
-				if !ucIs(utf0Range, z2) {
-					err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z2))
-					return
-				}
-				if !ucIs(utf0Range, z3) {
-					err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z3))
-					return
-				}
-			case '\u00f4':
-				if !ucIs(utf4cRange, z1) {
-					err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z1))
-					return
-				}
-				if !ucIs(utf0Range, z2) {
-					err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z2))
-					return
-				}
-				if !ucIs(utf0Range, z3) {
-					err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z3))
-					return
-				}
-			default:
-				if !ucIs(utf4bRange, z0) {
-					err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z0))
-					return
-				}
-				if !ucIs(utf0Range, z1) {
-					err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z1))
-					return
-				}
-				if !ucIs(utf0Range, z2) {
-					err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z2))
-					return
-				}
-				if !ucIs(utf0Range, z3) {
-					err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z3))
-					return
-				}
-			}
-
-		default:
-			err = errorTxt("Incompatible rune length for UTFMB")
-			return
+	for i := 0; i < len(raw) && err == nil; i++ {
+		r := raw[i]
+		if funk, found := funcs[runeLen(r)]; found {
+			err = funk(r)
+			continue
 		}
+		err = errorTxt("Incompatible rune length for UTFMB")
+	}
+
+	return
+}
+
+// UTF0
+func isUTF0(r rune) (err error) {
+	if !ucIs(utf0Range, r) {
+		err = errorTxt("Incompatible char for UTF0 (in UTFMB):" + string(r))
+	}
+
+	return
+}
+
+// UTF2
+func isUTF2(r rune) (err error) {
+	z := []byte(string(r))
+	ch1 := rune(z[0])
+	ch2 := rune(z[1])
+
+	if !ucIs(utf2Range, ch1) || !ucIs(utf0Range, ch2) {
+		err = errorTxt("Incompatible char for UTF2 (in UTFMB):" + string(r))
+	}
+
+	return
+}
+
+// UTF3
+func isUTF3(r rune) (err error) {
+	z := []byte(string(r))
+	z0 := rune(z[0])
+	z1 := rune(z[1])
+	z2 := rune(z[2])
+
+	switch z0 {
+	case '\u00e0':
+		if !ucIs(utf3aRange, z1) {
+			err = errorTxt("Incompatible char for UTF3 (in UTFMB):" + string(z1))
+		} else if !ucIs(utf0Range, z2) {
+			err = errorTxt("Incompatible char for UTF3 (in UTFMB):" + string(z2))
+		}
+	case '\u00ed':
+		if !ucIs(utf3cRange, z1) {
+			err = errorTxt("Incompatible char for UTF3 (in UTFMB):" + string(z1))
+		} else if !ucIs(utf0Range, z2) {
+			err = errorTxt("Incompatible char for UTF3 (in UTFMB):" + string(z2))
+		}
+	default:
+		var ok bool
+		for _, ok = range []bool{
+			ucIs(utf3bRange, z0),
+			ucIs(utf3dRange, z0),
+			ucIs(utf0Range, z1),
+			ucIs(utf0Range, z2),
+		} {
+			if ok {
+				return
+			}
+		}
+
+		err = errorTxt("Incompatible char for UTF3 (in UTFMB): '" +
+			string(z0) + "', '" + string(z1) + "', or '" + string(z2) + "'")
+	}
+
+	return
+}
+
+// UTF4
+func isUTF4(r rune) (err error) {
+	z := []byte(string(r))
+	z0 := rune(z[0])
+	z1 := rune(z[1])
+	z2 := rune(z[2])
+	z3 := rune(z[3])
+
+	switch z0 {
+	case '\u00f0':
+		if !ucIs(utf4aRange, z1) {
+			err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z1))
+		} else if !ucIs(utf0Range, z2) {
+			err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z2))
+		} else if !ucIs(utf0Range, z3) {
+			err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z3))
+		}
+	case '\u00f4':
+		if !ucIs(utf4cRange, z1) {
+			err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z1))
+		} else if !ucIs(utf0Range, z2) {
+			err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z2))
+		} else if !ucIs(utf0Range, z3) {
+			err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z3))
+		}
+	default:
+		err = utf4Fallback(z0, z1, z2, z3)
+	}
+
+	return
+}
+
+func utf4Fallback(z0, z1, z2, z3 rune) (err error) {
+	if !ucIs(utf4bRange, z0) {
+		err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z0))
+	} else if !ucIs(utf0Range, z1) {
+		err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z1))
+	} else if !ucIs(utf0Range, z2) {
+		err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z2))
+	} else if !ucIs(utf0Range, z3) {
+		err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z3))
 	}
 
 	return

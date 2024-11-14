@@ -65,15 +65,7 @@ From § 3.3.10 of RFC 4517:
 */
 func (r RFC4517) EnhancedGuide(x any) (err error) {
 	var raw string
-	switch tv := x.(type) {
-	case string:
-		if len(tv) == 0 {
-			err = errorBadLength(`Enhanced Guide`, 0)
-			return
-		}
-		raw = tv
-	default:
-		err = errorBadType(`Enhanced Guide`)
+	if raw, err = assertString(x, 5, "Enhanced Guide"); err != nil {
 		return
 	}
 
@@ -139,15 +131,7 @@ From § 3.3.14 of RFC 4517:
 */
 func (r RFC4517) Guide(x any) (err error) {
 	var raw string
-	switch tv := x.(type) {
-	case string:
-		if len(tv) == 0 {
-			err = errorBadLength("Guide value", 0)
-			return
-		}
-		raw = tv
-	default:
-		err = errorBadType("Guide")
+	if raw, err = assertString(x, 5, "Guide"); err != nil {
 		return
 	}
 

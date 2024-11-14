@@ -54,24 +54,12 @@ func (r RFC4517) GeneralizedTime(x any) (gt GeneralizedTime, err error) {
 		diff   string = `-0700`
 		base   string
 		raw    string
-		fidx   int
-		zulu   bool
 	)
 
-	switch tv := x.(type) {
-	case string:
-		if len(tv) < 15 {
-			err = errorBadLength(`Generalized Time`, len(tv))
-			return
-		}
-		raw = tv
-		if zulu = raw[len(raw)-1] == 'Z'; zulu {
-			raw = raw[:len(raw)-1]
-		}
-	default:
-		err = errorBadType(`Generalized Time`)
+	if raw, err = assertString(x, 15, "Generalized Time"); err != nil {
 		return
 	}
+	raw = chopZulu(raw)
 
 	// If we've got nothing left, must be zulu
 	// without any fractional or differential
@@ -85,15 +73,29 @@ func (r RFC4517) GeneralizedTime(x any) (gt GeneralizedTime, err error) {
 	}
 
 	// Handle fractional component (up to six (6) digits)
+	if format, err = genTimeFracDiffFormat(raw, base, diff, format); err != nil {
+		return
+	}
+
+	var _gt time.Time
+	if _gt, err = time.Parse(format, raw); err == nil {
+		gt = GeneralizedTime(_gt)
+	}
+
+	return
+}
+
+// Handle generalizedTime fractional component (up to six (6) digits)
+func genTimeFracDiffFormat(raw, base, diff, format string) (string, error) {
+	var err error
+
 	if base[0] == '.' || base[0] == ',' {
-		var ch rune
 		format += string(".")
-		for fidx, ch = range base[1:] {
+		for fidx, ch := range base[1:] {
 			if fidx > 6 {
 				err = errorTxt(`Fraction exceeds Generalized Time fractional limit`)
-				return
 			} else if isDigit(ch) {
-				format += string(ch)
+				format += `0`
 				continue
 			}
 			break
@@ -106,12 +108,7 @@ func (r RFC4517) GeneralizedTime(x any) (gt GeneralizedTime, err error) {
 		format += diff
 	}
 
-	var _gt time.Time
-	if _gt, err = time.Parse(format, raw); err == nil {
-		gt = GeneralizedTime(_gt)
-	}
-
-	return
+	return format, err
 }
 
 /*
@@ -146,25 +143,34 @@ func (r RFC4517) UTCTime(x any) (utc UTCTime, err error) {
 		sec    string = `05`
 		diff   string = `-0700`
 		raw    string
-		zulu   bool
 	)
 
 	switch tv := x.(type) {
 	case string:
-		raw = tv
-		if zulu = raw[len(raw)-1] == 'Z'; zulu {
-			raw = raw[:len(raw)-1]
-		}
+		raw = chopZulu(tv)
 
 		if len(raw) < 10 {
 			err = errorBadLength(`UTC Time`, len(tv))
-			return
+			break
 		}
+		utc, err = uTCHandler(raw, sec, diff, format)
 	default:
 		err = errorBadType(`UTC Time`)
-		return
 	}
 
+	return
+
+}
+
+func chopZulu(raw string) string {
+	if zulu := raw[len(raw)-1] == 'Z'; zulu {
+		raw = raw[:len(raw)-1]
+	}
+
+	return raw
+}
+
+func uTCHandler(raw, sec, diff, format string) (utc UTCTime, err error) {
 	var _utc time.Time
 
 	switch len(raw) {
@@ -182,6 +188,7 @@ func (r RFC4517) UTCTime(x any) (utc UTCTime, err error) {
 		}
 		return
 	}
+
 	format += sec
 
 	// Handle differential component
@@ -194,5 +201,4 @@ func (r RFC4517) UTCTime(x any) (utc UTCTime, err error) {
 	}
 
 	return
-
 }

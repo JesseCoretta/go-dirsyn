@@ -30,6 +30,7 @@ var (
 	ttxRange,
 	t61Ranges,
 	lineCharRange,
+	substrRange,
 	asciiRange,
 	utf0Range,
 	utf1Range,
@@ -204,6 +205,12 @@ func init() {
 		// ASCII 00 through 7F with two exclusions ...
 		{0x0000, 0x0023, 1}, // skip DOLLAR
 		{0x0025, 0x005B, 1}, // skip ESC
+		{0x005D, 0x007F, 1},
+	}}
+
+	substrRange = &unicode.RangeTable{R16: []unicode.Range16{
+		{0x0000, 0x0029, 1},
+		{0x002B, 0x005B, 1},
 		{0x005D, 0x007F, 1},
 	}}
 

@@ -2,7 +2,7 @@ package dirsyn
 
 /*
 dn.go contains DN, RDN and ATV syntax verifiers.  Note that the bulk of
-this code is derived from the most excellent go-ldap (v3) package.
+this file is derived from the most excellent go-ldap (v3) package.
 
 From https://github.com/go-ldap/ldap/blob/master/LICENSE:
 
@@ -358,15 +358,7 @@ From § 1.4 of RFC 4512:
 */
 func (r RFC4517) NameAndOptionalUID(x any) (err error) {
 	var raw string
-	switch tv := x.(type) {
-	case string:
-		if len(tv) == 0 {
-			err = errorBadLength("Name and Optional UID", 0)
-			return
-		}
-		raw = tv
-	default:
-		err = errorBadType("Name and Optional UID")
+	if raw, err = assertString(x, 1, "Name and Optional UID"); err != nil {
 		return
 	}
 
@@ -444,7 +436,7 @@ func parseDN(str string) (*distinguishedName, error) {
 				return nil, err
 			}
 			startPos = i + 1
-		case char == ',' || char == '+' || char == ';':
+		case isDNDelim(char):
 			if len(attr.Type) == 0 {
 				return dn, errorTxt("incomplete type, value pair")
 			}
@@ -468,6 +460,10 @@ func parseDN(str string) (*distinguishedName, error) {
 	appendAttributesToRDN(true)
 
 	return dn, nil
+}
+
+func isDNDelim(char byte) bool {
+	return char == ',' || char == '+' || char == ';'
 }
 
 // Equal returns true if the distinguishedNames are equal as defined by rfc4517 4.2.15 (distinguishedNameMatch).

@@ -43,69 +43,25 @@ an ASN.1 BIT STRING.
 */
 func (r RFC4517) BitString(x any) (bs BitString, err error) {
 	var raw []byte
-	switch tv := x.(type) {
-	case []byte:
-		if len(tv) == 0 {
-			err = errorBadLength("BitString", 0)
-			return
-		}
-		raw = tv
-	case string:
-		bs, err = r.BitString([]byte(tv))
-		return
-	default:
-		err = errorBadType("BitString")
+	if raw, err = r.assertBitString(x); err != nil {
 		return
 	}
-
-	// Last char MUST be 'B' rune, else die.
-	if term := raw[len(raw)-1]; term != 'B' {
-		err = errorTxt("Incompatible terminating character for BitString: " + string(term))
-		return
-	}
-
-	// Trim terminating char
-	raw = raw[:len(raw)-1]
 
 	// Make sure there are enough remaining
 	// characters to actually do something.
-	if len(raw) < 3 {
-		err = errorTxt("Incompatible remaining length for BitString: " + fmtInt(int64(len(raw)), 10))
-		return
-	}
-
-	// Verify (and then remove) single quotes
-	L := raw[0]
-	R := raw[len(raw)-1]
-	if L != '\'' || R != '\'' {
-		err = errorTxt("Incompatible encapsulating characters BitString: " + string(L) + "/" + string(R))
-		return
-	}
-	raw = raw[1 : len(raw)-1]
-
-	for i := 0; i < len(raw); i++ {
-		if !isBinChar(rune(raw[i])) {
-			err = errorTxt("Incompatible non-binary character for BitString" + string(raw[i]))
-			break
-		}
-	}
-
-	if err == nil {
+	if raw, err = verifyBitStringContents(raw); err == nil {
 		var tx string
 		var bss asn1.BitString
 
-		for i := len(raw); i > 0; i -= 8 {
+		for i := len(raw); i > 0 && err == nil; i -= 8 {
 			if i-8 < 0 {
 				tx = string(raw[:i])
 			} else {
 				tx = string(raw[i-8 : i])
 			}
 
-			bd, err := puint(tx, 2, 8)
-			if err != nil {
-				break
-			}
-
+			var bd uint64
+			bd, err = puint(tx, 2, 8)
 			bss.Bytes = append(bss.Bytes, []byte{byte(bd)}...)
 		}
 
@@ -118,6 +74,61 @@ func (r RFC4517) BitString(x any) (bs BitString, err error) {
 	}
 
 	return
+}
+
+func (r RFC4517) assertBitString(x any) (raw []byte, err error) {
+	switch tv := x.(type) {
+	case []byte:
+		if len(tv) == 0 {
+			err = errorBadLength("BitString", 0)
+			break
+		}
+		raw = tv
+	case string:
+		raw, err = r.assertBitString([]byte(tv))
+	default:
+		err = errorBadType("BitString")
+	}
+
+	return
+}
+
+func verifyBitStringContents(raw []byte) ([]byte, error) {
+	var err error
+
+	// Last char MUST be 'B' rune, else die.
+	if term := raw[len(raw)-1]; term != 'B' {
+		err = errorTxt("Incompatible terminating character for BitString: " + string(term))
+		return raw, err
+	}
+
+	// Trim terminating char
+	raw = raw[:len(raw)-1]
+
+	// Make sure there are enough remaining
+	// characters to actually do something.
+	if len(raw) < 3 {
+		err = errorTxt("Incompatible remaining length for BitString: " + fmtInt(int64(len(raw)), 10))
+		return raw, err
+	}
+
+	// Verify (and then remove) single quotes
+	L := raw[0]
+	R := raw[len(raw)-1]
+	if L != '\'' || R != '\'' {
+		err = errorTxt("Incompatible encapsulating characters BitString: " + string(L) + "/" + string(R))
+		return raw, err
+	}
+	raw = raw[1 : len(raw)-1]
+
+	for i := 0; i < len(raw); i++ {
+		if !isBinChar(rune(raw[i])) {
+			err = errorTxt("Incompatible non-binary character for BitString" + string(raw[i]))
+			break
+		}
+	}
+
+	return raw, err
 }
 
 /*
@@ -181,12 +192,149 @@ func (r RFC4517) CountryString(x any) (cs CountryString, err error) {
 }
 
 /*
-DirectoryString returns an error following an analysis of x in the context
-of a Directory String.
+DirectoryString implements the Directory String syntax.
 
 From § 3.3.6 of RFC 4517:
 
 	DirectoryString = 1*UTF8
+
+From § 1.4 of RFC 4512:
+
+	UTF8 = UTF1 / UTFMB
+	UTFMB = UTF2 / UTF3 / UTF4
+	UTF0  = %x80-BF
+	UTF1  = %x00-7F
+	UTF2  = %xC2-DF UTF0
+	UTF3  = %xE0 %xA0-BF UTF0 / %xE1-EC 2(UTF0) /
+	        %xED %x80-9F UTF0 / %xEE-EF 2(UTF0)
+	UTF4  = %xF0 %x90-BF 2(UTF0) / %xF1-F3 3(UTF0) /
+	        %xF4 %x80-8F 2(UTF0)
+
+From § 2.6 of ITU-T Rec. X.520:
+
+	UnboundedDirectoryString ::= CHOICE {
+		teletexString TeletexString(SIZE (1..MAX)),
+		printableString PrintableString(SIZE (1..MAX)),
+		bmpString BMPString(SIZE (1..MAX)),
+		universalString UniversalString(SIZE (1..MAX)),
+		uTF8String UTF8String(SIZE (1..MAX)) }
+
+	DirectoryString{INTEGER:maxSize} ::= CHOICE {
+		teletexString TeletexString(SIZE (1..maxSize,...)),
+		printableString PrintableString(SIZE (1..maxSize,...)),
+		bmpString BMPString(SIZE (1..maxSize,...)),
+		universalString UniversalString(SIZE (1..maxSize,...)),
+		uTF8String UTF8String(SIZE (1..maxSize,...)) }
+*/
+type DirectoryString struct {
+	Choice string
+	Value  any
+}
+
+type BMPString string
+
+/*
+DirectoryString returns an instance of [DirectoryString] alongside an error.
+
+The following input types are accepted:
+
+  - string (parsed as [UTF8String])
+  - [UTF8String]
+  - [PrintableString]
+  - [TeletexString]
+  - [BMPString]
+*/
+func (r RFC4517) DirectoryString(x any) (ds DirectoryString, err error) {
+
+	var choice string
+	var value any
+
+	switch tv := x.(type) {
+	case string:
+		var u UTF8String
+		u, err = uTF8(tv)
+		choice = `UTF8String`
+		value = u
+	case PrintableString:
+		_, err = r.PrintableString(string(tv))
+		choice = `PrintableString`
+		value = tv
+	//case UniversalString:
+	//	_, err = r.UniversalString(string(tv))
+	//	choice = `UTF8String`
+	//	value = tv
+	//case BMPString:
+	//	_, err = r.BMPString(string(tv))
+	//	choice = `BMPString`
+	//	value = tv
+	case TeletexString:
+		_, err = r.TeletexString(string(tv))
+		choice = `TeletexString`
+		value = tv
+	case UTF8String:
+		var s RFC4512
+		_, err = s.UTF8String(string(tv))
+		choice = `UTF8String`
+		value = tv
+	default:
+		err = errorBadType("Directory String")
+	}
+
+	if err == nil {
+		ds = DirectoryString{
+			Choice: choice,
+			Value:  value,
+		}
+	}
+
+	return
+}
+
+/*
+Bytes returns the ASN.1 encoding of the underlying CHOICE of [DirectoryString]
+alongside an error.
+*/
+func (ds DirectoryString) Bytes() (b []byte, err error) {
+	switch ds.Choice {
+	case "TeletexString":
+		b, err = asn1.Marshal(ds.Value.(TeletexString))
+	case "PrintableString":
+		b, err = asn1.Marshal(ds.Value.(PrintableString))
+	//case "BMPString":
+	//	b, err = asn1.Marshal(ds.Value.(BMPString))
+	//case "UniversalString":
+	//	b, err = asn1.Marshal(ds.Value.(UniversalString))
+	case "UTF8String":
+		b, err = asn1.Marshal(ds.Value.(UTF8String))
+	default:
+		err = errorTxt("Invalid choice")
+	}
+
+	return
+}
+
+/*
+String returns the string representation of the receiver instance.
+*/
+func (ds DirectoryString) String() (s string) {
+	switch ds.Choice {
+	case "TeletexString":
+		s = string(ds.Value.(TeletexString))
+	case "PrintableString":
+		s = string(ds.Value.(PrintableString))
+	case "UTF8String":
+		s = string(ds.Value.(UTF8String))
+	//case "BMPString":
+	//	s = string(ds.Value.(BMPString))
+	case "UniversalString":
+		s = string(ds.Value.(UniversalString))
+	}
+
+	return
+}
+
+/*
+UTF8String implements the UTF8 String syntax and abstraction.
 
 From § 1.4 of RFC 4512:
 
@@ -200,8 +348,14 @@ From § 1.4 of RFC 4512:
 	UTF4    = %xF0 %x90-BF 2(UTF0) / %xF1-F3 3(UTF0) /
 	          %xF4 %x80-8F 2(UTF0)
 */
-func (r RFC4517) DirectoryString(x any) (err error) {
-	err = uTF8(x)
+type UTF8String string
+
+/*
+UTF8String returns an instance of [UTF8String] alongside an error
+following an analysis of x in the context of a UTF8-compliant string.
+*/
+func (r RFC4512) UTF8String(x any) (u UTF8String, err error) {
+	u, err = uTF8(x)
 	return
 }
 
@@ -270,13 +424,29 @@ func (r RFC4517) PrintableString(x any) (ps PrintableString, err error) {
 		}
 	}
 
-	var mdata []byte
-	if mdata, err = asn1m(raw); err == nil {
-		var testpss PrintableString
-		if _, err = asn1um(mdata, &testpss); err == nil {
-			if testpss.String() == raw {
-				ps = PrintableString(raw)
-			}
+	ps = PrintableString(raw)
+
+	return
+}
+
+/*
+Encode returns the ASN.1 encoding of the receiver instance alongside an error.
+*/
+func (r PrintableString) Encode() (b []byte, err error) {
+	b, err = asn1m(r)
+	return
+}
+
+/*
+Decode returns an error following an attempt to decode ASN.1 encoded bytes b into
+the receiver instance. This results in the receiver being overwritten with new data.
+*/
+func (r *PrintableString) Decode(b []byte) (err error) {
+	var rest []byte
+	rest, err = asn1um(b, r)
+	if err == nil {
+		if len(rest) > 0 {
+			err = errorTxt("Extra left-over content found during ASN.1 unmarshal: '" + string(rest) + "'")
 		}
 	}
 
@@ -391,23 +561,7 @@ following an analysis of x in the context of a Numeric String.
 */
 func (r RFC4517) NumericString(x any) (ns NumericString, err error) {
 	var raw string
-	switch tv := x.(type) {
-	case int, int8, int16, int32, int64:
-		if isNegativeInteger(tv) {
-			err = errorTxt("Incompatible sign (-) for Numeric String")
-			return
-		}
-		raw = fmt.Sprintf("%d", tv)
-	case uint, uint8, uint16, uint32, uint64:
-		raw = fmt.Sprintf("%d", tv)
-	case string:
-		if len(tv) == 0 {
-			err = errorBadLength("Numeric String", 0)
-			return
-		}
-		raw = tv
-	default:
-		err = errorBadType("Numeric String")
+	if raw, err = assertNumericString(x); err != nil {
 		return
 	}
 
@@ -420,6 +574,35 @@ func (r RFC4517) NumericString(x any) (ns NumericString, err error) {
 
 	if err == nil {
 		ns = NumericString(raw)
+	}
+
+	return
+}
+
+func assertNumericString(x any) (raw string, err error) {
+	switch tv := x.(type) {
+	case int, int8, int16, int32, int64:
+		if isNegativeInteger(tv) {
+			err = errorTxt("Incompatible sign (-) for Numeric String")
+			break
+		}
+		var cint int64
+		if cint, err = castInt64(tv); err == nil {
+			raw = fmtInt(cint, 10)
+		}
+	case uint, uint8, uint16, uint32, uint64:
+		var cuint uint64
+		if cuint, err = castUint64(tv); err == nil {
+			raw = fmtUint(cuint, 10)
+		}
+	case string:
+		if len(tv) == 0 {
+			err = errorBadLength("Numeric String", 0)
+			break
+		}
+		raw = tv
+	default:
+		err = errorBadType("Numeric String")
 	}
 
 	return
