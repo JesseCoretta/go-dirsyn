@@ -6,15 +6,18 @@ import (
 )
 
 /*
-BitString is a type alias of [asn1.BitString], which can conform to § 3.3.2
-of RFC 4517:
+BitString is a type alias of [asn1.BitString], which can conform to [§ 3.3.2
+of RFC 4517]:
 
 	BitString    = SQUOTE *binary-digit SQUOTE "B"
 	binary-digit = "0" / "1"
 
-From § 1.4 of RFC 4512:
+From [§ 1.4 of RFC 4512]:
 
 	SQUOTE  = %x27 ; single quote ("'")
+
+[§ 1.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-1.4
+[§ 3.3.2 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.2
 */
 type BitString asn1.BitString
 
@@ -132,27 +135,35 @@ func verifyBitStringContents(raw []byte) ([]byte, error) {
 }
 
 /*
-CountryString implements § 3.3.4 of RFC 4517:
+CountryString implements [§ 3.3.4 of RFC 4517]:
 
 	CountryString  = 2(PrintableCharacter)
 
-From § 1.4 of RFC 4512:
+From [§ 1.4 of RFC 4512]:
 
 	PrintableCharacter = ALPHA / DIGIT / SQUOTE / LPAREN / RPAREN /
 	                     PLUS / COMMA / HYPHEN / DOT / EQUALS /
 	                     SLASH / COLON / QUESTION / SPACE
 	PrintableString    = 1*PrintableCharacter
+
+[§ 1.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-1.4
+[§ 3.3.4 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.4
 */
 type CountryString string
 
+/*
+String returns the string representation of the receiver instance.
+*/
 func (r CountryString) String() string {
 	return string(r)
 }
 
 /*
 CountryString returns an error following an analysis of x in the context of
-an ISO 3166 country code. Note that specific codes -- though syntactically
+an [ISO 3166] country code. Note that specific codes -- though syntactically
 valid -- should be verified periodically in lieu of significant world events.
+
+[ISO 3166]: https://www.iso.org/iso-3166-country-codes.html
 */
 func (r RFC4517) CountryString(x any) (cs CountryString, err error) {
 	var raw string
@@ -194,11 +205,11 @@ func (r RFC4517) CountryString(x any) (cs CountryString, err error) {
 /*
 DirectoryString implements the Directory String syntax.
 
-From § 3.3.6 of RFC 4517:
+From [§ 3.3.6 of RFC 4517]:
 
 	DirectoryString = 1*UTF8
 
-From § 1.4 of RFC 4512:
+From [§ 1.4 of RFC 4512]:
 
 	UTF8 = UTF1 / UTFMB
 	UTFMB = UTF2 / UTF3 / UTF4
@@ -210,7 +221,7 @@ From § 1.4 of RFC 4512:
 	UTF4  = %xF0 %x90-BF 2(UTF0) / %xF1-F3 3(UTF0) /
 	        %xF4 %x80-8F 2(UTF0)
 
-From § 2.6 of ITU-T Rec. X.520:
+From [ITU-T Rec. X.520 clause 2.6]:
 
 	UnboundedDirectoryString ::= CHOICE {
 		teletexString TeletexString(SIZE (1..MAX)),
@@ -225,6 +236,10 @@ From § 2.6 of ITU-T Rec. X.520:
 		bmpString BMPString(SIZE (1..maxSize,...)),
 		universalString UniversalString(SIZE (1..maxSize,...)),
 		uTF8String UTF8String(SIZE (1..maxSize,...)) }
+
+[§ 1.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-1.4
+[§ 3.3.6 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.6
+[ITU-T Rec. X.520 clause 2.6]: https://www.itu.int/rec/T-REC-X.520
 */
 type DirectoryString struct {
 	Choice string
@@ -336,7 +351,7 @@ func (ds DirectoryString) String() (s string) {
 /*
 UTF8String implements the UTF8 String syntax and abstraction.
 
-From § 1.4 of RFC 4512:
+From [§ 1.4 of RFC 4512]:
 
 	UTF8    = UTF1 / UTFMB
 	UTFMB   = UTF2 / UTF3 / UTF4
@@ -347,6 +362,8 @@ From § 1.4 of RFC 4512:
 	          %xED %x80-9F UTF0 / %xEE-EF 2(UTF0)
 	UTF4    = %xF0 %x90-BF 2(UTF0) / %xF1-F3 3(UTF0) /
 	          %xF4 %x80-8F 2(UTF0)
+
+[§ 1.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-1.4
 */
 type UTF8String string
 
@@ -360,14 +377,14 @@ func (r RFC4512) UTF8String(x any) (u UTF8String, err error) {
 }
 
 /*
-PrintableString implements § 3.3.29 of RFC 4517:
+PrintableString implements [§ 3.3.29 of RFC 4517]:
 
 	PrintableCharacter = ALPHA / DIGIT / SQUOTE / LPAREN / RPAREN /
 	                     PLUS / COMMA / HYPHEN / DOT / EQUALS /
 	                     SLASH / COLON / QUESTION / SPACE
 	PrintableString    = 1*PrintableCharacter
 
-From § 1.4 of RFC 4512:
+From [§ 1.4 of RFC 4512]:
 
 	ALPHA   = %x41-5A / %x61-7A    ; "A"-"Z" / "a"-"z"
 	DIGIT   = %x30 / LDIGIT        ; "0"-"9"
@@ -381,21 +398,28 @@ From § 1.4 of RFC 4512:
 	DOT     = %x2E                 ; period (".")
 	EQUALS  = %x3D                 ; equals sign ("=")
 
-From § 3.2 of RFC 4517:
+From [§ 3.2 of RFC 4517]:
 
 	SLASH     = %x2F               ; forward slash ("/")
 	COLON     = %x3A               ; colon (":")
 	QUESTION  = %x3F               ; question mark ("?")
+
+[§ 3.3.29 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.29
+[§ 3.2 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.2
+[§ 1.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-1.4
 */
 type PrintableString string
 
+/*
+String returns the string representation of the receiver instance.
+*/
 func (r PrintableString) String() string {
 	return string(r)
 }
 
 /*
 PrintableString returns an error following an analysis of x in the context
-of a PrintableString.
+of a [PrintableString].
 */
 func (r RFC4517) PrintableString(x any) (ps PrintableString, err error) {
 	var raw string
@@ -493,12 +517,17 @@ func (r RFC4517) UniversalString(x any) (us UniversalString, err error) {
 }
 
 /*
-IA5String implements § 3.2 of RFC 4517:
+IA5String implements [§ 3.2 of RFC 4517]:
 
 	IA5 = 0x0000 through 0x00FF
+
+[§ 3.2 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.2
 */
 type IA5String string
 
+/*
+String returns the string representation of the receiver instance.
+*/
 func (r IA5String) String() string {
 	return string(r)
 }
@@ -542,9 +571,11 @@ func (r RFC4517) IA5String(x any) (ia5 IA5String, err error) {
 }
 
 /*
-NumericString implements § 3.3.23 of RFC 4517:
+NumericString implements [§ 3.3.23 of RFC 4517]:
 
 	NumericString = 1*(DIGIT / SPACE)
+
+[§ 3.3.23 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.23
 */
 type NumericString string
 
@@ -624,7 +655,9 @@ func isT61Single(r rune) (is bool) {
 }
 
 /*
-Deprecated: TeletexString implements the Teletex String, per [T.61](https://www.itu.int/rec/T-REC-T.61).
+Deprecated: TeletexString implements the Teletex String, per [ITU-T Rec. T.61]
+
+[ITU-T Rec. T.61]: https://www.itu.int/rec/T-REC-T.61
 */
 type TeletexString string
 
@@ -638,7 +671,9 @@ func (r TeletexString) String() string {
 /*
 Deprecated: TeletexString returns an instance of [TeletexString] alongside
 an error following an analysis of x in the context of a Teletex String, per
-ITU-T Rec. T.61.
+[ITU-T Rec. T.61].
+
+[ITU-T Rec. T.61]: https://www.itu.int/rec/T-REC-T.61
 */
 func (r RFC4517) TeletexString(x any) (ts TeletexString, err error) {
 	var raw string
@@ -673,9 +708,11 @@ func (r RFC4517) TeletexString(x any) (ts TeletexString, err error) {
 }
 
 /*
-OctetString implements § 3.3.25 of RFC 4517:
+OctetString implements [§ 3.3.25 of RFC 4517]:
 
 	OctetString = *OCTET
+
+[§ 3.3.25 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.25
 */
 type OctetString []byte
 

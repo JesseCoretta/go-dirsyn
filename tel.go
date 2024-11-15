@@ -11,9 +11,10 @@ const (
 )
 
 /*
-FacsimileTelephoneNumber implements § 3.3.11 of RFC 4517 and clause 6.7.4 of ITU-T Rec. X.520:
+FacsimileTelephoneNumber implements [§ 3.3.11 of RFC 4517] and [ITU-T Rec.
+X.520 clause 6.7.4].
 
-From § 3.3.11 of RFC 4517:
+From [§ 3.3.11 of RFC 4517]:
 
 	fax-number       = telephone-number *( DOLLAR fax-parameter )
 	telephone-number = PrintableString
@@ -27,18 +28,21 @@ From § 3.3.11 of RFC 4517:
 
 ASN.1 definitions:
 
-	FacsimileTelephoneNumber	::= 	SEQUENCE {
-		telephoneNumber 	PrintableString (SIZE(1.. ub-telephone-number)),
-		parameters 		G3FacsimileNonBasicParameters  OPTIONAL}
+	FacsimileTelephoneNumber ::= SEQUENCE {
+		telephoneNumber     PrintableString (SIZE(1.. ub-telephone-number)),
+		parameters          G3FacsimileNonBasicParameters  OPTIONAL}
 
-	G3FacsimileNonBasicParameters	::=	BIT STRING {
-		two-dimensional		(8),
-		fine-resolution		(9),
-		unlimited-length	(20),
-		b4-length		(21),
-		a3-width		(22),
-		b4-width		(23),
-		uncompressed		(30) }
+	G3FacsimileNonBasicParameters ::= BIT STRING {
+		two-dimensional	     (8),
+		fine-resolution	     (9),
+		unlimited-length     (20),
+		b4-length            (21),
+		a3-width             (22),
+		b4-width             (23),
+		uncompressed         (30) }
+
+[§ 3.3.11 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.11
+[ITU-T Rec. X.520 clause 6.7.4]: https://www.itu.int/rec/T-REC-X.520
 */
 type FacsimileTelephoneNumber struct {
 	TelephoneNumber               PrintableString `asn1:"printable"`
@@ -90,7 +94,7 @@ func (r *FacsimileTelephoneNumber) set(bit uint) {
 FacsimileTelephoneNumber returns an error following an analysis of x in
 the context of a Facsimile Telephone Number.
 
-From § 3.3.11 of RFC 4517:
+From [§ 3.3.11 of RFC 4517]:
 
 	fax-number       = telephone-number *( DOLLAR fax-parameter )
 	telephone-number = PrintableString
@@ -102,9 +106,12 @@ From § 3.3.11 of RFC 4517:
 	                   "b4Width" /
 	                   "uncompressed"
 
-From § 1.4 of RFC 4512:
+From [§ 1.4 of RFC 4512]:
 
 	DOLLAR  = %x24 ; dollar sign ("$")
+
+[§ 1.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-1.4
+[§ 3.3.11 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.11
 */
 func (r RFC4517) FacsimileTelephoneNumber(x any) (ftn FacsimileTelephoneNumber, err error) {
 	var raw string
@@ -169,12 +176,18 @@ func (r *FacsimileTelephoneNumber) Decode(b []byte) (err error) {
 }
 
 /*
-TelephoneNumber implements § 3.3.31 of RFC 4517 and clause 6.7.1 of ITU-T Rec. X.520:
+TelephoneNumber implements [§ 3.3.31 of RFC 4517] and [ITU-T Rec. X.520 clause 6.7.1]:
 
 	PrintableString (SIZE(1..ub-telephone-number))
+
+[ITU-T Rec. X.520 clause 6.7.1]: https://www.itu.int/rec/T-REC-X.520
+[§ 3.3.31 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.31
 */
 type TelephoneNumber PrintableString
 
+/*
+String returns the string representation of the receiver instance.
+*/
 func (r TelephoneNumber) String() string {
 	return `+` + string(r)
 }
@@ -231,23 +244,27 @@ func (r RFC4517) Fax(x any) (err error) {
 TelexNumber returns an error following an analysis of x in the context
 of a Telex Number.
 
-From § 3.3.33 of RFC 4517:
+From [§ 3.3.33 of RFC 4517]:
 
 	telex-number  = actual-number DOLLAR country-code DOLLAR answerback
 	actual-number = PrintableString
 	country-code  = PrintableString
 	answerback    = PrintableString
 
-From § 3.2 of RFC 4517:
+From [§ 3.2 of RFC 4517]:
 
 	PrintableCharacter = ALPHA / DIGIT / SQUOTE / LPAREN / RPAREN /
 	                     PLUS / COMMA / HYPHEN / DOT / EQUALS /
 	                     SLASH / COLON / QUESTION / SPACE
 	PrintableString    = 1*PrintableCharacter
 
-From § 1.4 of RFC 4512:
+From [§ 1.4 of RFC 4512]:
 
 	DOLLAR  = %x24 ; dollar sign ("$")
+
+[§ 1.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-1.4
+[§ 3.2 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.2
+[§ 3.3.33 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.33
 */
 func (r RFC4517) TelexNumber(x any) (err error) {
 	var raw string
@@ -271,7 +288,7 @@ func (r RFC4517) TelexNumber(x any) (err error) {
 }
 
 /*
-TeletexTerminalIdentifier implements § 3.3.32 of RFC 4517 and
+TeletexTerminalIdentifier implements [§ 3.3.32 of RFC 4517] and
 
 	teletex-id = ttx-term *(DOLLAR ttx-param)
 	ttx-term   = PrintableString          ; terminal identifier
@@ -285,7 +302,7 @@ TeletexTerminalIdentifier implements § 3.3.32 of RFC 4517 and
 	                  / (%x5C "5C")  ; escaped "\"
 	                  / %x5D-FF
 
-ASN.1 definition, per ITU-T Rec. X.520
+ASN.1 definition, per [ITU-T Rec. X.520]:
 
 		TeletexTerminalIdentifier ::= SEQUENCE {
 			teletexTerminal PrintableString (SIZE(1..ub-teletex-terminal-id)),
@@ -295,7 +312,7 @@ ASN.1 definition, per ITU-T Rec. X.520
 		ub-teletex-terminal-id INTEGER ::= 1024
 	}
 
-From § 3.2 of RFC 4517:
+From [§ 3.2 of RFC 4517]:
 
 	PrintableCharacter = ALPHA / DIGIT / SQUOTE / LPAREN / RPAREN /
 	                     PLUS / COMMA / HYPHEN / DOT / EQUALS /
@@ -303,9 +320,14 @@ From § 3.2 of RFC 4517:
 	PrintableString    = 1*PrintableCharacter
 	COLON              = %x3A  ; colon (":")
 
-From § 1.4 of RFC 4512:
+From [§ 1.4 of RFC 4512]:
 
 	DOLLAR  = %x24 ; dollar sign ("$")
+
+[ITU-T Rec. X.520]: https://www.itu.int/rec/T-REC-X.520
+[§ 3.2 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.2
+[§ 1.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-1.4
+[§ 3.3.32 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.32
 */
 type TeletexTerminalIdentifier struct {
 	TeletexTerminal string                    `asn1:"printable"` // (SIZE(1..ub-teletex-terminal-id)),
@@ -313,7 +335,9 @@ type TeletexTerminalIdentifier struct {
 }
 
 /*
-TeletexNonBasicParameters is defined in ITU-T Rec. T.62.
+TeletexNonBasicParameters is defined in [ITU-T Rec. T.62].
+
+[ITU-T Rec. T.62]: https://www.itu.int/rec/T-REC-T.62
 */
 type TeletexNonBasicParameters struct {
 	GraphicCharacterSets     TeletexString `asn1:"tag:0,optional"` // TeletexString OPTIONAL

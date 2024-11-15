@@ -1,16 +1,19 @@
 package dirsyn
 
 /*
-EnhancedGuide implements the Enhanced Guide syntax per ITU-T Rec. X.520.
+EnhancedGuide implements the Enhanced Guide syntax per [ITU-T Rec. X.520,
+clause 9.2.11].
 
 	EnhancedGuide ::= SEQUENCE {
 		objectClass	[0] OBJECT-CLASS.&id,
 		criteria	[1] Criteria,
 		subset		[2] INTEGER {
-			baseObject	(0),
-			oneLevel	(1),
-			wholeSubtree	(2)} DEFAULT oneLevel,
+			baseObject      (0),
+			oneLevel        (1),
+			wholeSubtree    (2)} DEFAULT oneLevel,
 	... }
+
+[ITU-T Rec. X.520, clause 9.2.11]: https://www.itu.int/rec/T-REC-X.520
 */
 type EnhancedGuide struct {
 	ObjectClass string   `asn1:"tag:0"`
@@ -19,7 +22,8 @@ type EnhancedGuide struct {
 }
 
 /*
-EnhancedGuide implements the Criteria syntax per ITU-T Rec. X.520.
+Criteria implements the Criteria syntax per [ITU-T Rec. X.520, clause
+6.5.2].
 
 	Criteria ::= CHOICE {
 		type [0] CriteriaItem
@@ -35,6 +39,8 @@ EnhancedGuide implements the Criteria syntax per ITU-T Rec. X.520.
 		lessOrEqual      [3] AttributeType,
 		approximateMatch [4] AttributeType,
 	... }
+
+[ITU-T Rec. X.520, clause 6.5.2]: https://www.itu.int/rec/T-REC-X.520
 */
 type Criteria struct{}
 
@@ -62,6 +68,8 @@ From § 3.3.10 of RFC 4517:
 	BAR        = %x7C  ; vertical bar ("|")
 	AMPERSAND  = %x26  ; ampersand ("&")
 	EXCLAIM    = %x21  ; exclamation mark ("!")
+
+[§ 3.3.10 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.10
 */
 func (r RFC4517) EnhancedGuide(x any) (err error) {
 	var raw string
@@ -110,7 +118,7 @@ use [EnhancedGuide] instead.
 
 Guide returns an error following an analysis of x in the context of a Guide.
 
-From § 3.3.14 of RFC 4517:
+From [§ 3.3.14 of RFC 4517]:
 
 	Guide = [ object-class SHARP ] criteria
 
@@ -128,6 +136,8 @@ From § 3.3.14 of RFC 4517:
 	BAR        = %x7C  ; vertical bar ("|")
 	AMPERSAND  = %x26  ; ampersand ("&")
 	EXCLAIM    = %x21  ; exclamation mark ("!")
+
+[§ 3.3.14 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.14
 */
 func (r RFC4517) Guide(x any) (err error) {
 	var raw string
@@ -197,6 +207,7 @@ func (p *criteriaParser) criteria() bool {
 	if !p.andTerm() {
 		return false
 	}
+
 	for hasPfx(p.input[p.pos:], "|") {
 		p.pos++
 		if !p.andTerm() {

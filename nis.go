@@ -5,7 +5,11 @@ NetgroupTriple implements the NIS Netgroup Triple type.  Instances of
 this type are produced following a successful execution of the
 [RFC2307.NetgroupTriple] function.
 
-From § 2.4 of RFC 2307:
+A zero instance of this type is equal to:
+
+	("","","")
+
+From [§ 2.4 of RFC 2307]:
 
 	nisnetgrouptriple = "(" hostname "," username "," domainname ")"
 	hostname          = "" / "-" / keystring
@@ -20,7 +24,7 @@ ASN.1 definition:
 	        domainname [2] IA5String OPTIONAL
 	}
 
-From § 1.4 of RFC 4512:
+From [§ 1.4 of RFC 4512]:
 
 	keystring = leadkeychar *keychar
 	leadkeychar = ALPHA
@@ -31,9 +35,13 @@ From § 1.4 of RFC 4512:
 	LDIGIT  = %x31-39               ; "1"-"9"
 	HYPHEN  = %x2D                  ; hyphen ("-")
 
-From § 3.2 of RFC 4517:
+From [§ 3.2 of RFC 4517]:
 
 	IA5String          = *(%x00-7F)
+
+[§ 2.4 of RFC 2307]: https://datatracker.ietf.org/doc/html/rfc2307#section-2.4
+[§ 3.2 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.2
+[§ 1.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-1.4
 */
 type NetgroupTriple [3]string
 
@@ -109,7 +117,7 @@ BootParameter implements the NIS BootParameter type.  Instances of this type
 are produced following a successful execution of the [RFC2307.BootParameter]
 function.
 
-From § 2.4 of RFC 2307:
+From [§ 2.4 of RFC 2307]:
 
 	bootparameter     = key "=" server ":" path
 	key               = keystring
@@ -124,7 +132,7 @@ ASN.1 definition:
 		path    IA5String
 	}
 
-From § 1.4 of RFC 4512:
+From [§ 1.4 of RFC 4512]:
 
 	keystring = leadkeychar *keychar
 	leadkeychar = ALPHA
@@ -135,9 +143,13 @@ From § 1.4 of RFC 4512:
 	LDIGIT  = %x31-39             ; "1"-"9"
 	HYPHEN  = %x2D ; hyphen ("-")
 
-From § 3.2 of RFC 4517:
+From [§ 3.2 of RFC 4517]:
 
 	IA5String          = *(%x00-7F)
+
+[§ 2.4 of RFC 2307]: https://datatracker.ietf.org/doc/html/rfc2307#section-2.4
+[§ 1.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-1.4
+[§ 3.2 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.2
 */
 type BootParameter [3]string
 

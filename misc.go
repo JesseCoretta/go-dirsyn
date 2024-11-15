@@ -2,14 +2,113 @@ package dirsyn
 
 import "github.com/google/uuid"
 
+/*
+X520 serves as the receiver type for handling definitions sourced from
+[ITU-T Rec. X.520].
+
+[ITU-T Rec. X.520]: https://www.itu.int/rec/T-REC-X.520
+*/
 type X520 struct{}
+
+/*
+URL returns the string representation of the [ITU-T Rec. X.501] document URL.
+
+[ITU-T Rec. X.501]: https://www.itu.int/rec/T-REC-X.501
+*/
+func (r X520) URL() string {
+	return `https://www.itu.int/rec/T-REC-X.520`
+}
+
+/*
+RFC2307 serves as the receiver type for handling definitions sourced from
+RFC 2307.
+*/
 type RFC2307 struct{}
+
+/*
+URL returns the string representation of the RFC 2307 document URL.
+*/
+func (r RFC2307) URL() string {
+	return `https://datatracker.ietf.org/doc/html/rfc2307`
+}
+
+/*
+RFC3672 serves as the receiver type for handling definitions sourced from
+RFC 3672.
+*/
 type RFC3672 struct{}
+
+/*
+URL returns the string representation of the RFC 3672 document URL.
+*/
+func (r RFC3672) URL() string {
+	return `https://datatracker.ietf.org/doc/html/rfc3672`
+}
+
+/*
+RFC4512 serves as the receiver type for handling definitions sourced from
+RFC 4512.
+*/
 type RFC4512 struct{}
+
+/*
+URL returns the string representation of the RFC 4512 document URL.
+*/
+func (r RFC4512) URL() string {
+	return `https://datatracker.ietf.org/doc/html/rfc4512`
+}
+
+/*
+RFC4514 serves as the receiver type for handling definitions sourced from
+RFC 4514.
+*/
 type RFC4514 struct{}
+
+/*
+URL returns the string representation of the RFC 4514 document URL.
+*/
+func (r RFC4514) URL() string {
+	return `https://datatracker.ietf.org/doc/html/rfc4514`
+}
+
+/*
+RFC4517 serves as the receiver type for handling definitions sourced from
+RFC 4517.
+*/
 type RFC4517 struct{}
+
+/*
+URL returns the string representation of the RFC 4517 document URL.
+*/
+func (r RFC4517) URL() string {
+	return `https://datatracker.ietf.org/doc/html/rfc4517`
+}
+
+/*
+RFC4523 serves as the receiver type for handling definitions sourced from
+RFC 4523.
+*/
 type RFC4523 struct{}
+
+/*
+URL returns the string representation of the RFC 4523 document URL.
+*/
+func (r RFC4523) URL() string {
+	return `https://datatracker.ietf.org/doc/html/rfc4523`
+}
+
+/*
+RFC4530 serves as the receiver type for handling definitions sourced from
+RFC 4530.
+*/
 type RFC4530 struct{}
+
+/*
+URL returns the string representation of the RFC 4530 document URL.
+*/
+func (r RFC4530) URL() string {
+	return `https://datatracker.ietf.org/doc/html/rfc4530`
+}
 
 func assertString(x any, min int, name string) (str string, err error) {
 	switch tv := x.(type) {
@@ -120,9 +219,11 @@ func castUint64(x any) (i uint64, err error) {
 Boolean returns an error following an analysis of x in the context
 of an ASN.1 BOOLEAN value.
 
-From § 3.3.3 of RFC 4517:
+[§ 3.3.3 of RFC 4517]:
 
 	Boolean = "TRUE" / "FALSE"
+
+[§ 3.3.3 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.3
 */
 func (r RFC4517) Boolean(x any) (err error) {
 	switch tv := x.(type) {
@@ -143,7 +244,7 @@ UUID returns an error following an analysis of x in the context of a UUID.
 
 Note: this function utilizes Google's [uuid.Parse] method under the hood.
 
-From § 3 of RFC 4122:
+From [§ 3 of RFC 4122]:
 
 	UUID                   = time-low "-" time-mid "-"
 	                         time-high-and-version "-"
@@ -160,6 +261,8 @@ From § 3 of RFC 4122:
 	      "0" / "1" / "2" / "3" / "4" / "5" / "6" / "7" / "8" / "9" /
 	      "a" / "b" / "c" / "d" / "e" / "f" /
 	      "A" / "B" / "C" / "D" / "E" / "F"
+
+[§ 3 of RFC 4122]: https://datatracker.ietf.org/doc/html/rfc4122#section-3
 */
 func (r RFC4530) UUID(x any) (err error) {
 	var raw string
@@ -192,6 +295,10 @@ of a JFIF enveloped payload, which resembles the following:
 	       ÿ  Ø  ÿ  à  |  |   |                         ÿ  Ù
 	      -- -- -- -- -- -- ----                       -- --
 	<SOF> FF D8 FF 0E 00 10 JFIF <variable image data> FF D9 <EOF>
+
+See also [§ 3.3.17 of RFC 4517].
+
+[§ 3.3.17 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.17
 */
 func (r RFC4517) JPEG(x any) (err error) {
 	var raw []uint8
@@ -271,7 +378,7 @@ func strInSlice(r string, slice []string) bool {
 SubstringAssertion returns an error following an analysis of x in the
 context of a Substring Assertion.
 
-From § 3.3.30 of RFC 4517:
+From [§ 3.3.30 of RFC 4517]:
 
 	SubstringAssertion = [ initial ] any [ final ]
 
@@ -287,6 +394,8 @@ From § 3.3.30 of RFC 4517:
 	                      / (%x5C "5C")  ; escaped "\"
 	                      / %x5D-7F
 	                      / UTFMB
+
+[§ 3.3.30 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.30
 */
 func (r RFC4517) SubstringAssertion(x any) (err error) {
 	var raw string
@@ -430,7 +539,7 @@ func isSafeUTF4(x string) (err error) {
 uTF8 returns an error following an analysis of x in the context of
 one (1) or more UTF8 characters.
 
-From § 1.4 of RFC 4512:
+From [§ 1.4 of RFC 4512]:
 
 	UTF8    = UTF1 / UTFMB
 	UTFMB   = UTF2 / UTF3 / UTF4
@@ -441,6 +550,8 @@ From § 1.4 of RFC 4512:
 	          %xED %x80-9F UTF0 / %xEE-EF 2(UTF0)
 	UTF4    = %xF0 %x90-BF 2(UTF0) / %xF1-F3 3(UTF0) /
 	          %xF4 %x80-8F 2(UTF0)
+
+[§ 1.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-1.4
 */
 func uTF8(x any) (u UTF8String, err error) {
 	var raw []rune

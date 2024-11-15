@@ -102,10 +102,8 @@ func TestDirectoryString(t *testing.T) {
 		UTF8String(`ZFKJ345325^&*$`),
 		TeletexString(`maybe`),
 	} {
-		if ds, err := r.DirectoryString(raw); err != nil {
+		if _, err := r.DirectoryString(raw); err != nil {
 			t.Errorf("%s failed: %v", t.Name(), err)
-		} else {
-			t.Logf("%s\n", ds)
 		}
 	}
 }

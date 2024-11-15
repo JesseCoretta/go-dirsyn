@@ -281,9 +281,9 @@ func decodeEncodedString(str string) (string, error) {
 DN returns an error following an analysis of x in the context of a DN,
 or Distinguished Name.
 
-Note: DN, RDN and ATV parsing capabilities derived from go-ldap/ldap/v3/dn.go
+Note: DN, RDN and ATV parsing capabilities derived from [go-ldap/ldap/v3/dn.go]
 
-From § 3 of RFC 4514:
+From [§ 3 of RFC 4514]:
 
 	distinguishedName = [ relativeDistinguishedName *( COMMA relativeDistinguishedName ) ]
 	relativeDistinguishedName = attributeTypeAndValue *( PLUS attributeTypeAndValue )
@@ -306,6 +306,9 @@ From § 3 of RFC 4514:
 	escaped = DQUOTE / PLUS / COMMA / SEMI / LANGLE / RANGLE
 	hexstring = SHARP 1*hexpair
 	hexpair = HEX HEX
+
+[§ 3 of RFC 4514]: https://datatracker.ietf.org/doc/html/rfc4514#section-3
+[go-ldap/ldap/v3/dn.go]: https://github.com/go-ldap/ldap/blob/master/dn.go
 */
 func (r RFC4514) DN(x any) (err error) {
 	var raw string
@@ -342,19 +345,23 @@ func (r RFC4517) DN(x any) (err error) {
 NameAndOptionalUID returns an error following an analysis of x in the
 context of a Name and Optional UID.
 
-From § 3.3.21 of RFC 4517:
+From [§ 3.3.21 of RFC 4517]:
 
 	NameAndOptionalUID = distinguishedName [ SHARP BitString ]
 
-From § 3.3.2 of RFC 4517:
+From [§ 3.3.2 of RFC 4517]:
 
 	BitString    = SQUOTE *binary-digit SQUOTE "B"
 	binary-digit = "0" / "1"
 
-From § 1.4 of RFC 4512:
+From [§ 1.4 of RFC 4512]:
 
 	SHARP  = %x23	; octothorpe (or sharp sign) ("#")
 	SQUOTE = %x27	; single quote ("'")
+
+[§ 3.3.21 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.21
+[§ 3.3.2 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.2
+[§ 1.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-1.4
 */
 func (r RFC4517) NameAndOptionalUID(x any) (err error) {
 	var raw string

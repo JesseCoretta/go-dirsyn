@@ -8,13 +8,13 @@ the (deprecated) UTC Time.
 import "time"
 
 /*
-GeneralizedTime aliases an instance of [time.Time] to implement § 3.3.13
-of RFC 4517:
+GeneralizedTime aliases an instance of [time.Time] to implement [§ 3.3.13
+of RFC 4517]:
 
 	GeneralizedTime = century year month day hour
-	                     [ minute [ second / leap-second ] ]
-	                     [ fraction ]
-	                     g-time-zone
+	        [ minute [ second / leap-second ] ]
+	        [ fraction ]
+	        g-time-zone
 
 	century = 2(%x30-39) ; "00" to "99"
 	year    = 2(%x30-39) ; "00" to "99"
@@ -34,6 +34,8 @@ of RFC 4517:
 	                  / g-differential
 	g-differential  = ( MINUS / PLUS ) hour [ minute ]
 	MINUS           = %x2D  ; minus sign ("-")
+
+[§ 3.3.13 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.13
 */
 type GeneralizedTime time.Time
 
@@ -112,14 +114,16 @@ func genTimeFracDiffFormat(raw, base, diff, format string) (string, error) {
 }
 
 /*
-UTCTime implements § 3.3.34 of RFC 4517.
+Deprecated: UTCTime implements [§ 3.3.34 of RFC 4517].
 
 	UTCTime         = year month day hour minute [ second ] [ u-time-zone ]
 	u-time-zone     = %x5A  ; "Z"
 	                  / u-differential
 	u-differential  = ( MINUS / PLUS ) hour minute
 
-Note this type is deprecated; use [RFC4517.GeneralizedTime] instead.
+Use instances of [GeneralizedTime] instead.
+
+[§ 3.3.34 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.34
 */
 type UTCTime time.Time
 

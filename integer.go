@@ -3,11 +3,13 @@ package dirsyn
 import "math/big"
 
 /*
-Integer implements an unbounded Integer syntax.
+Integer aliases [big.Int] to implement an unbounded Integer syntax.
 
-From § 3.3.16 of RFC 4517:
+From [§ 3.3.16 of RFC 4517]:
 
 	Integer = ( HYPHEN LDIGIT *DIGIT ) / number
+
+[§ 3.3.16 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.16
 */
 type Integer big.Int
 
@@ -56,7 +58,7 @@ the value provided.
 
 Valid input types are string, uint64, int, uint, *[math/big.Int] and [Integer].
 
-Any input that represents a negative or unspecified number guarantees a false return.
+Any input that represents an unspecified number guarantees a false return.
 
 See also [Integer.Ne].
 */
@@ -101,7 +103,7 @@ the value provided.
 
 Valid input types are string, uint64, int, uint, *[math/big.Int] and [Integer].
 
-Any input that represents a negative or unspecified number guarantees a false return.
+Any input that represents an unspecified number guarantees a false return.
 */
 func (r Integer) Gt(n any) (is bool) {
 	switch tv := n.(type) {
@@ -133,11 +135,11 @@ Ge returns a boolean value indicative of whether the receiver is greater than
 or equal to the value provided.
 
 This method is merely a convenient wrapper to an ORed call of the [Integer.Gt]
-and [Integer.Equal] methods.
+and [Integer.Eq] methods.
 
 Valid input types are string, uint64, int, uint, *[math/big.Int] and [Integer].
 
-Any input that represents a negative or unspecified number guarantees a false return.
+Any input that represents an unspecified number guarantees a false return.
 */
 func (r Integer) Ge(n any) (is bool) {
 	return r.Gt(n) || r.Eq(n)
@@ -149,7 +151,7 @@ the value provided.
 
 Valid input types are string, uint64, int, uint, *[math/big.Int] and [Integer].
 
-Any input that represents a negative or unspecified number guarantees a false return.
+Any input that represents an unspecified number guarantees a false return.
 */
 func (r Integer) Lt(n any) (is bool) {
 	switch tv := n.(type) {
@@ -181,11 +183,11 @@ Le returns a boolean value indicative of whether the receiver is less than or
 equal to the value provided.
 
 This method is merely a convenient wrapper to an ORed call of the [Integer.Lt]
-and [Integer.Equal] methods.
+and [Integer.Eq] methods.
 
 Valid input types are string, uint64, int, uint, *[math/big.Int] and [Integer].
 
-Any input that represents a negative or unspecified number guarantees a false return.
+Any input that represents an unspecified number guarantees a false return.
 */
 func (r Integer) Le(n any) (is bool) {
 	return r.Lt(n) || r.Eq(n)

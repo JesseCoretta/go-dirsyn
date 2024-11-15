@@ -1,5 +1,10 @@
 package dirsyn
 
+/*
+NOTE: a bulk of the desirable test cases are already handled in
+JesseCoretta/go-objectid, which is imported.
+*/
+
 import (
 	"testing"
 )
@@ -26,10 +31,8 @@ func TestNumericOID(t *testing.T) {
 		`1.3.6.1.4.1.56521`,
 		`2.5.4.3`,
 	} {
-		if noid, err := r.NumericOID(raw); err != nil {
+		if _, err := r.NumericOID(raw); err != nil {
 			t.Errorf("%s[%d] failed: %v\n", t.Name(), idx, err)
-		} else {
-			t.Logf("%#v\n", noid.DotNotation.String())
 		}
 	}
 }
@@ -44,10 +47,8 @@ func TestDescriptor(t *testing.T) {
 		`l`,
 		`n`,
 	} {
-		if descr, err := r.Descriptor(raw); err != nil {
+		if _, err := r.Descriptor(raw); err != nil {
 			t.Errorf("%s[%d] failed: %v\n", t.Name(), idx, err)
-		} else {
-			t.Logf("%s\n", string(descr))
 		}
 	}
 }

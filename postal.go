@@ -5,26 +5,32 @@ postal.go contains implementations for various postal and mail constructs.
 */
 
 /*
-DeliveryMethod implements § 3.3.5 of RFC 4517:
+DeliveryMethod implements [§ 3.3.5 of RFC 4517]:
 
 	DeliveryMethod = pdm *( WSP DOLLAR WSP pdm )
 	pdm = "any" / "mhs" / "physical" / "telex" / "teletex" /
 	      "g3fax" / "g4fax" / "ia5" / "videotex" / "telephone"
 
-From § 1.4 of RFC 4512:
+From [§ 1.4 of RFC 4512]:
 
 	DOLLAR  = %x24	  ; dollar sign ("$")
 	WSP     = 0*SPACE ; zero or more " "
+
+[§ 1.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-1.4
+[§ 3.3.5 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.5
 */
 type DeliveryMethod []string
 
+/*
+String returns the string representation of the receiver instance.
+*/
 func (r DeliveryMethod) String() string {
 	return join(r, ` $ `)
 }
 
 /*
 DeliveryMethod returns an error following an analysis of x in the context
-of a DeliveryMethod.
+of a [DeliveryMethod].
 */
 func (r RFC4517) DeliveryMethod(x any) (dm DeliveryMethod, err error) {
 	postalDeliveryMethods := []string{
@@ -64,10 +70,8 @@ func (r RFC4517) DeliveryMethod(x any) (dm DeliveryMethod, err error) {
 }
 
 /*
-PostalAddress returns an error following an analysis of x in the context
-of a PostalAddress.
-
-From § 3.3.28 of RFC 4517:
+PostalAddress implements the PostalAddress definition per [§ 3.3.28 of
+RFC 4517]:
 
 	PostalAddress = line *( DOLLAR line )
 	line          = 1*line-char
@@ -78,7 +82,7 @@ From § 3.3.28 of RFC 4517:
 	                / %x5D-7F
 	                / UTFMB
 
-From § 1.4 of RFC 4512:
+From [§ 1.4 of RFC 4512]:
 
 	DOLLAR  = %x24	  ; dollar sign ("$")
 	UTFMB   = UTF2 / UTF3 / UTF4
@@ -89,16 +93,22 @@ From § 1.4 of RFC 4512:
 	          %xED %x80-9F UTF0 / %xEE-EF 2(UTF0)
 	UTF4    = %xF0 %x90-BF 2(UTF0) / %xF1-F3 3(UTF0) /
 	          %xF4 %x80-8F 2(UTF0)
+
+[§ 1.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-1.4
+[§ 3.3.28 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.28
 */
 type PostalAddress []string
 
+/*
+String returns the string representation of the receiver instance.
+*/
 func (r PostalAddress) String() string {
 	return join(r, `$`)
 }
 
 /*
 PostalAddress returns an error following an analysis of x in the context
-of a PostalAddress.
+of a [PostalAddress].
 */
 func (r RFC4517) PostalAddress(x any) (pa PostalAddress, err error) {
 	var lc []string
@@ -116,42 +126,46 @@ func (r RFC4517) PostalAddress(x any) (pa PostalAddress, err error) {
 }
 
 /*
-OtherMailbox implements § 3.3.27 of RFC 4517:
+OtherMailbox implements [§ 3.3.27 of RFC 4517]:
 
 	OtherMailbox = mailbox-type DOLLAR mailbox
 	mailbox-type = PrintableString
 	mailbox      = IA5String
 	IA5String    = *(%x00-7F)
 
-From § 1.4 of RFC 4512:
+From [§ 1.4 of RFC 4512]:
 
-	        PrintableCharacter = ALPHA / DIGIT / SQUOTE / LPAREN / RPAREN /
-	                             PLUS / COMMA / HYPHEN / DOT / EQUALS /
-	                             SLASH / COLON / QUESTION / SPACE
-	        PrintableString    = 1*PrintableCharacter
+	PrintableCharacter = ALPHA / DIGIT / SQUOTE / LPAREN / RPAREN /
+	                     PLUS / COMMA / HYPHEN / DOT / EQUALS /
+	                     SLASH / COLON / QUESTION / SPACE
+	PrintableString    = 1*PrintableCharacter
 
-	        ALPHA   = %x41-5A / %x61-7A    ; "A"-"Z" / "a"-"z"
-	        DIGIT   = %x30 / LDIGIT        ; "0"-"9"
-	        SQUOTE  = %x27                 ; single quote ("'")
-	        SPACE   = %x20                 ; space (" ")
-	        LPAREN  = %x28                 ; left paren ("(")
-	        RPAREN  = %x29                 ; right paren (")")
-	        PLUS    = %x2B                 ; plus sign ("+")
-	        COMMA   = %x2C                 ; comma (",")
-	        HYPHEN  = %x2D                 ; hyphen ("-")
-	        DOT     = %x2E                 ; period (".")
-	        EQUALS  = %x3D                 ; equals sign ("=")
-		DOLLAR  = %x24	               ; dollar sign ("$")
+	ALPHA   = %x41-5A / %x61-7A    ; "A"-"Z" / "a"-"z"
+	DIGIT   = %x30 / LDIGIT        ; "0"-"9"
+	SQUOTE  = %x27                 ; single quote ("'")
+	SPACE   = %x20                 ; space (" ")
+	LPAREN  = %x28                 ; left paren ("(")
+	RPAREN  = %x29                 ; right paren (")")
+	PLUS    = %x2B                 ; plus sign ("+")
+	COMMA   = %x2C                 ; comma (",")
+	HYPHEN  = %x2D                 ; hyphen ("-")
+	DOT     = %x2E                 ; period (".")
+	EQUALS  = %x3D                 ; equals sign ("=")
+	DOLLAR  = %x24	               ; dollar sign ("$")
 
-From § 3.2 of RFC 4517:
+From [§ 3.2 of RFC 4517]:
 
 	IA5String          = *(%x00-7F)
+
+[§ 3.3.27 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.27
+[§ 3.2 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.2
+[§ 1.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-1.4
 */
 type OtherMailbox [2]string
 
 /*
 OtherMailbox returns an error following an analysis of x in the context
-of an OtherMailbox.
+of an [OtherMailbox].
 */
 func (r RFC4517) OtherMailbox(x any) (om OtherMailbox, err error) {
 	var raw string

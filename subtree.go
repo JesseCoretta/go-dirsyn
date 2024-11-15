@@ -3,7 +3,16 @@ package dirsyn
 /*
 SubtreeSpecification implements the Subtree Specification construct.
 
-From Appendix A of RFC 3672:
+At present, instances of this type are not ASN.1 encode-friendly due
+to the use of an interface type for [Refinement] instances. This is
+because Go's [encoding/asn1] package does not play nicely with such
+types.
+
+A zero instance of this type is equal to "{}" when represented as a
+string value, which is a valid default value when populated for an
+entry's "[subtreeSpecification]" attribute type instance within a DIT.
+
+From [Appendix A of RFC 3672]:
 
 	SubtreeSpecification = "{" [ sp ss-base ]
 	                           [ sep sp ss-specificExclusions ]
@@ -20,7 +29,7 @@ From Appendix A of RFC 3672:
 
 	BaseDistance = INTEGER-0-MAX
 
-From § 6 of RFC 3642:
+From [§ 6 of RFC 3642]:
 
 	LocalName         = RDNSequence
 	RDNSequence       = dquote *SafeUTF8Character dquote
@@ -35,6 +44,10 @@ From § 6 of RFC 3642:
 	OBJECT-IDENTIFIER = numeric-oid / descr
 	numeric-oid       = oid-component 1*( "." oid-component )
 	oid-component     = "0" / positive-number
+
+[Appendix A of RFC 3672]: https://datatracker.ietf.org/doc/html/rfc3672#appendix-A
+[subtreeSpecification]: https://datatracker.ietf.org/doc/html/rfc3672#section-2.3
+[§ 6 of RFC 3642]: https://datatracker.ietf.org/doc/html/rfc3642#section-6
 */
 type SubtreeSpecification struct {
 	Base                LocalName
@@ -119,15 +132,22 @@ func (r RFC3672) SubtreeSpecification(x any) (ss SubtreeSpecification, err error
 /*
 Encode returns the ASN.1 encoding of the receiver instance alongside an error.
 */
+/*
+// FIXME - figure out a work around, or scrap the idea for encoding
+// instances of this type altogether.
 func (r SubtreeSpecification) Encode() (b []byte, err error) {
 	b, err = asn1m(r)
 	return
 }
+*/
 
 /*
 Decode returns an error following an attempt to decode ASN.1 encoded bytes b into
 the receiver instance. This results in the receiver being overwritten with new data.
 */
+/*
+// FIXME - figure out a work around, or scrap the idea for decoding
+// instances of this type altogether.
 func (r *SubtreeSpecification) Decode(b []byte) (err error) {
 	var rest []byte
 	if rest, err = asn1um(b, r); err == nil {
@@ -138,35 +158,66 @@ func (r *SubtreeSpecification) Decode(b []byte) (err error) {
 
 	return
 }
+*/
 
 /*
 SpecificExclusions implements the Subtree Specification exclusions construct.
 
-From Appendix A of RFC 3672:
+From [Appendix A of RFC 3672]:
 
 	SpecificExclusions = "{" [ sp SpecificExclusion *( "," sp SpecificExclusion ) ] sp "}"
+
+[Appendix A of RFC 3672]: https://datatracker.ietf.org/doc/html/rfc3672#appendix-A
 */
 type SpecificExclusions []SpecificExclusion
 
 /*
 SpecificExclusion implements the Subtree Specification exclusion construct.
 
-From Appendix A of RFC 3672:
+From [Appendix A of RFC 3672]:
 
 	SpecificExclusion  = chopBefore / chopAfter
 	chopBefore         = id-chopBefore ":" LocalName
 	chopAfter          = id-chopAfter  ":" LocalName
 	id-chopBefore      = %x63.68.6F.70.42.65.66.6F.72.65 ; "chopBefore"
 	id-chopAfter       = %x63.68.6F.70.41.66.74.65.72    ; "chopAfter"
+
+[Appendix A of RFC 3672]: https://datatracker.ietf.org/doc/html/rfc3672#appendix-A
 */
 type SpecificExclusion struct {
 	Name  LocalName
 	After bool // false = Before
 }
 
+/*
+BaseDistance implements the integer value of a minimum and/or maximum
+[SubtreeSpecification] depth refinement parameter. An instance of this
+type for either use case indicates the subordinate entry depth "range"
+whose contents are subject to the influence of the [SubtreeSpecification]
+bearing a non-zero value.
+
+A zero instance of this type, unsurprisingly, is zero (0) and indicates
+no depth refinement is in force for the respective administrative area.
+*/
 type BaseDistance int
+
+/*
+LocalName implements an "RDNSequence" per [§ 6 of RFC 3642].
+
+Instances of this type may be found within the "base" of a [SubtreeSpecification]
+instance, as well as the "name" of a [SpecificExclusion], and are used to describe
+an indicated entry set present at, or within, a given administrative area.
+
+A zero instance of this type is equivalent to a null DN, which normally indicates
+that the given administrative area is defined by the current subentry.
+
+[§ 6 of RFC 3642]: https://datatracker.ietf.org/doc/html/rfc3642#section-6
+*/
 type LocalName string
 
+/*
+String returns the string representation of the receiver instance.
+*/
 func (r SpecificExclusions) String() string {
 	if len(r) == 0 {
 		return `{ }`
@@ -180,6 +231,9 @@ func (r SpecificExclusions) String() string {
 	return `{ ` + join(_s, `, `) + ` }`
 }
 
+/*
+String returns the string representation of the receiver instance.
+*/
 func (r SpecificExclusion) String() (s string) {
 	if len(r.Name) > 0 {
 		if r.After {
@@ -290,7 +344,22 @@ func subtreeMinMax(raw string, begin int) (minmax BaseDistance, end int, err err
 	return
 }
 
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r *SubtreeSpecification) IsZero() bool {
+	return r == nil
+}
+
+/*
+String returns the string representation of the receiver instance.
+*/
 func (r SubtreeSpecification) String() (s string) {
+	if r.IsZero() {
+		s = `{}`
+		return
+	}
+
 	var _s []string
 	if len(r.Base) > 0 {
 		_s = append(_s, `base `+`"`+string(r.Base)+`"`)
@@ -321,16 +390,16 @@ func (r SubtreeSpecification) String() (s string) {
 }
 
 /*
-Refinement implements Appendix A of RFC 3672, and serves as
-the "SpecificationFilter" optionally found within a Subtree
-Specification. It is qualified through instances of:
+Refinement implements [Appendix A of RFC 3672], and serves as the
+"SpecificationFilter" optionally found within a Subtree Specification.
+It is qualified through instances of:
 
   - [ItemRefinement]
   - [AndRefinement]
   - [OrRefinement]
   - [NotRefinement]
 
-From Appendix A of RFC 3672:
+From [Appendix A of RFC 3672]:
 
 	Refinement  = item / and / or / not
 	item        = id-item ":" OBJECT-IDENTIFIER
@@ -344,7 +413,7 @@ From Appendix A of RFC 3672:
 	id-or       = %x6F.72       ; "or"
 	id-not      = %x6E.6F.74    ; "not"
 
-From § 12.3.5 of X.501:
+From [ITU-T Rec. X.501 clause 12.3.5]:
 
 	Refinement ::= CHOICE {
 		item [0] OBJECT-CLASS.&id,
@@ -352,6 +421,9 @@ From § 12.3.5 of X.501:
 		or   [2] SET SIZE (1..MAX) OF Refinement,
 		not  [3] Refinement,
 		... }
+
+[ITU-T Rec. X.501 clause 12.3.5]: https://www.itu.int/rec/T-REC-X.501
+[Appendix A of RFC 3672]: https://datatracker.ietf.org/doc/html/rfc3672#appendix-A
 */
 type Refinement interface {
 	IsZero() bool
@@ -361,7 +433,7 @@ type Refinement interface {
 }
 
 /*
-And implements slices of [Refinement], all of which are expected to
+AndRefinement implements slices of [Refinement], all of which are expected to
 evaluate as true during processing.
 
 Instances of this type qualify the [Refinement] interface type.
@@ -426,7 +498,7 @@ func (r AndRefinement) Len() int {
 }
 
 /*
-Or implements slices of [Refinement], at least one of which is
+OrRefinement implements slices of [Refinement], at least one of which is
 expected to evaluate as true during processing.
 
 Instances of this type qualify the [Refinement] interface type.
@@ -463,10 +535,9 @@ func (r OrRefinement) Len() int {
 }
 
 /*
-NotRefinement implements a negated, recursive instance of
-[Refinement]. Normally during processing, instances
-of this type are processed first when present among
-other qualifiers as siblings (slices), such as with
+NotRefinement implements a negated, recursive instance of [Refinement].
+Normally during processing, instances of this type are processed first
+when present among other qualifiers as siblings (slices), such as with
 [AndRefinement] and [OrRefinement] instances.
 
 Instances of this type qualify the [Refinement] interface type.
@@ -532,9 +603,8 @@ func (r ItemRefinement) Type() string {
 }
 
 /*
-Len always returns the integer 1 (one).  This
-method only exists to satisfy Go's interface
-signature requirements.
+Len always returns the integer 1 (one).  This method only exists to satisfy
+Go's interface signature requirements.
 */
 func (r ItemRefinement) Len() int {
 	return 1
@@ -547,6 +617,7 @@ func subtreeBase(x any) (base LocalName, end int, err error) {
 		return
 	}
 
+	// FIXME - extend spec to allow single quotes?
 	if raw[0] != '"' {
 		err = errorTxt("Missing encapsulation (\") for LocalName")
 		return
