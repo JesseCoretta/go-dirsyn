@@ -1,6 +1,7 @@
 [![RFC4514](https://img.shields.io/badge/RFC-4514-blue)](https://datatracker.ietf.org/doc/html/rfc4514) [![RFC4517](https://img.shields.io/badge/RFC-4517-blue)](https://datatracker.ietf.org/doc/html/rfc4517) [![RFC4530](https://img.shields.io/badge/RFC-4530-blue)](https://datatracker.ietf.org/doc/html/rfc4530) [![RFC2307](https://img.shields.io/badge/RFC-2307-blue)](https://datatracker.ietf.org/doc/html/rfc2307) [![RFC3672](https://img.shields.io/badge/RFC-3672-blue)](https://datatracker.ietf.org/doc/html/rfc3672) [![Reference](https://pkg.go.dev/badge/github.com/JesseCoretta/go-dirsyn.svg)](https://pkg.go.dev/github.com/JesseCoretta/go-dirsyn) [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](https://github.com/JesseCoretta/go-dirsyn/blob/main/LICENSE) [![Issues](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/JesseCoretta/go-dirsyn/issues) [![Experimental](https://img.shields.io/badge/experimental-blue?logoColor=blue&label=%F0%9F%A7%AA%20%F0%9F%94%AC&labelColor=blue&color=gray)](https://github.com/JesseCoretta/JesseCoretta/blob/main/EXPERIMENTAL.md) [![Volatility Warning](https://img.shields.io/badge/volatile-darkred?label=%F0%9F%92%A5&labelColor=white&color=orange&cacheSeconds=86400)](https://github.com/JesseCoretta/JesseCoretta/blob/main/VOLATILE.md) [![Help Animals](https://img.shields.io/badge/help_animals-gray?label=%F0%9F%90%BE%20%F0%9F%98%BC%20%F0%9F%90%B6&labelColor=yellow)](https://github.com/JesseCoretta/JesseCoretta/blob/main/DONATIONS.md)
 
-## go-dirsyn
+![dirsyn_logo_small](https://github.com/user-attachments/assets/cecb115d-1d1b-45cd-b4f6-81b5e34c1e8f)
+
 
 Package dirsyn implements myriad X.500/LDAP syntax checking functions.
 
