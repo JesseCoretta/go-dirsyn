@@ -23,10 +23,12 @@ func TestSubstringAssertion(t *testing.T) {
 func TestUUID(t *testing.T) {
 	var r RFC4530
 
+	// We can skimp on tests, since we're just wrapping
+	// a call to Google's uuid.Parse function.
 	for idx, raw := range []string{
 		`f81d4fae-7dec-11d0-a765-00a0c91e6bf6`,
 	} {
-		if err := r.UUID(raw); err != nil {
+		if _, err := r.UUID(raw); err != nil {
 			t.Errorf("%s[%d] failed: %v", t.Name(), idx, err)
 		}
 	}
@@ -34,6 +36,8 @@ func TestUUID(t *testing.T) {
 
 func TestJPEG(t *testing.T) {
 	var r RFC4517
+	// TODO - add file reader (string) test using a
+	// temporary file loaded with testJPEGData bytes.
 	if err := r.JPEG(testJPEGData); err != nil {
 		t.Errorf("%s failed: %v", t.Name(), err)
 	}

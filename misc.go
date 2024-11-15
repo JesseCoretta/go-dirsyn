@@ -1,6 +1,25 @@
 package dirsyn
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+)
+
+/*
+X501 serves as the receiver type for handling definitions sourced from
+[ITU-T Rec. X.501].
+
+[ITU-T Rec. X.501]: https://www.itu.int/rec/T-REC-X.501
+*/
+type X501 struct{}
+
+/*
+URL returns the string representation of the [ITU-T Rec. X.501] document URL.
+
+[ITU-T Rec. X.501]: https://www.itu.int/rec/T-REC-X.501
+*/
+func (r X501) URL() string {
+	return `https://www.itu.int/rec/T-REC-X.501`
+}
 
 /*
 X520 serves as the receiver type for handling definitions sourced from
@@ -11,9 +30,9 @@ X520 serves as the receiver type for handling definitions sourced from
 type X520 struct{}
 
 /*
-URL returns the string representation of the [ITU-T Rec. X.501] document URL.
+URL returns the string representation of the [ITU-T Rec. X.520] document URL.
 
-[ITU-T Rec. X.501]: https://www.itu.int/rec/T-REC-X.501
+[ITU-T Rec. X.520]: https://www.itu.int/rec/T-REC-X.520
 */
 func (r X520) URL() string {
 	return `https://www.itu.int/rec/T-REC-X.520`
@@ -216,21 +235,42 @@ func castUint64(x any) (i uint64, err error) {
 }
 
 /*
-Boolean returns an error following an analysis of x in the context
-of an ASN.1 BOOLEAN value.
+Boolean returns a Go Boolean value alongside an error following an analysis
+of x in the context of an ASN.1 BOOLEAN value.
 
-[§ 3.3.3 of RFC 4517]:
+Valid input types are native Go Booleans, string representations of Booleans
+and nil.
+
+If the input is a Go Boolean, true is equal to "TRUE" in the context of
+directory values, while false is equal to "FALSE". The return error instance
+shall always be nil.
+
+If the input is a string, case is not significant in the matching process.
+A value of "TRUE" returns a Go Boolean of true, while "FALSE" returns false.
+Any other string value results in an error.
+
+If the input is nil, the return is false, which simulates the "UNDEFINED"
+behavior exhibited by most directory server products. The return error
+instance shall always be nil.
+
+All other input types return an error.
+
+From [§ 3.3.3 of RFC 4517]:
 
 	Boolean = "TRUE" / "FALSE"
 
 [§ 3.3.3 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.3
 */
-func (r RFC4517) Boolean(x any) (err error) {
+func (r RFC4517) Boolean(x any) (b bool, err error) {
 	switch tv := x.(type) {
+	case nil:
 	case bool:
+		b = tv
 	case string:
 		if !(eqf(tv, `TRUE`) && eqf(tv, `FALSE`)) {
 			err = errorTxt("Invalid Boolean " + tv)
+		} else {
+			b = uc(tv) == `TRUE`
 		}
 	default:
 		err = errorBadType("Boolean")
@@ -264,7 +304,7 @@ From [§ 3 of RFC 4122]:
 
 [§ 3 of RFC 4122]: https://datatracker.ietf.org/doc/html/rfc4122#section-3
 */
-func (r RFC4530) UUID(x any) (err error) {
+func (r RFC4530) UUID(x any) (u uuid.UUID, err error) {
 	var raw string
 
 	switch tv := x.(type) {
@@ -279,14 +319,14 @@ func (r RFC4530) UUID(x any) (err error) {
 		return
 	}
 
-	_, err = uuid.Parse(raw)
+	u, err = uuid.Parse(raw)
 
 	return
 }
 
 /*
-JPEG returns an error following an analysis of x in the context
-of a JFIF enveloped payload, which resembles the following:
+JPEG returns an error following an analysis of x in the context of a JFIF
+enveloped payload, which resembles the following:
 
 	                      +- NULL (CTRL+@)
 	                     /  +- DATA LINK ESCAPE (CTRL+P)
@@ -295,6 +335,23 @@ of a JFIF enveloped payload, which resembles the following:
 	       ÿ  Ø  ÿ  à  |  |   |                         ÿ  Ù
 	      -- -- -- -- -- -- ----                       -- --
 	<SOF> FF D8 FF 0E 00 10 JFIF <variable image data> FF D9 <EOF>
+
+Note that only the envelope elements -- specifically the header and footer --
+are read. Actual image data is skipped for performance reasons.
+
+Valid input values are string and []byte.
+
+If the input value is a string, it is assumed the value leads to a path
+and filename of a JPEG image file.
+
+If the input value is a []byte instance, it may be raw JPEG data, or Base64
+encoded JPEG data. If Base64 encoded, it is decoded and processed.
+
+All other input types result in an error.
+
+Aside from the error instance, there is no return type for parsed JPEG
+content, as this would not serve any useful purpose to end users in any
+of the intended use cases for this package.
 
 See also [§ 3.3.17 of RFC 4517].
 
@@ -305,14 +362,30 @@ func (r RFC4517) JPEG(x any) (err error) {
 
 	switch tv := x.(type) {
 	case string:
-		err = r.JPEG([]uint8(tv))
+		// Read from file
+		if raw, err = readFile(tv); err != nil {
+			return
+		}
+
+		// Self-execute using the byte payload
+		err = r.JPEG(raw)
 		return
 	case []uint8:
 		if len(tv) <= 12 {
 			err = errorBadLength("JPEG", len(tv))
 			return
 		}
-		raw = tv
+
+		if isBase64(string(tv)) {
+			var dec []byte
+			if dec, err = b64dec(tv); err != nil {
+				err = errorTxt("Bogus base64 payload")
+				return
+			}
+			raw = dec
+		} else {
+			raw = tv
+		}
 	default:
 		err = errorBadType("JPEG")
 		return
