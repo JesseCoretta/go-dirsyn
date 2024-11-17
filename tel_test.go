@@ -10,8 +10,11 @@ func TestTelexNumber(t *testing.T) {
 	for _, raw := range []string{
 		`12345$US$getrac`,
 	} {
-		if err := r.TelexNumber(raw); err != nil {
+		if tn, err := r.TelexNumber(raw); err != nil {
 			t.Errorf("%s failed: %v", t.Name(), err)
+		} else if got := tn.String(); got != raw {
+			t.Errorf("%s failed:\n\twant:%s\n\tgot: %s\n",
+				t.Name(), raw, got)
 		}
 	}
 }
@@ -20,13 +23,16 @@ func TestTeletexTerminalIdentifier(t *testing.T) {
 	var r RFC4517
 
 	for _, raw := range []string{
-		`P$control$graphic:abcd`,
+		`P$graphic:abcd$misc:123`,
 		`P$control:a`,
-		`P$control$page:`,
-		`P$control$private:hi`,
+		`P$graphic:abf$page:`,
+		`P$control:abge$private:hi`,
 	} {
-		if err := r.TeletexTerminalIdentifier(raw); err != nil {
+		if tti, err := r.TeletexTerminalIdentifier(raw); err != nil {
 			t.Errorf("%s failed: %v", t.Name(), err)
+		} else if got := tti.String(); got != raw {
+			t.Errorf("%s failed:\n\twant:%s\n\tgot: %s\n",
+				t.Name(), raw, got)
 		}
 	}
 }

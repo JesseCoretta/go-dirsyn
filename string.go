@@ -2,7 +2,8 @@ package dirsyn
 
 import (
 	"encoding/asn1"
-	"fmt"
+	"strconv"
+	"unicode/utf16"
 )
 
 /*
@@ -30,7 +31,7 @@ func (r BitString) String() (bs string) {
 	}
 
 	for _, b := range r.Bytes {
-		bs += fmt.Sprintf("%b", b)
+		bs += strconv.FormatUint(uint64(b), 2)
 	}
 
 	bs = string(rune('\'')) + bs +
@@ -246,8 +247,6 @@ type DirectoryString struct {
 	Value  any
 }
 
-type BMPString string
-
 /*
 DirectoryString returns an instance of [DirectoryString] alongside an error.
 
@@ -274,14 +273,15 @@ func (r RFC4517) DirectoryString(x any) (ds DirectoryString, err error) {
 		_, err = r.PrintableString(string(tv))
 		choice = `PrintableString`
 		value = tv
-	//case UniversalString:
-	//	_, err = r.UniversalString(string(tv))
-	//	choice = `UTF8String`
-	//	value = tv
-	//case BMPString:
-	//	_, err = r.BMPString(string(tv))
-	//	choice = `BMPString`
-	//	value = tv
+	case UniversalString:
+		_, err = r.UniversalString(string(tv))
+		choice = `UniversalString`
+		value = tv
+	case BMPString:
+		var x680 X680
+		_, err = x680.BMPString(tv)
+		choice = `BMPString`
+		value = tv
 	case TeletexString:
 		_, err = r.TeletexString(string(tv))
 		choice = `TeletexString`
@@ -315,10 +315,10 @@ func (ds DirectoryString) Bytes() (b []byte, err error) {
 		b, err = asn1.Marshal(ds.Value.(TeletexString))
 	case "PrintableString":
 		b, err = asn1.Marshal(ds.Value.(PrintableString))
-	//case "BMPString":
-	//	b, err = asn1.Marshal(ds.Value.(BMPString))
-	//case "UniversalString":
-	//	b, err = asn1.Marshal(ds.Value.(UniversalString))
+	case "BMPString":
+		b, err = asn1.Marshal(ds.Value.(BMPString))
+	case "UniversalString":
+		b, err = asn1.Marshal(ds.Value.(UniversalString))
 	case "UTF8String":
 		b, err = asn1.Marshal(ds.Value.(UTF8String))
 	default:
@@ -339,8 +339,8 @@ func (ds DirectoryString) String() (s string) {
 		s = string(ds.Value.(PrintableString))
 	case "UTF8String":
 		s = string(ds.Value.(UTF8String))
-	//case "BMPString":
-	//	s = string(ds.Value.(BMPString))
+	case "BMPString":
+		s = ds.Value.(BMPString).String()
 	case "UniversalString":
 		s = string(ds.Value.(UniversalString))
 	}
@@ -372,7 +372,26 @@ UTF8String returns an instance of [UTF8String] alongside an error
 following an analysis of x in the context of a UTF8-compliant string.
 */
 func (r RFC4512) UTF8String(x any) (u UTF8String, err error) {
-	u, err = uTF8(x)
+	var raw string
+
+	switch tv := x.(type) {
+	case UTF8String:
+		raw = string(tv)
+	case []byte:
+		raw = string(tv)
+	case string:
+		raw = tv
+	default:
+		err = errorBadType("UTF8String")
+		return
+	}
+
+	if !utf8OK(raw) {
+		err = errorTxt("UTF8String failed UTF8 validation")
+		return
+	}
+
+	u = UTF8String(raw)
 	return
 }
 
@@ -490,31 +509,80 @@ following an analysis of x in the context of a UniversalString.
 */
 func (r RFC4517) UniversalString(x any) (us UniversalString, err error) {
 	var raw string
+
 	switch tv := x.(type) {
+	case UniversalString:
+		raw = string(tv)
+	case []byte:
+		raw = string(tv)
 	case string:
-		if len(tv) == 0 {
-			err = errorBadLength("Universal String", 0)
-			return
-		}
 		raw = tv
+	default:
+		err = errorBadType("UniversalString")
+		return
+	}
+
+	if !utf8OK(raw) {
+		err = errorTxt("invalid UniversalString: failed UTF8 checks")
+		return
+	}
+
+	us = UniversalString(raw)
+
+	return
+}
+
+/*
+	var raw []byte
+
+	switch tv := x.(type) {
+	case UniversalString:
+		raw = []byte(tv)
+	case []byte:
+		raw = tv
+	case string:
+		raw = []byte(tv)
 	default:
 		err = errorBadType("Universal String")
 		return
 	}
 
+	if len(raw)%4 != 0 {
+		err = errorTxt("invalid UniversalString: length is not a multiple of 4")
+		return
+	}
+
+        get := binary.BigEndian.Uint32
+        if int(raw[len(raw)-1]) < int(raw[0]) {
+                get = binary.LittleEndian.Uint32
+        }
+
+	var result []rune
+	for i := 0; i < len(raw); i += 4 {
+	    char := get(raw[i : i+4])
+	    if !ucIs(uCSRange, rune(char)) {
+		err = errorTxt("invalid character for Universal String: " + itoa(i))
+		break
+	    }
+	    result = append(result, rune(char))
+	}
+
+	if err == nil {
+		us = UniversalString(string(result))
+	}
+
+	return
+}
+*/
+
+/*
 	for i := 0; i < len(raw) && err == nil; i++ {
 		var char rune = rune(raw[i])
 		if !ucIs(uCSRange, char) {
 			err = errorBadType("Invalid character for Universal String: " + string(char))
 		}
 	}
-
-	if err == nil {
-		us = UniversalString(raw)
-	}
-
-	return
-}
+*/
 
 /*
 IA5String implements [§ 3.2 of RFC 4517]:
@@ -754,6 +822,97 @@ func (r RFC4517) OctetString(x any) (oct OctetString, err error) {
 	if err == nil {
 		oct = OctetString(raw)
 	}
+
+	return
+}
+
+/*
+BMPString implements the Basic Multilingual Plane per [ITU-T Rec. X.680].
+
+The structure for instances of this type is as follows:
+
+	T (30, Ox1E) N (NUM. BYTES) P{byte,byte,byte}
+
+Tag T represents ASN.1 BMPString tag integer 30 (0x1E). Number N is an
+int-cast byte value that cannot exceed 255. The remaining bytes, which
+may be zero (0) or more in number, define payload P. N must equal size
+of payload P.
+
+[ITU-T Rec. X.680]: https://www.itu.int/rec/T-REC-X.680
+*/
+type BMPString []uint8
+
+/*
+String returns the string representation of the receiver instance.
+
+This involves unmarshaling the receiver into a string return value.
+*/
+func (r BMPString) String() string {
+	if len(r) < 3 || r[0] != 0x1E {
+		return ""
+	}
+
+	length := int(r[1])
+	expectedLength := 2 + length*2
+	if len(r) != expectedLength {
+		return ""
+	}
+
+	var result []rune
+	for i := 2; i < expectedLength; i += 2 {
+		codePoint := (rune(r[i]) << 8) | rune(r[i+1])
+		result = append(result, codePoint)
+	}
+
+	return string(result)
+}
+
+/*
+BMPString marshals x into a BMPString (UTF-16) return value, returning
+an instance of [BMPString] alongside an error.
+*/
+func (r X680) BMPString(x any) (enc BMPString, err error) {
+	var e string
+	switch tv := x.(type) {
+	case []uint8:
+		e = string(tv)
+	case BMPString:
+		if len(tv) == 0 {
+			enc = BMPString{0x1E, 0x00} // empty payload
+			return
+		} else if tv[0] != 0x1E {
+			err = errorTxt("Bogus ASN.1 tag")
+			return
+		}
+		e = string([]uint8(tv))
+	case string:
+		e = tv
+	default:
+		err = errorBadType("BMPString")
+		return
+	}
+
+	if len(e) == 0 {
+		err = errorTxt("input string is empty")
+		return
+	}
+
+	var result []byte
+	result = append(result, 0x1E) // Add BMPString tag (byte(30))
+
+	encoded := utf16.Encode([]rune(e))
+	length := len(encoded)
+	if length > 255 {
+		err = errorTxt("input string too long for BMPString encoding")
+		return
+	}
+	result = append(result, byte(length))
+
+	for _, char := range encoded {
+		result = append(result, byte(char>>8), byte(char&0xFF))
+	}
+
+	enc = BMPString(result)
 
 	return
 }

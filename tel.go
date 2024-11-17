@@ -241,10 +241,7 @@ func (r RFC4517) Fax(x any) (err error) {
 }
 
 /*
-TelexNumber returns an error following an analysis of x in the context
-of a Telex Number.
-
-From [§ 3.3.33 of RFC 4517]:
+TelexNumber implements TelexNumber per [§ 3.3.33 of RFC 4517]:
 
 	telex-number  = actual-number DOLLAR country-code DOLLAR answerback
 	actual-number = PrintableString
@@ -266,7 +263,13 @@ From [§ 1.4 of RFC 4512]:
 [§ 3.2 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.2
 [§ 3.3.33 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.33
 */
-func (r RFC4517) TelexNumber(x any) (err error) {
+type TelexNumber [3]string
+
+/*
+TelexNumber returns an error following an analysis of x in the context
+of a Telex Number.
+*/
+func (r RFC4517) TelexNumber(x any) (tn TelexNumber, err error) {
 	var raw string
 	if raw, err = assertString(x, 1, "Telex Number"); err != nil {
 		return
@@ -278,10 +281,32 @@ func (r RFC4517) TelexNumber(x any) (err error) {
 		return
 	}
 
+	var _tn []string
+	var ct int
 	for _, slice := range raws {
 		if _, err = r.PrintableString(slice); err != nil {
-			break
+			return
 		}
+		_tn = append(_tn, slice)
+		ct++
+	}
+
+	if ct != 3 {
+		err = errorTxt("Invalid Telex Number component count; expected 3")
+		return
+	}
+
+	tn = TelexNumber(_tn)
+
+	return
+}
+
+/*
+String returns the string representation of the receiver instance.
+*/
+func (r TelexNumber) String() (str string) {
+	if r[0] != "" && r[1] != "" && r[2] != "" {
+		str = r[0] + `$` + r[1] + `$` + r[2]
 	}
 
 	return
@@ -304,13 +329,12 @@ TeletexTerminalIdentifier implements [§ 3.3.32 of RFC 4517] and
 
 ASN.1 definition, per [ITU-T Rec. X.520]:
 
-		TeletexTerminalIdentifier ::= SEQUENCE {
-			teletexTerminal PrintableString (SIZE(1..ub-teletex-terminal-id)),
-			parameters	TeletexNonBasicParameters OPTIONAL
-		}
-
-		ub-teletex-terminal-id INTEGER ::= 1024
+	TeletexTerminalIdentifier ::= SEQUENCE {
+		teletexTerminal PrintableString (SIZE(1..ub-teletex-terminal-id)),
+		parameters	TeletexNonBasicParameters OPTIONAL
 	}
+
+	ub-teletex-terminal-id INTEGER ::= 1024
 
 From [§ 3.2 of RFC 4517]:
 
@@ -344,17 +368,51 @@ type TeletexNonBasicParameters struct {
 	CtrlCharacterSets        TeletexString `asn1:"tag:1,optional"` // TeletexString OPTIONAL
 	PageFormats              OctetString   `asn1:"tag:2,optional"` // OCTET STRING OPTIONAL
 	MiscTerminalCapabilities TeletexString `asn1:"tag:3,optional"` // TeletexString OPTIONAL
-	PrivateUse               TeletexString `asn1:"tag:4,optional"` // OCTET STRING OPTIONAL
+	PrivateUse               OctetString   `asn1:"tag:4,optional"` // OCTET STRING OPTIONAL
+}
+
+func (r TeletexTerminalIdentifier) String() string {
+	if r.Parameters.string() != "" {
+		return r.TeletexTerminal + `$` + r.Parameters.string()
+	}
+	return r.TeletexTerminal
+}
+
+func (r TeletexNonBasicParameters) string() string {
+	var slice []string
+	if len(r.GraphicCharacterSets) > 0 {
+		slice = append(slice, string(r.GraphicCharacterSets))
+	}
+	if len(r.CtrlCharacterSets) > 0 {
+		slice = append(slice, string(r.CtrlCharacterSets))
+	}
+	if len(r.PageFormats) > 0 {
+		slice = append(slice, string(r.PageFormats))
+	}
+	if len(r.MiscTerminalCapabilities) > 0 {
+		slice = append(slice, string(r.MiscTerminalCapabilities))
+	}
+	if len(r.PrivateUse) > 0 {
+		slice = append(slice, string(r.PrivateUse))
+	}
+
+	var nbp string
+	if len(slice) > 0 {
+		nbp = join(slice, `$`)
+	}
+
+	return nbp
 }
 
 /*
 TeletexTerminalIdentifier returns an error following an analysis of x in
 the context of a Teletex Terminal Identifier.
 */
-func (r RFC4517) TeletexTerminalIdentifier(x any) (err error) {
+func (r RFC4517) TeletexTerminalIdentifier(x any) (tti TeletexTerminalIdentifier, err error) {
 	var (
-		raw  string
-		raws []string
+		raw string
+		raws,
+		vals []string
 	)
 
 	if raw, err = assertString(x, 1, "Teletex Terminal Identifier"); err != nil {
@@ -362,23 +420,24 @@ func (r RFC4517) TeletexTerminalIdentifier(x any) (err error) {
 	}
 
 	_raws := splitUnescaped(raw, `$`, `\`)
-	if raws, err = r.processTeletex(_raws); err != nil {
+	if raws, vals, err = r.processTeletex(_raws[1:]); err != nil {
 		return
-	} else if _, err = r.PrintableString(raws[0]); err != nil || len(raws) == 1 {
+	} else if _, err = r.PrintableString(_raws[0]); err != nil {
 		return
 	}
 
-	raws = raws[1:]
+	tti.TeletexTerminal = _raws[0]
+
 	ttxs := map[string]uint8{
 		`graphic`: uint8(1),
 		`control`: uint8(2),
-		`misc`:    uint8(4),
-		`page`:    uint8(8),
+		`page`:    uint8(4),
+		`misc`:    uint8(8),
 		`private`: uint8(16),
 	}
 
 	var ct uint8
-	for _, slice := range raws {
+	for idx, slice := range raws {
 		bit, found := ttxs[slice]
 		if !found {
 			err = errorTxt("Unknown Teletex Terminal Identifier TTXPRM value: " + slice)
@@ -388,24 +447,48 @@ func (r RFC4517) TeletexTerminalIdentifier(x any) (err error) {
 			break
 		}
 		ct |= bit
+
+		if idx < len(vals) {
+			value := vals[idx]
+
+			switch slice {
+			case `graphic`:
+				tti.Parameters.GraphicCharacterSets = TeletexString(value)
+			case `control`:
+				tti.Parameters.CtrlCharacterSets = TeletexString(value)
+			case `private`:
+				tti.Parameters.PrivateUse = OctetString(value)
+			case `misc`:
+				tti.Parameters.MiscTerminalCapabilities = TeletexString(value)
+			case `page`:
+				tti.Parameters.PageFormats = OctetString(value)
+			}
+		}
 	}
 
 	return
 }
 
-func (r RFC4517) processTeletex(_raws []string) (raws []string, err error) {
+func (r RFC4517) processTeletex(_raws []string) (raws, vals []string, err error) {
 	var cfound bool
 	for i := 0; i < len(_raws); i++ {
 		if idx := idxr(_raws[i], ':'); idx != -1 {
 			cfound = true
-			raws = append(raws, _raws[i][:idx])
-			if len(raws[i][idx:]) > 1 {
-				if err = teletexSuffixValue(raws[i][idx+1:]); err != nil {
+			raw := _raws[i][:idx]
+			aft := _raws[i][idx+1:]
+			raws = append(raws, raw)
+
+			if len(aft) > 0 {
+				if err = teletexSuffixValue(aft); err != nil {
 					return
 				}
+				vals = append(vals, raw+`:`+aft)
+			} else {
+				vals = append(vals, raw+`:`)
 			}
 		} else {
-			raws = append(raws, _raws[i])
+			err = errorTxt("Teletex Terminal Identifier missing ttx-value")
+			return
 		}
 	}
 
@@ -413,6 +496,8 @@ func (r RFC4517) processTeletex(_raws []string) (raws []string, err error) {
 		err = errorTxt("Teletex Terminal Identifier missing ':' token")
 	} else if len(raws) == 0 {
 		err = errorTxt("Missing Teletex Terminal Identifier value")
+	} else if len(raws) > UBTeletexTerminalID {
+		err = errorTxt("Teletex Terminal Identifier value length out of bounds (>1024)")
 	}
 
 	return

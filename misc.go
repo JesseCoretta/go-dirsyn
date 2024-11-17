@@ -22,6 +22,25 @@ func (r X501) URL() string {
 }
 
 /*
+X680 serves as the receiver type for handling definitions sourced from
+[ITU-T Rec. X.680].
+
+[ITU-T Rec. X.680]: https://www.itu.int/rec/T-REC-X.680
+*/
+type X680 struct {
+	BMPLittleEndian bool // control endianness for BMPString handling
+}
+
+/*
+URL returns the string representation of the [ITU-T Rec. X.680] document URL.
+
+[ITU-T Rec. X.680]: https://www.itu.int/rec/T-REC-X.680
+*/
+func (r X680) URL() string {
+	return `https://www.itu.int/rec/T-REC-X.680`
+}
+
+/*
 X520 serves as the receiver type for handling definitions sourced from
 [ITU-T Rec. X.520].
 
@@ -448,10 +467,7 @@ func strInSlice(r string, slice []string) bool {
 }
 
 /*
-SubstringAssertion returns an error following an analysis of x in the
-context of a Substring Assertion.
-
-From [§ 3.3.30 of RFC 4517]:
+SubstringAssertion implements SubstringAssertion per [§ 3.3.30 of RFC 4517]:
 
 	SubstringAssertion = [ initial ] any [ final ]
 
@@ -470,7 +486,65 @@ From [§ 3.3.30 of RFC 4517]:
 
 [§ 3.3.30 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.30
 */
-func (r RFC4517) SubstringAssertion(x any) (err error) {
+type SubstringAssertion []string
+
+/*
+Initial returns the first (left) component of the receiver instance, or
+a zero string if not present.
+*/
+func (r SubstringAssertion) Initial() (i string) {
+	if len(r) > 0 {
+		if _i := r[0]; _i != `` {
+			i = _i
+		}
+	}
+
+	return
+}
+
+/*
+Any returns the body of the receiver instance, in that the initial and
+final components -- if present -- are not considered.
+*/
+func (r SubstringAssertion) Any() (a string) {
+	if len(r) > 2 {
+		a = `*` + join(r[1:len(r)-1], `*`) + `*`
+	}
+
+	return
+}
+
+/*
+Final returns the final (right) component of the receiver instance, or
+a zero string if not present.
+*/
+func (r SubstringAssertion) Final() (f string) {
+	if len(r) > 0 {
+		if _i := r[len(r)-1]; _i != `` {
+			f = _i
+		}
+	}
+
+	return
+}
+
+/*
+String returns the string representation of the receiver instance.
+*/
+func (r SubstringAssertion) String() string {
+	var _r []string
+	for i := 0; i < len(r); i++ {
+		r[i] = repAll(r[i], `\*`, `\\*`)
+		_r = append(_r, r[i])
+	}
+	return join([]string(_r), `*`)
+}
+
+/*
+SubstringAssertion returns an error following an analysis of x in the
+context of a Substring Assertion.
+*/
+func (r RFC4517) SubstringAssertion(x any) (ssa SubstringAssertion, err error) {
 	var raw string
 	switch tv := x.(type) {
 	case string:
@@ -493,6 +567,8 @@ func (r RFC4517) SubstringAssertion(x any) (err error) {
 			break
 		}
 	}
+
+	ssa = SubstringAssertion(substrings)
 
 	return
 }
@@ -626,9 +702,9 @@ From [§ 1.4 of RFC 4512]:
 
 [§ 1.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-1.4
 */
-func uTF8(x any) (u UTF8String, err error) {
+func uTF8(x any, zok ...bool) (u UTF8String, err error) {
 	var raw []rune
-	if raw, err = assertRunes(x); err != nil {
+	if raw, err = assertRunes(x, zok...); err != nil {
 		return
 	}
 
@@ -649,12 +725,16 @@ func uTF8(x any) (u UTF8String, err error) {
 	return
 }
 
-func assertRunes(x any) (runes []rune, err error) {
+func assertRunes(x any, zok ...bool) (runes []rune, err error) {
+	var zerook bool
+	if len(zok) > 0 {
+		zerook = zok[0]
+	}
 	switch tv := x.(type) {
 	case rune:
 		runes = append(runes, tv)
 	case string:
-		if len(tv) == 0 {
+		if len(tv) == 0 && !zerook {
 			err = errorBadLength("Zero length rune", 0)
 			break
 		}

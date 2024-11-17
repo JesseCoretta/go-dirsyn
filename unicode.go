@@ -11,9 +11,11 @@ import (
 
 var (
 	runeLen func(rune) int                         = utf8.RuneLen
+	decRune func([]byte) (rune, int)               = utf8.DecodeRune
 	ucIs    func(*unicode.RangeTable, rune) bool   = unicode.Is
 	uc1Of   func([]*unicode.RangeTable, rune) bool = unicode.IsOneOf
 	sfold   func(rune) rune                        = unicode.SimpleFold
+	utf8OK  func(string) bool                      = utf8.ValidString
 )
 
 var runeSelf rune = utf8.RuneSelf
