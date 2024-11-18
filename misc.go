@@ -557,7 +557,11 @@ func (r SubstringAssertion) String() string {
 SubstringAssertion returns an error following an analysis of x in the
 context of a Substring Assertion.
 */
-func (r RFC4517) SubstringAssertion(x any) (ssa SubstringAssertion, err error) {
+func (r RFC4517) SubstringAssertion(x any) (SubstringAssertion, error) {
+	return processSubstringAssertion(x)
+}
+
+func processSubstringAssertion(x any) (ssa SubstringAssertion, err error) {
 	var raw string
 	switch tv := x.(type) {
 	case string:

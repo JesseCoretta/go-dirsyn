@@ -5,27 +5,25 @@
 
 Package dirsyn implements myriad X.500/LDAP syntax checking functions.
 
-This package was mainly developed for the XDAPL Project, but may be freely
-used by anyone needing value syntax verification capabilities related to
-directory technologies.
+This package was mainly developed for the XDAPL Project, but may be freely used by anyone needing value syntax verification capabilities related to directory technologies.
 
 ## Status
 
-The current state of this package is EXPERIMENTAL. It should not be used
-in mission-critical or production environments, and is prone to breaking
-changes at any time.  There are some interesting long-term plans for this
-package, so it should continue to evolve and grow over time.
+The current state of this package is EXPERIMENTAL. It should not be used in mission-critical or production environments, and is prone to breaking changes at any time.  There are some interesting long-term plans for this package, so it should continue to evolve and grow over time.
+
+Much research remains before this package can be relied upon implicitly. Some functionality is present only to serve as a placeholder, and does exhibit fully standards-compliant behavior at this time.
 
 Contributions are most welcome.
 
 ## License
 
-The `go-dirsyn` package is released under the terms of the MIT license.
-See the repository root for applicable license files.
+The `go-dirsyn` package is released under the terms of the MIT license. See the repository root for applicable license files.
 
-Content developed or appropriated from external sources, such as that
-found within the `dn.go` file, will also contain the relevant license
-text within the file comment header.
+Content developed or appropriated from external sources, such as that found within the `dn.go` file, will also contain the relevant license text within the file comment header.
+
+## Scope
+
+The scope of this package is intended to, ultimately, cover all of the syntactical components and logic of [ITU-T Rec. X.500](https://www.itu.int/rec/T-REC-X.500). Though exclusive to directory services, it is not exclusive to LDAP.
 
 ## Supported Syntaxes
 
@@ -36,8 +34,14 @@ The following syntaxes are supported by this package:
   - Boot Parameter ([RFC 2307 § 2.4](https://datatracker.ietf.org/doc/html/rfc2307#section-2.4))
   - Country String ([RFC 4517 § 3.3.4](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.4))
   - Delivery Method ([RFC 4517 § 3.3.5](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.5))
-  - Directory String ([RFC 4517 § 3.3.6](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.6))
+  - Directory String ([RFC 4517 § 3.3.6](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.6) and [ITU-T Rec. X.520 § clause 2.6](https://www.itu.int/rec/T-REC-X.520))
+    - TeletexString ([ITU-T Rec. T.61](https://www.itu.int/rec/T-REC-T.61))
+    - PrintableString ([ITU-T Rec. X.680](https://www.itu.int/rec/T-REC-X.680) and [RFC 4517 § 3.3.29](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.29))
+    - BMPString ([ITU-T Rec. X.680](https://www.itu.int/rec/T-REC-X.680))
+    - UniversalString ([ITU-T Rec. X.680](https://www.itu.int/rec/T-REC-X.680))
+    - UTF8String ([ITU-T Rec. X.680](https://www.itu.int/rec/T-REC-X.680))
   - DN ([RFC 4517 § 3.3.9](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.9))
+  - Search Filter [RFC 4515 § 2](https://datatracker.ietf.org/doc/html/rfc4515#section-2))
   - Enhanced Guide ([RFC 4517 § 3.3.10](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.10))
   - Facsimile Telephone Number ([RFC 4517 § 3.3.11](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.11))
   - Fax ([RFC 4517 § 3.3.12](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.12))
@@ -53,7 +57,6 @@ The following syntaxes are supported by this package:
   - OID ([RFC 4517 § 3.3.26](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.26))
   - Other Mailbox ([RFC 4517 § 3.3.27](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.27))
   - Postal Address ([RFC 4517 § 3.3.28](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.28))
-  - Printable String ([RFC 4517 § 3.3.29](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.29))
   - Substring Assertion ([RFC 4517 § 3.3.30](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.30))
   - Subtree Specification ([Appendix A, RFC 3672](https://datatracker.ietf.org/doc/html/rfc3672#appendix-A))
   - Telephone Number ([RFC 4517 § 3.3.31](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.31))
