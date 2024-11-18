@@ -85,6 +85,9 @@ the "approxMatch" CHOICE of an instance of [Filter].
 type ApproximateMatchFilter AttributeValueAssertion
 
 /*
+AttributeValueAssertion implements the basis for [ApproximateMatchFilter],
+[GreaterOrEqualFilter], [LessOrEqualFilter] and [EqualityMatchFilter].
+
 	AttributeValueAssertion ::= SEQUENCE {
 	    attributeDesc   AttributeDescription,
 	    assertionValue  AssertionValue }
@@ -120,6 +123,8 @@ the "extensibleMatch" CHOICE of an instance of [Filter].
 type ExtensibleMatchFilter MatchingRuleAssertionFilter
 
 /*
+MatchingRuleAssertion implements the basis of [ExtensibleMatchFilter].
+
 	MatchingRuleAssertion ::= SEQUENCE {
 	    matchingRule    [1] MatchingRuleId OPTIONAL,
 	    type            [2] AttributeDescription OPTIONAL,
@@ -322,7 +327,7 @@ String returns the string representation of the receiver instance.
 func (r ExtensibleMatchFilter) String() (s string) {
 	if !r.IsZero() {
 		if r.MatchValue == nil {
-			//return
+			return
 		}
 
 		value := r.MatchValue.String()

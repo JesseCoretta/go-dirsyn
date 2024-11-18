@@ -11,7 +11,7 @@ This package was mainly developed for the XDAPL Project, but may be freely used 
 
 The current state of this package is EXPERIMENTAL. It should not be used in mission-critical or production environments, and is prone to breaking changes at any time.  There are some interesting long-term plans for this package, so it should continue to evolve and grow over time.
 
-Much research remains before this package can be relied upon implicitly. Some functionality is present only to serve as a placeholder, and does exhibit fully standards-compliant behavior at this time.
+Much research remains before this package can be relied upon implicitly. Some functionality is present only to serve as a placeholder, and does not exhibit fully standards-compliant behavior at this time.
 
 Contributions are most welcome.
 
@@ -27,7 +27,7 @@ The scope of this package is intended to, ultimately, cover all of the syntactic
 
 ## Supported Syntaxes
 
-The following syntaxes are supported by this package:
+The following syntaxes are supported by this package at this time.  More will be added in the future:
 
   - Bit String ([RFC 4517 § 3.3.2](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.2))
   - Boolean ([RFC 4517 § 3.3.3](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.3))
@@ -41,10 +41,10 @@ The following syntaxes are supported by this package:
     - UniversalString ([ITU-T Rec. X.680](https://www.itu.int/rec/T-REC-X.680))
     - UTF8String ([ITU-T Rec. X.680](https://www.itu.int/rec/T-REC-X.680))
   - DN ([RFC 4517 § 3.3.9](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.9))
-  - Search Filter [RFC 4515 § 2](https://datatracker.ietf.org/doc/html/rfc4515#section-2))
   - Enhanced Guide ([RFC 4517 § 3.3.10](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.10))
   - Facsimile Telephone Number ([RFC 4517 § 3.3.11](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.11))
   - Fax ([RFC 4517 § 3.3.12](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.12))
+  - Filter [RFC 4515 § 2](https://datatracker.ietf.org/doc/html/rfc4515#section-2))
   - Generalized Time ([RFC 4517 § 3.3.13](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.13))
   - Guide ([RFC 4517 § 3.3.14](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.14))
   - IA5 String ([RFC 4517 § 3.3.15](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.15))
