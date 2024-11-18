@@ -24,11 +24,11 @@ type G3FacsimileBodyPart struct {
 }
 
 /*
-G3FacsimileData implements G3FacsimileData defined in [ITU Rec. X.420].
+G3FacsimileData implements G3FacsimileData as defined in [ITU-T Rec. X.420].
 
 	G3FacsimileData ::= SEQUENCE OF BIT STRING
 
-[clause 7.4.2 of ITU-T Rec. X.420]: https://www.itu.int/rec/T-REC-X.420
+[ITU-T Rec. X.420]: https://www.itu.int/rec/T-REC-X.420
 */
 type G3FacsimileData []asn1.BitString
 
@@ -88,6 +88,9 @@ type Fax struct {
 /*
 Fax returns an instance of [Fax] alongside an error following an attempt
 to unmarshal x.
+
+Input x should be the ASN.1 encoded bytes of the receiver instance in
+string or []byte form.
 */
 func (r RFC4517) Fax(x any) (fax Fax, err error) {
 	var b []byte
