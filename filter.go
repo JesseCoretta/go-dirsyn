@@ -1,6 +1,10 @@
 package dirsyn
 
 /*
+filter.go contains RFC4515 methods and types.
+*/
+
+/*
 Filter returns an instance of [Filter] alongside an error.
 */
 func (r RFC4515) Filter(x any) (filter Filter, err error) {
@@ -21,6 +25,8 @@ func (r RFC4515) Filter(x any) (filter Filter, err error) {
 	}
 
 	if filter, err = processFilter(x); filter == nil {
+		// just to avoid panics in the event
+		// the user does not check errors.
 		filter = Filter(invalidFilter{})
 		err = errorTxt("Invalid filter")
 	}
@@ -532,11 +538,14 @@ func parseComplexFilter(input, prefix string) (Filter, error) {
 	return OrFilter(refs), nil
 }
 
-func parseItemFilter(input string) (Filter, error) {
+func parseItemFilter(input string) (filter Filter, err error) {
 	idx := stridx(input, "=")
 	if idx == -1 {
-		return nil, errorTxt("Nil filter item")
+		err = errorTxt("Nil filter item")
+		filter = invalidFilter{}
+		return
 	}
+
 	pre, after := input[:idx], input[idx+1:]
 
 	// Parentheticals will just get in the way,
@@ -546,86 +555,113 @@ func parseItemFilter(input string) (Filter, error) {
 	after = repAll(after, `)`, ``)
 
 	if after == `*` {
-		return PresentFilter{
-			Desc: AttributeDescription(pre),
-		}, nil
+		err = checkFilterOIDs(pre, ``)
+		filter = PresentFilter{
+			Desc: AttributeDescription(pre)}
 	} else if hasSfx(pre, `>`) {
-		return GreaterOrEqualFilter{
+		err = checkFilterOIDs(pre[:len(pre)-1], ``)
+		filter = GreaterOrEqualFilter{
 			AttributeDescription(pre[:len(pre)-1]),
-			AssertionValue(after),
-		}, nil
+			AssertionValue(after)}
 	} else if hasSfx(pre, `<`) {
-		return LessOrEqualFilter{
+		err = checkFilterOIDs(pre[:len(pre)-1], ``)
+		filter = LessOrEqualFilter{
 			AttributeDescription(pre[:len(pre)-1]),
-			AssertionValue(after),
-		}, nil
+			AssertionValue(after)}
 	} else if hasSfx(pre, `~`) {
-		return ApproximateMatchFilter{
+		err = checkFilterOIDs(pre[:len(pre)-1], ``)
+		filter = ApproximateMatchFilter{
 			AttributeDescription(pre[:len(pre)-1]),
-			AssertionValue(after),
-		}, nil
+			AssertionValue(after)}
 	} else if cntns(after, "*") {
-		if ssa, err := processSubstringAssertion(after); err == nil {
-			return SubstringsFilter{
+		var ssa SubstringAssertion
+		if ssa, err = processSubstringAssertion(after); err == nil {
+			err = checkFilterOIDs(pre, ``)
+			filter = SubstringsFilter{
 				Type:       AttributeDescription(pre),
-				Substrings: ssa,
-			}, nil
+				Substrings: ssa}
 		}
 	} else if cntns(pre, ":") {
-		return parseExtensibleMatch(pre, after)
+		filter, err = parseExtensibleMatch(pre, after)
+	} else {
+		err = checkFilterOIDs(pre, ``)
+		filter = EqualityMatchFilter{
+			Desc:  AttributeDescription(pre),
+			Value: AssertionValue(after)}
 	}
 
-	return EqualityMatchFilter{
-		Desc:  AttributeDescription(pre),
-		Value: AssertionValue(after)}, nil
+	if err != nil {
+		filter = invalidFilter{}
+	}
+
+	return
 }
 
-func parseExtensibleMatch(a, b string) (Filter, error) {
+func parseExtensibleMatch(a, b string) (filter Filter, err error) {
 	scol := hasPfx(a, `:`)
 	sdn := hasPfx(a, `:dn:`)
+
+	// TODO check value.
 	val := AssertionValue(b)
 
-	filter := ExtensibleMatchFilter{}
+	_filter := ExtensibleMatchFilter{}
 
 	if !scol {
-		// attr:=Value is essentially attr=Value
-		//
-		// MatchingRule    string                  `asn1:"tag:1,optional"`
-		// Type            AttributeDescription    `asn1:"tag:2,optional"`
-		// MatchValue      AssertionValue          `asn1:"tag:3"`
-		// DNAttributes    bool                    `asn1:"tag:4,default:false"`
 		if !cntns(a, `:dn:`) {
 			if idx := idxr(a, ':'); idx != -1 {
-				filter.Type = AttributeDescription(a[:idx])
-				filter.MatchingRule = trim(a[idx+1:], `:`)
-				filter.MatchValue = val
+				mr := trim(a[idx+1:], `:`)
+				err = checkFilterOIDs(a[:idx], mr)
+				_filter.Type = AttributeDescription(a[:idx])
+				_filter.MatchingRule = mr
 			}
 		} else {
-			filter.DNAttributes = true
+			_filter.DNAttributes = true
 			if c := split(a, `:dn:`); len(c) == 2 {
+				mr := trim(c[1], `:`)
+				err = checkFilterOIDs(c[0], mr)
 				if len(c[0]) > 0 && len(c[1]) > 0 {
-					filter.Type = AttributeDescription(c[0])
-					filter.MatchingRule = trim(c[1], `:`)
+					_filter.Type = AttributeDescription(c[0])
+					_filter.MatchingRule = mr
 				} else if len(c[0]) > 0 {
-					filter.Type = AttributeDescription(c[0])
+					_filter.Type = AttributeDescription(c[0])
 				} else if len(c[1]) > 0 {
-					filter.MatchingRule = c[1]
+					_filter.MatchingRule = c[1]
 				}
 			}
 		}
-
-		filter.MatchValue = AssertionValue(b)
+		_filter.MatchValue = val
 	} else if scol {
 		if sdn {
-			filter.DNAttributes = true
-			filter.MatchingRule = a[4 : len(a)-1]
+			_filter.DNAttributes = true
+			_filter.MatchingRule = a[4 : len(a)-1]
 		} else {
-			filter.MatchingRule = a[1 : len(a)-1]
+			_filter.MatchingRule = a[1 : len(a)-1]
 		}
-		filter.MatchValue = val
+		err = checkFilterOIDs(``, _filter.MatchingRule)
+		_filter.MatchValue = val
 	}
 
-	return filter, nil
+	if err == nil && !_filter.IsZero() {
+		filter = _filter
+	}
+
+	return
+}
+
+func checkFilterOIDs(t, m string) (err error) {
+	r := RFC4512{}
+	if len(t) > 0 {
+		if err = r.OID(t); err != nil {
+			return
+		}
+	}
+	if len(m) > 0 {
+		if err = r.OID(m); err != nil {
+			return
+		}
+	}
+
+	return
 }
 
 func splitFilterParts(input string) []string {
