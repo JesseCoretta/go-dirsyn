@@ -34,19 +34,25 @@ See also the go-ldap.LICENSE file in the repository root.
 
 import (
 	"encoding/hex"
+	"sort"
+
 	ber "github.com/go-asn1-ber/asn1-ber"
 )
 
-// attributeTypeAndValue represents an attributeTypeAndValue from https://tools.ietf.org/html/rfc4514
-// type attributeTypeAndValue struct {
-type attributeTypeAndValue struct {
+/*
+AttributeTypeAndValue implements the attributeTypeAndValue defined in
+[Section 3 of RFC4514].
+
+[Section 3 of RFC4514]: https://datatracker.ietf.org/doc/html/rfc4514#section-3
+*/
+type AttributeTypeAndValue struct {
 	// Type is the attribute type
 	Type string
 	// Value is the attribute value
 	Value string
 }
 
-func (r *attributeTypeAndValue) setType(str string) error {
+func (r *AttributeTypeAndValue) setType(str string) error {
 	result, err := decodeString(str)
 	if err != nil {
 		return err
@@ -56,7 +62,7 @@ func (r *attributeTypeAndValue) setType(str string) error {
 	return nil
 }
 
-func (r *attributeTypeAndValue) setValue(s string) error {
+func (r *AttributeTypeAndValue) setValue(s string) error {
 	// https://www.ietf.org/rfc/rfc4514.html#section-2.4
 	// If the AttributeType is of the dotted-decimal form, the
 	// AttributeValue is represented by an number sign ('#' U+0023)
@@ -81,56 +87,61 @@ func (r *attributeTypeAndValue) setValue(s string) error {
 	}
 }
 
-// String returns a normalized string representation of this attribute type and
-// value pair which is the lowercase join of the Type and Value with a "=".
 /*
-func (r *attributeTypeAndValue) String() string {
+String returns a normalized string representation of this attribute type
+and value pair which is the lowercase join of the Type and Value with a "=".
+*/
+func (r *AttributeTypeAndValue) String() string {
 	return encodeString(foldString(r.Type), false) + "=" + encodeString(r.Value, true)
 }
-*/
 
-// relativeDistinguishedName represents a relativeDistinguishedName from https://tools.ietf.org/html/rfc4514
-// type relativeDN struct {
-type relativeDistinguishedName struct {
-	Attributes []*attributeTypeAndValue
+/*
+RelativeDistinguishedName implements the relativeDistinguishedName defined
+in [Section 3 of RFC4514].
+
+[Section 3 of RFC4514]: https://datatracker.ietf.org/doc/html/rfc4514#section-3
+*/
+type RelativeDistinguishedName struct {
+	Attributes []*AttributeTypeAndValue
 }
 
-// String returns a normalized string representation of this relative distinguishedName which
-// is the a join of all attributes (sorted in increasing order) with a "+".
 /*
-func (r *relativeDistinguishedName) String() string {
+String returns a normalized string representation of this relative
+distinguishedName which is the join of all attributes (sorted in
+increasing order) with a "+".
+*/
+func (r *RelativeDistinguishedName) String() string {
 	attrs := make([]string, len(r.Attributes))
 	for i := range r.Attributes {
 		attrs[i] = r.Attributes[i].String()
 	}
 	sort.Strings(attrs)
-	return strings.Join(attrs, "+")
+	return join(attrs, "+")
 }
-*/
 
-// distinguishedName represents a distinguishedName from https://tools.ietf.org/html/rfc4514
-// type DN struct {
-type distinguishedName struct {
-	RDNs []*relativeDistinguishedName
+/*
+DistinguishedName implements the distinguished name from RFC4514 and RFC4517.
+*/
+type DistinguishedName struct {
+	RDNs []*RelativeDistinguishedName
 }
 
 // String returns a normalized string representation of this distinguishedName which is the
 // join of all relative distinguishedNames with a ",".
-/*
-func (r *distinguishedName) String() string {
+func (r *DistinguishedName) String() string {
 	rdns := make([]string, len(r.RDNs))
 	for i := range r.RDNs {
 		rdns[i] = r.RDNs[i].String()
 	}
-	return strings.Join(rdns, ",")
+	return join(rdns, ",")
 }
-*/
 
 func stripLeadingAndTrailingSpaces(inVal string) string {
 	noSpaces := trim(inVal, " ")
 
 	// Re-add the trailing space if it was an escaped space
-	if len(noSpaces) > 0 && noSpaces[len(noSpaces)-1] == '\\' && inVal[len(inVal)-1] == ' ' {
+	if len(noSpaces) > 0 && noSpaces[len(noSpaces)-1] == '\\' &&
+		inVal[len(inVal)-1] == ' ' {
 		noSpaces = noSpaces + " "
 	}
 
@@ -278,8 +289,8 @@ func decodeEncodedString(str string) (string, error) {
 }
 
 /*
-DN returns an error following an analysis of x in the context of a DN,
-or Distinguished Name.
+DistinguishedName returns an error following an analysis of x in the
+context of a distinguished name.
 
 Note: DN, RDN and ATV parsing capabilities derived from [go-ldap/ldap/v3/dn.go]
 
@@ -310,7 +321,7 @@ From [§ 3 of RFC 4514]:
 [§ 3 of RFC 4514]: https://datatracker.ietf.org/doc/html/rfc4514#section-3
 [go-ldap/ldap/v3/dn.go]: https://github.com/go-ldap/ldap/blob/master/dn.go
 */
-func (r RFC4514) DN(x any) (err error) {
+func (r RFC4514) DistinguishedName(x any) (dn *DistinguishedName, err error) {
 	var raw string
 	switch tv := x.(type) {
 	case string:
@@ -320,24 +331,24 @@ func (r RFC4514) DN(x any) (err error) {
 		}
 		raw = tv
 	case []byte:
-		err = r.DN(string(tv))
+		dn, err = r.DistinguishedName(string(tv))
 		return
 	default:
 		err = errorBadType("Distinguished Name")
 		return
 	}
 
-	_, err = parseDN(raw)
+	dn, err = parseDN(raw)
 
 	return
 }
 
 /*
-DN is a wrapping alias for [RFC4514.DN].
+DistinguishedName is a wrapping alias for [RFC4514.DN].
 */
-func (r RFC4517) DN(x any) (err error) {
+func (r RFC4517) DistinguishedName(x any) (dn *DistinguishedName, err error) {
 	var s RFC4514
-	err = s.DN(x)
+	dn, err = s.DistinguishedName(x)
 	return
 }
 
@@ -363,7 +374,16 @@ From [§ 1.4 of RFC 4512]:
 [§ 3.3.2 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.2
 [§ 1.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-1.4
 */
-func (r RFC4517) NameAndOptionalUID(x any) (err error) {
+type NameAndOptionalUID struct {
+	DN  DistinguishedName
+	UID BitString `asn1:"optional"`
+}
+
+/*
+NameAndOptionalUID returns an instance of [NameAndOptionalUID] alongside
+an error.
+*/
+func (r RFC4517) NameAndOptionalUID(x any) (nou NameAndOptionalUID, err error) {
 	var raw string
 	if raw, err = assertString(x, 1, "Name and Optional UID"); err != nil {
 		return
@@ -388,41 +408,45 @@ func (r RFC4517) NameAndOptionalUID(x any) (err error) {
 		}
 
 		bitstring += `B`
-		if _, err = r.BitString(bitstring); err != nil {
-			return
-		}
 
 		_l = _l - len(bitstring) - 1
 		if delim := raw[_l]; delim != '#' {
 			err = errorTxt("Missing '#' delimiter for Name/UID pair; found " + string(delim))
 			return
 		}
+
+		if nou.UID, err = r.BitString(bitstring); err != nil {
+			return
+		}
 	}
 
-	err = r.DN(raw[:_l])
+	var dn *DistinguishedName
+	if dn, err = r.DistinguishedName(raw[:_l]); err == nil {
+		nou.DN = *dn
+	}
 
 	return
 }
 
 // parseDN returns a distinguishedName or an error.  The
 // function respects https://tools.ietf.org/html/rfc4514
-func parseDN(str string) (*distinguishedName, error) {
-	var dn = &distinguishedName{RDNs: make([]*relativeDistinguishedName, 0)}
+func parseDN(str string) (*DistinguishedName, error) {
+	var dn = &DistinguishedName{RDNs: make([]*RelativeDistinguishedName, 0)}
 	if trimS(str) == "" {
 		return dn, nil
 	}
 
 	var (
-		rdn                   = &relativeDistinguishedName{}
-		attr                  = &attributeTypeAndValue{}
+		rdn                   = &RelativeDistinguishedName{}
+		attr                  = &AttributeTypeAndValue{}
 		escaping              bool
 		startPos              int
 		appendAttributesToRDN = func(end bool) {
 			rdn.Attributes = append(rdn.Attributes, attr)
-			attr = &attributeTypeAndValue{}
+			attr = &AttributeTypeAndValue{}
 			if end {
 				dn.RDNs = append(dn.RDNs, rdn)
-				rdn = &relativeDistinguishedName{}
+				rdn = &RelativeDistinguishedName{}
 			}
 		}
 	)
@@ -473,11 +497,16 @@ func isDNDelim(char byte) bool {
 	return char == ',' || char == '+' || char == ';'
 }
 
-// Equal returns true if the distinguishedNames are equal as defined by rfc4517 4.2.15 (distinguishedNameMatch).
-// Returns true if they have the same number of relative distinguished names
-// and corresponding relative distinguished names (by position) are the same.
 /*
-func (r *distinguishedName) Equal(other *distinguishedName) bool {
+Equal returns true if the [DistinguishedName] is equal as defined in
+[Section 4.2.15 of RFC4517] (distinguishedNameMatch).
+
+Returns true if they have the same number of relative distinguished names
+and corresponding relative distinguished names (by position) are the same.
+
+[Section 4.2.15 of RFC4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-4.2.15
+*/
+func (r *DistinguishedName) Equal(other *DistinguishedName) bool {
 	if len(r.RDNs) != len(other.RDNs) {
 		return false
 	}
@@ -488,18 +517,20 @@ func (r *distinguishedName) Equal(other *distinguishedName) bool {
 	}
 	return true
 }
-*/
 
-// AncestorOf returns true if the other distinguishedName consists of at least one RDN followed by all the RDNs of the current DN.
-// "ou=widgets,o=acme.com" is an ancestor of "ou=sprockets,ou=widgets,o=acme.com"
-// "ou=widgets,o=acme.com" is not an ancestor of "ou=sprockets,ou=widgets,o=foo.com"
-// "ou=widgets,o=acme.com" is not an ancestor of "ou=widgets,o=acme.com"
 /*
-func (r *distinguishedName) AncestorOf(other *distinguishedName) bool {
+AncestorOf returns true if the other [DistinguishedName] consists of at
+least one RDN followed by all the RDNs of the current [DistinguishedName].
+
+  - "ou=widgets,o=acme.com" is an ancestor of "ou=sprockets,ou=widgets,o=acme.com"
+  - "ou=widgets,o=acme.com" is not an ancestor of "ou=sprockets,ou=widgets,o=foo.com"
+  - "ou=widgets,o=acme.com" is not an ancestor of "ou=widgets,o=acme.com"
+*/
+func (r *DistinguishedName) AncestorOf(other *DistinguishedName) bool {
 	if len(r.RDNs) >= len(other.RDNs) {
 		return false
 	}
-	// Take the last `len(r.RDNs)` RDNs from the other distinguishedName to compare against
+	// Take the last `len(r.RDNs)` RDNs from the other DistinguishedName to compare against
 	otherRDNs := other.RDNs[len(other.RDNs)-len(r.RDNs):]
 	for i := range r.RDNs {
 		if !r.RDNs[i].Equal(otherRDNs[i]) {
@@ -508,24 +539,28 @@ func (r *distinguishedName) AncestorOf(other *distinguishedName) bool {
 	}
 	return true
 }
-*/
 
-// Equal returns true if the relativeDistinguishedNames are equal as defined by rfc4517 4.2.15 (distinguishedNameMatch).
-// Relative distinguished names are the same if and only if they have the same number of attributeTypeAndValues
-// and each attribute of the first RDN is the same as the attribute of the second RDN with the same attribute type.
-// The order of attributes is not significant.
-// Case of attribute types is not significant.
 /*
-func (r *relativeDistinguishedName) Equal(other *relativeDistinguishedName) bool {
+Equal returns true if the [RelativeDistinguishedName] is equal as defined
+in [Section 4.2.15 of RFC4517] (distinguishedNameMatch).
+
+Relative distinguished names are the same if and only if they have the
+same number of AttributeTypeAndValues and each attribute of the first RDN
+is the same as the attribute of the second RDN with the same attribute type.
+
+The order of attributes is not significant. Case of attribute types is not
+significant.
+
+[Section 4.2.15 of RFC4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-4.2.15
+*/
+func (r *RelativeDistinguishedName) Equal(other *RelativeDistinguishedName) bool {
 	if len(r.Attributes) != len(other.Attributes) {
 		return false
 	}
 	return r.hasAllAttributes(other.Attributes) && other.hasAllAttributes(r.Attributes)
 }
-*/
 
-/*
-func (r *relativeDistinguishedName) hasAllAttributes(attrs []*attributeTypeAndValue) bool {
+func (r *RelativeDistinguishedName) hasAllAttributes(attrs []*AttributeTypeAndValue) bool {
 	for _, attr := range attrs {
 		found := false
 		for _, myattr := range r.Attributes {
@@ -540,25 +575,32 @@ func (r *relativeDistinguishedName) hasAllAttributes(attrs []*attributeTypeAndVa
 	}
 	return true
 }
-*/
 
-// Equal returns true if the attributeTypeAndValue is equivalent to the specified attributeTypeAndValue
-// Case of the attribute type is not significant
 /*
-func (r *attributeTypeAndValue) Equal(other *attributeTypeAndValue) bool {
-	return strings.EqualFold(r.Type, other.Type) && r.Value == other.Value
+Equal returns true if the [AttributeTypeAndValue] is equivalent to the
+specified [AttributeTypeAndValue].  Case of the attribute type is not
+significant
+*/
+func (r *AttributeTypeAndValue) Equal(other *AttributeTypeAndValue) bool {
+	return eqf(r.Type, other.Type) && r.Value == other.Value
 }
-*/
 
-// EqualFold returns true if the distinguishedNames are equal as defined by rfc4517 4.2.15 (distinguishedNameMatch).
-// Returns true if they have the same number of relative distinguished names
-// and corresponding relative distinguished names (by position) are the same.
-// Case of the attribute type and value is not significant
 /*
-func (r *distinguishedName) EqualFold(other *distinguishedName) bool {
+EqualFold returns true if the distinguishedNames are equal as defined in
+[Section 4.2.15 of RFC4517] (distinguishedNameMatch).
+
+Returns true if they have the same number of relative distinguished names
+and corresponding relative distinguished names (by position) are the same.
+
+Case of the attribute type and value is not significant.
+
+[Section 4.2.15 of RFC4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-4.2.15
+*/
+func (r *DistinguishedName) EqualFold(other *DistinguishedName) bool {
 	if len(r.RDNs) != len(other.RDNs) {
 		return false
 	}
+
 	for i := range r.RDNs {
 		if !r.RDNs[i].EqualFold(other.RDNs[i]) {
 			return false
@@ -566,15 +608,17 @@ func (r *distinguishedName) EqualFold(other *distinguishedName) bool {
 	}
 	return true
 }
-*/
 
-// AncestorOfFold returns true if the other DN consists of at least one RDN followed by all the RDNs of the current DN.
-// Case of the attribute type and value is not significant
 /*
-func (r *distinguishedName) AncestorOfFold(other *distinguishedName) bool {
+AncestorOfFold returns true if the other DN consists of at least one RDN
+followed by all the RDNs of the current DN. Case of the attribute type
+and value is not significant
+*/
+func (r *DistinguishedName) AncestorOfFold(other *DistinguishedName) bool {
 	if len(r.RDNs) >= len(other.RDNs) {
 		return false
 	}
+
 	// Take the last `len(r.RDNs)` RDNs from the other DN to compare against
 	otherRDNs := other.RDNs[len(other.RDNs)-len(r.RDNs):]
 	for i := range r.RDNs {
@@ -584,21 +628,23 @@ func (r *distinguishedName) AncestorOfFold(other *distinguishedName) bool {
 	}
 	return true
 }
-*/
 
-// EqualFold returns true if the relativeDistinguishedNames are equal as defined by rfc4517 4.2.15 (distinguishedNameMatch).
-// Case of the attribute type is not significant
 /*
-func (r *relativeDistinguishedName) EqualFold(other *relativeDistinguishedName) bool {
+EqualFold returns true if the relativeDistinguishedNames are equal as
+defined in [Section 4.2.15 of RFC4517] (distinguishedNameMatch).
+
+Case of the attribute type is not significant.
+
+[Section 4.2.15 of RFC4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-4.2.15
+*/
+func (r *RelativeDistinguishedName) EqualFold(other *RelativeDistinguishedName) bool {
 	if len(r.Attributes) != len(other.Attributes) {
 		return false
 	}
 	return r.hasAllAttributesFold(other.Attributes) && other.hasAllAttributesFold(r.Attributes)
 }
-*/
 
-/*
-func (r *relativeDistinguishedName) hasAllAttributesFold(attrs []*attributeTypeAndValue) bool {
+func (r *RelativeDistinguishedName) hasAllAttributesFold(attrs []*AttributeTypeAndValue) bool {
 	for _, attr := range attrs {
 		found := false
 		for _, myattr := range r.Attributes {
@@ -613,15 +659,15 @@ func (r *relativeDistinguishedName) hasAllAttributesFold(attrs []*attributeTypeA
 	}
 	return true
 }
-*/
 
-// EqualFold returns true if the attributeTypeAndValue is equivalent to the specified attributeTypeAndValue
-// Case of the attribute type and value is not significant
 /*
-func (r *attributeTypeAndValue) EqualFold(other *attributeTypeAndValue) bool {
-	return strings.EqualFold(r.Type, other.Type) && strings.EqualFold(r.Value, other.Value)
-}
+EqualFold returns true if the [AttributeTypeAndValue] is equivalent to
+the specified [AttributeTypeAndValue].  Case of the attribute type and
+value is not significant
 */
+func (r *AttributeTypeAndValue) EqualFold(other *AttributeTypeAndValue) bool {
+	return eqf(r.Type, other.Type) && eqf(r.Value, other.Value)
+}
 
 // foldString returns a folded string such that foldString(x) == foldString(y)
 // is identical to bytes.EqualFold(x, y).

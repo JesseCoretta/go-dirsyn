@@ -233,14 +233,6 @@ func (r RFC4517) TelephoneNumber(x any) (tn TelephoneNumber, err error) {
 }
 
 /*
-Fax returns an error following an analysis of x in the context of a Fax.
-*/
-func (r RFC4517) Fax(x any) (err error) {
-	_, err = r.IA5String(x)
-	return
-}
-
-/*
 TelexNumber implements TelexNumber per [§ 3.3.33 of RFC 4517]:
 
 	telex-number  = actual-number DOLLAR country-code DOLLAR answerback
@@ -359,9 +351,9 @@ type TeletexTerminalIdentifier struct {
 }
 
 /*
-TeletexNonBasicParameters is defined in [ITU-T Rec. T.62].
+TeletexNonBasicParameters is defined in [ITU-T Rec. X.420].
 
-[ITU-T Rec. T.62]: https://www.itu.int/rec/T-REC-T.62
+[ITU-T Rec. X.420]: https://www.itu.int/rec/T-REC-X.420
 */
 type TeletexNonBasicParameters struct {
 	GraphicCharacterSets     TeletexString `asn1:"tag:0,optional"` // TeletexString OPTIONAL

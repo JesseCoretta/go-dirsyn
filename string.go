@@ -878,13 +878,22 @@ func (r X680) BMPString(x any) (enc BMPString, err error) {
 		e = string(tv)
 	case BMPString:
 		if len(tv) == 0 {
-			enc = BMPString{0x1E, 0x00} // empty payload
+			break
+		} else if len(tv) == 2 {
+			if tv[0] != 0x1E || tv[1] != 0x0 {
+				err = errorTxt("Invalid ASN.1 tag or length octet for empty string")
+			} else {
+				enc = BMPString{0x1E, 0x0}
+			}
 			return
-		} else if tv[0] != 0x1E {
-			err = errorTxt("Bogus ASN.1 tag")
-			return
+		} else {
+			if tv[0] != 0x1E {
+				err = errorTxt("Invalid ASN.1 tag")
+				return
+			}
+
 		}
-		e = string([]uint8(tv))
+		e = tv.String()
 	case string:
 		e = tv
 	default:
@@ -893,7 +902,8 @@ func (r X680) BMPString(x any) (enc BMPString, err error) {
 	}
 
 	if len(e) == 0 {
-		err = errorTxt("input string is empty")
+		// Zero length values are OK
+		enc = BMPString{0x1E, 0x0}
 		return
 	}
 

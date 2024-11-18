@@ -110,6 +110,19 @@ func (r RFC4514) URL() string {
 }
 
 /*
+RFC4515 serves as the receiver type for handling definitions sourced from
+RFC 4515.
+*/
+type RFC4515 struct{}
+
+/*
+URL returns the string representation of the RFC 4515 document URL.
+*/
+func (r RFC4515) URL() string {
+	return `https://datatracker.ietf.org/doc/html/rfc4515`
+}
+
+/*
 RFC4517 serves as the receiver type for handling definitions sourced from
 RFC 4517.
 */

@@ -23,30 +23,35 @@ func TestNumericString(t *testing.T) {
 func TestBMPString(t *testing.T) {
 	var r X680
 
-	var results []string
+	results := []string{
+		"Σ",
+		"HELLO",
+		"ABC",
+		"HELΣLO",
+		"",
+	}
 
-	for _, encoded := range []BMPString{
+	for idx, encoded := range []BMPString{
 		{0x1e, 0x1, 0x3, 0xa3}, // sigma Σ
 		{0x1e, 0x5, 0x0, 0x48, 0x0, 0x45, 0x0, 0x4c, 0x0, 0x4c, 0x0, 0x4f},            // HELLO
 		{0x1e, 0x3, 0x0, 0x41, 0x0, 0x42, 0x0, 0x43},                                  // ABC
 		{0x1e, 0x6, 0x0, 0x48, 0x0, 0x45, 0x0, 0x4c, 0x3, 0xa3, 0x0, 0x4c, 0x0, 0x4f}, // HELΣLO
+		{0x1e, 0x0}, // empty
 	} {
-		decoded := encoded.String()
-		t.Logf("DEC: %#v\n", decoded)
-		results = append(results, decoded)
+		if decoded := encoded.String(); decoded != results[idx] {
+			t.Errorf("%s[%d] stringer failed:\nwant: %#v\ngot:  %#v",
+				t.Name(), idx, results[idx], decoded)
+		}
 	}
 
-	for idx, decoded := range []string{
-		"Σ",
-		"HELLO",
-	} {
+	for idx, decoded := range results {
 		if encoded, err := r.BMPString(decoded); err != nil {
-			t.Errorf("ENCODE: %s[%d;BE:%t] failed: %v",
-				t.Name(), idx, !r.BMPLittleEndian, err)
+			t.Errorf("ENCODE: %s[%d] failed: %v",
+				t.Name(), idx, err)
 		} else if reenc := encoded.String(); reenc != results[idx] {
-			t.Errorf("ENCODE: %s[%d;BE:%t] failed:\nwant:%s [%d]\ngot: %s [%d]",
-				t.Name(), idx, !r.BMPLittleEndian, decoded,
-				len(decoded), reenc, len(reenc))
+			t.Errorf("ENCODE: %s[%d] failed:\nwant:%#v [%d]\ngot: %#v [%d]",
+				t.Name(), idx, decoded, len(decoded),
+				results[idx], len(results[idx]))
 		}
 	}
 }
