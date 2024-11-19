@@ -546,6 +546,8 @@ func parseItemFilter(input string) (filter Filter, err error) {
 		return
 	}
 
+	var cerr error // assertionValue character set errors
+
 	pre, after := input[:idx], input[idx+1:]
 
 	// Parentheticals will just get in the way,
@@ -560,16 +562,19 @@ func parseItemFilter(input string) (filter Filter, err error) {
 			Desc: AttributeDescription(pre)}
 	} else if hasSfx(pre, `>`) {
 		err = checkFilterOIDs(pre[:len(pre)-1], ``)
+		cerr = assertionValueRunes(after, true)
 		filter = GreaterOrEqualFilter{
 			AttributeDescription(pre[:len(pre)-1]),
 			AssertionValue(after)}
 	} else if hasSfx(pre, `<`) {
 		err = checkFilterOIDs(pre[:len(pre)-1], ``)
+		cerr = assertionValueRunes(after, true)
 		filter = LessOrEqualFilter{
 			AttributeDescription(pre[:len(pre)-1]),
 			AssertionValue(after)}
 	} else if hasSfx(pre, `~`) {
 		err = checkFilterOIDs(pre[:len(pre)-1], ``)
+		cerr = assertionValueRunes(after, true)
 		filter = ApproximateMatchFilter{
 			AttributeDescription(pre[:len(pre)-1]),
 			AssertionValue(after)}
@@ -583,14 +588,16 @@ func parseItemFilter(input string) (filter Filter, err error) {
 		}
 	} else if cntns(pre, ":") {
 		filter, err = parseExtensibleMatch(pre, after)
+		cerr = assertionValueRunes(after, true)
 	} else {
 		err = checkFilterOIDs(pre, ``)
+		cerr = assertionValueRunes(after, true)
 		filter = EqualityMatchFilter{
 			Desc:  AttributeDescription(pre),
 			Value: AssertionValue(after)}
 	}
 
-	if err != nil {
+	if err != nil || cerr != nil {
 		filter = invalidFilter{}
 	}
 
@@ -599,15 +606,13 @@ func parseItemFilter(input string) (filter Filter, err error) {
 
 func parseExtensibleMatch(a, b string) (filter Filter, err error) {
 	scol := hasPfx(a, `:`)
-	sdn := hasPfx(a, `:dn:`)
+	sdn := hasPfx(a, `:dn:`) || hasPfx(a, `:DN:`)
 
-	// TODO check value.
 	val := AssertionValue(b)
-
 	_filter := ExtensibleMatchFilter{}
 
 	if !scol {
-		if !cntns(a, `:dn:`) {
+		if !valueIsDNAttrs(a) {
 			if idx := idxr(a, ':'); idx != -1 {
 				mr := trim(a[idx+1:], `:`)
 				err = checkFilterOIDs(a[:idx], mr)
@@ -616,7 +621,7 @@ func parseExtensibleMatch(a, b string) (filter Filter, err error) {
 			}
 		} else {
 			_filter.DNAttributes = true
-			if c := split(a, `:dn:`); len(c) == 2 {
+			if c := dnAttrSplit(a); len(c) == 2 {
 				mr := trim(c[1], `:`)
 				err = checkFilterOIDs(c[0], mr)
 				if len(c[0]) > 0 && len(c[1]) > 0 {

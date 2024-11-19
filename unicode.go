@@ -31,6 +31,7 @@ var (
 	iA5Range,
 	ttxRange,
 	t61Ranges,
+	uTF8SubsetRange,
 	lineCharRange,
 	substrRange,
 	asciiRange,
@@ -103,6 +104,12 @@ func isT61RangedRune(r rune) bool {
 }
 
 func init() {
+
+	uTF8SubsetRange = &unicode.RangeTable{R16: []unicode.Range16{
+		{0x0001, 0x0027, 1},
+		{0x002B, 0x005B, 1},
+		{0x005D, 0x007F, 1},
+	}}
 
 	iA5Range = &unicode.RangeTable{R16: []unicode.Range16{
 		{0x0000, 0x00FF, 1},

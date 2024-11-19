@@ -35,6 +35,7 @@ var (
 	asn1um   func([]byte, any) ([]byte, error)         = asn1.Unmarshal
 	asn1ump  func([]byte, any, string) ([]byte, error) = asn1.UnmarshalWithParams
 	stridx   func(string, string) int                  = strings.Index
+	strlidx  func(string, string) int                  = strings.LastIndex
 	strcnt   func(string, string) int                  = strings.Count
 	trim     func(string, string) string               = strings.Trim
 	uc       func(string) string                       = strings.ToUpper

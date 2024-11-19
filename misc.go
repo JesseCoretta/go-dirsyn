@@ -479,137 +479,20 @@ func strInSlice(r string, slice []string) bool {
 	return false
 }
 
-/*
-SubstringAssertion implements SubstringAssertion per [§ 3.3.30 of RFC 4517]:
+func valueIsDNAttrs(x string) bool {
+	return cntns(x, `:dn:`) || cntns(x, `:DN:`)
+}
 
-	SubstringAssertion = [ initial ] any [ final ]
-
-	initial  = substring
-	any      = ASTERISK *(substring ASTERISK)
-	final    = substring
-	ASTERISK = %x2A  ; asterisk ("*")
-
-	substring           = 1*substring-character
-	substring-character = %x00-29
-	                      / (%x5C "2A")  ; escaped "*"
-	                      / %x2B-5B
-	                      / (%x5C "5C")  ; escaped "\"
-	                      / %x5D-7F
-	                      / UTFMB
-
-[§ 3.3.30 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.30
-*/
-type SubstringAssertion []string
-
-/*
-Initial returns the first (left) component of the receiver instance, or
-a zero string if not present.
-*/
-func (r SubstringAssertion) Initial() (i string) {
-	if len(r) > 0 {
-		if _i := r[0]; _i != `` {
-			i = _i
-		}
+func dnAttrSplit(x string) (slice []string) {
+	lo := cntns(x, `:dn:`)
+	hi := cntns(x, `:DN:`)
+	if lo && !hi {
+		slice = split(x, `:dn:`)
+	} else if !lo && hi {
+		slice = split(x, `:DN:`)
 	}
 
 	return
-}
-
-/*
-Any returns the body of the receiver instance, in that the initial and
-final components -- if present -- are not considered.
-*/
-func (r SubstringAssertion) Any() (a string) {
-	if len(r) > 2 {
-		a = `*` + join(r[1:len(r)-1], `*`) + `*`
-	}
-
-	return
-}
-
-/*
-Final returns the final (right) component of the receiver instance, or
-a zero string if not present.
-*/
-func (r SubstringAssertion) Final() (f string) {
-	if len(r) > 0 {
-		if _i := r[len(r)-1]; _i != `` {
-			f = _i
-		}
-	}
-
-	return
-}
-
-/*
-String returns the string representation of the receiver instance.
-*/
-func (r SubstringAssertion) String() string {
-	var _r []string
-	for i := 0; i < len(r); i++ {
-		r[i] = repAll(r[i], `\*`, `\\*`)
-		_r = append(_r, r[i])
-	}
-	return join([]string(_r), `*`)
-}
-
-/*
-SubstringAssertion returns an error following an analysis of x in the
-context of a Substring Assertion.
-*/
-func (r RFC4517) SubstringAssertion(x any) (SubstringAssertion, error) {
-	return processSubstringAssertion(x)
-}
-
-func processSubstringAssertion(x any) (ssa SubstringAssertion, err error) {
-	var raw string
-	switch tv := x.(type) {
-	case string:
-		if len(tv) == 0 {
-			err = errorBadLength("Substring Assertion", 0)
-			return
-		}
-		raw = tv
-	default:
-		err = errorBadType("Substring Assertion")
-		return
-	}
-
-	substrings := splitUnescaped(raw, `*`, `\`)
-	for i, substring := range substrings {
-		if len(substring) == 0 {
-			continue
-		} else if !isValidSubstring(substring) {
-			err = errorTxt("Invalid Substring Assertion at component" + fmtInt(int64(i), 10))
-			break
-		}
-	}
-
-	ssa = SubstringAssertion(substrings)
-
-	return
-}
-
-func isValidSubstring(s string) bool {
-
-	for i := 0; i < len(s); i++ {
-		r := rune(s[i])
-		if r == 0x5C {
-			inc := runeLen(r)
-			if i+inc < len(s) && (s[i+inc] == 0x2A || s[i+inc] == 0x5C) {
-				i += inc
-				continue
-			}
-		} else if err := uTFMB(r); err == nil {
-			continue
-		} else if ucIs(substrRange, r) {
-			continue
-		}
-
-		return false
-	}
-
-	return true
 }
 
 /*
@@ -763,6 +646,46 @@ func assertRunes(x any, zok ...bool) (runes []rune, err error) {
 	}
 
 	return
+}
+
+func assertionValueRunes(x any, zok ...bool) (err error) {
+	var raw []rune
+	if raw, err = assertRunes(x, zok...); err != nil {
+		return
+	}
+
+	_err := errorTxt("Invalid assertionvalue characters")
+	for i := 0; i < len(raw); i++ {
+		if raw[i] == '\\' {
+			// Check if there are at least
+			// two more characters
+			if i+2 >= len(raw) {
+				err = _err
+				break
+			}
+			// Check if the next two characters
+			// are valid hexadecimals.
+			if !isHex(raw[i+1]) || !isHex(raw[i+2]) {
+				err = _err
+				break
+			}
+			// Skip the next two characters, as
+			// we've already vetted them.
+			i += 2
+		} else if ucIs(uTF8SubsetRange, rune(raw[i])) {
+			continue
+		} else if err = uTFMB(rune(raw[i])); err != nil {
+			break
+		}
+	}
+
+	return
+}
+
+func isHex(char rune) bool {
+	return ('0' <= char && char <= '9') ||
+		('A' <= char && char <= 'Z') ||
+		('a' <= char && char <= 'z')
 }
 
 /*
