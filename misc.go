@@ -299,7 +299,7 @@ func (r RFC4517) Boolean(x any) (b bool, err error) {
 	case bool:
 		b = tv
 	case string:
-		if !(eqf(tv, `TRUE`) && eqf(tv, `FALSE`)) {
+		if !(eqf(tv, `TRUE`) || eqf(tv, `FALSE`)) {
 			err = errorTxt("Invalid Boolean " + tv)
 		} else {
 			b = uc(tv) == `TRUE`

@@ -271,5 +271,9 @@ func lineChar(raw string) (lineChars []string, err error) {
 		break
 	}
 
+	if value.Len() > 0 && err == nil {
+		lineChars = append(lineChars, value.String())
+	}
+
 	return
 }

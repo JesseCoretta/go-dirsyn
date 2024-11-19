@@ -14,8 +14,10 @@ func TestNumericString(t *testing.T) {
 		0,
 		`00 00 00000000000000`,
 	} {
-		if _, err := r.NumericString(raw); err != nil {
+		if ns, err := r.NumericString(raw); err != nil {
 			t.Errorf("%s failed: %v", t.Name(), err)
+		} else {
+			_ = ns.String()
 		}
 	}
 }
@@ -77,8 +79,11 @@ func TestOctetString(t *testing.T) {
 		``,
 		`This is an OctetString.`,
 	} {
-		if _, err := r.OctetString(raw); err != nil {
+		if oct, err := r.OctetString(raw); err != nil {
 			t.Errorf("%s failed: %v", t.Name(), err)
+		} else if got := oct.String(); raw != got {
+			t.Errorf("%s failed:\nwant: %s\ngot:  %s",
+				t.Name(), raw, got)
 		}
 	}
 }
@@ -92,18 +97,28 @@ func TestCountryString(t *testing.T) {
 		`UK`,
 		`JP`,
 	} {
-		if _, err := r.CountryString(raw); err != nil {
+		if cs, err := r.CountryString(raw); err != nil {
 			t.Errorf("%s failed: %v", t.Name(), err)
+		} else if got := cs.String(); raw != got {
+			t.Errorf("%s failed:\nwant: %s\ngot:  %s",
+				t.Name(), raw, got)
 		}
 	}
+
+	r.CountryString(nil)
+	r.CountryString([]byte{})
+	r.CountryString(``)
 }
 
 func TestBitString(t *testing.T) {
 	var r RFC4517
 
 	var raw string = `'10100101'B`
-	if _, err := r.BitString(raw); err != nil {
+	if bs, err := r.BitString(raw); err != nil {
 		t.Errorf("%s failed: %v", t.Name(), err)
+	} else if got := bs.String(); raw != got {
+		t.Errorf("%s failed:\nwant: %s\ngot:  %s",
+			t.Name(), raw, got)
 	}
 }
 
@@ -111,8 +126,11 @@ func TestIA5String(t *testing.T) {
 	var r RFC4517
 
 	var raw string = `Jerry. Hello.`
-	if _, err := r.IA5String(raw); err != nil {
+	if ia, err := r.IA5String(raw); err != nil {
 		t.Errorf("%s failed: %v", t.Name(), err)
+	} else if got := ia.String(); raw != got {
+		t.Errorf("%s failed:\nwant: %s\ngot:  %s",
+			t.Name(), raw, got)
 	}
 }
 

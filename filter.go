@@ -437,7 +437,13 @@ func (r OrFilter) Len() int { return len(r) }
 Len always returns one (1), as instances of this kind only contain a
 single value.
 */
-func (r NotFilter) Len() int { return r.Filter.Len() }
+func (r NotFilter) Len() int {
+	if !r.IsZero() {
+		return r.Filter.Len()
+	}
+
+	return 0
+}
 
 /*
 Len always returns one (1), as instances of this kind only contain a
@@ -515,6 +521,9 @@ func parseOrFilter(input string) (Filter, error) {
 }
 
 func parseNotFilter(input string) (Filter, error) {
+	if len(input) < 8 {
+		return invalidFilter{}, errorTxt("Invalid NotFilter")
+	}
 	subRef, err := processFilter(input[2 : len(input)-1])
 	if err != nil {
 		return nil, err
