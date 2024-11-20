@@ -39,6 +39,7 @@ var (
 	strcnt   func(string, string) int                  = strings.Count
 	trim     func(string, string) string               = strings.Trim
 	uc       func(string) string                       = strings.ToUpper
+	lc       func(string) string                       = strings.ToLower
 	readFile func(string) ([]byte, error)              = os.ReadFile
 )
 
