@@ -4,6 +4,10 @@ package dirsyn
 filter.go contains RFC4515 methods and types.
 */
 
+import (
+	ber "github.com/go-asn1-ber/asn1-ber"
+)
+
 /*
 Filter returns an instance of [Filter] alongside an error.
 */
@@ -41,6 +45,7 @@ Filter implements [Section 2] and [Section 3] of RFC4515.
 [Section 3]: https://datatracker.ietf.org/doc/html/rfc4515#section-3
 */
 type Filter interface {
+	BEREncode() (*ber.Packet, error)
 	IsZero() bool
 	String() string
 	Choice() string
@@ -204,6 +209,9 @@ IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r ExtensibleMatchFilter) IsZero() bool { return &r == nil }
 
+/*
+String returns a zero string.
+*/
 func (r invalidFilter) String() string { return `` }
 
 /*
@@ -217,7 +225,35 @@ func (r AttributeDescription) String() string {
 String returns the string representation of the receiver instance.
 */
 func (r AssertionValue) String() string {
-	return string(r)
+	bld := newStrBuilder()
+	for _, r := range string(r) {
+		if r > maxASCII {
+			for _, c := range []byte(string(r)) {
+				bld.WriteString(`\`)
+				bld.WriteString(fuint(uint64(c), 16))
+			}
+		} else {
+			bld.WriteString(string(byte(r)))
+		}
+	}
+
+	return bld.String()
+}
+
+/*
+Encoded returns the string representation of the hex encoded receiver
+instance.
+*/
+func (r AssertionValue) HexEncode() string {
+	return hexEncode([]byte(r))
+}
+
+/*
+Decoded returns the string representation of the hex decoded receiver
+instance.
+*/
+func (r AssertionValue) HexDecode() string {
+	return hexDecode(string(r))
 }
 
 /*
@@ -421,6 +457,18 @@ Choice returns the string literal CHOICE "extensibleMatch".
 */
 func (r ExtensibleMatchFilter) Choice() string { return "extensibleMatch" }
 
+func (r invalidFilter) tag() uint64          { return 0 }
+func (r AndFilter) tag() uint64              { return 1 }
+func (r OrFilter) tag() uint64               { return 2 }
+func (r NotFilter) tag() uint64              { return 3 }
+func (r EqualityMatchFilter) tag() uint64    { return 4 }
+func (r SubstringsFilter) tag() uint64       { return 5 }
+func (r GreaterOrEqualFilter) tag() uint64   { return 6 }
+func (r LessOrEqualFilter) tag() uint64      { return 7 }
+func (r PresentFilter) tag() uint64          { return 8 }
+func (r ApproximateMatchFilter) tag() uint64 { return 9 }
+func (r ExtensibleMatchFilter) tag() uint64  { return 10 }
+
 func (r invalidFilter) Len() int { return 0 }
 
 /*
@@ -496,6 +544,10 @@ func processFilter(x any) (filter Filter, err error) {
 	if input = trimS(input); input == "" {
 		filter = PresentFilter{Desc: AttributeDescription("objectClass")}
 		return
+	} else if cntns(input, `((`) || !checkParenBalanced(input) {
+		err = errorTxt(`unexpected end of filter`)
+		filter = invalidFilter{}
+		return
 	}
 
 	switch {
@@ -559,8 +611,15 @@ func parseItemFilter(input string) (filter Filter, err error) {
 
 	pre, after := input[:idx], input[idx+1:]
 
-	// Parentheticals will just get in the way,
-	// so let's strip them off. They'll return
+	// Verify parenthetical encapsulation is balanced
+	if err = checkParenEncaps(pre, after); err != nil {
+		filter = invalidFilter{}
+		return
+	}
+
+	// Now that we've verified them, parenthetical
+	// encapsulators will just get in the way, so
+	// let's strip them off. They will reappear
 	// during string representation.
 	pre = repAll(pre, `(`, ``)
 	after = repAll(after, `)`, ``)
@@ -660,6 +719,307 @@ func parseExtensibleMatch(a, b string) (filter Filter, err error) {
 	}
 
 	return
+}
+
+/*
+BEREncode returns an instance of *[ber.Packet] alongside an error.
+*/
+func (r AndFilter) BEREncode() (*ber.Packet, error) {
+	if r.IsZero() || r.Len() == 0 {
+		return nil, errorTxt("Nil Filter, cannot BER encode")
+	}
+
+	packet := ber.Encode(ber.ClassContext,
+		ber.TypeConstructed,
+		ber.Tag(r.tag()),
+		nil,
+		r.Choice())
+
+	for i := 0; i < r.Len(); i++ {
+		child, err := r[i].BEREncode()
+		if err != nil {
+			return nil, err
+		}
+		packet.AppendChild(child)
+	}
+
+	return packet, nil
+
+}
+
+/*
+BEREncode returns an instance of *[ber.Packet] alongside an error.
+*/
+func (r OrFilter) BEREncode() (*ber.Packet, error) {
+	if r.IsZero() || r.Len() == 0 {
+		return nil, errorTxt("Nil Filter, cannot BER encode")
+	}
+
+	packet := ber.Encode(ber.ClassContext,
+		ber.TypeConstructed,
+		ber.Tag(r.tag()),
+		nil,
+		r.Choice())
+
+	for i := 0; i < r.Len(); i++ {
+		child, err := r[i].BEREncode()
+		if err != nil {
+			return nil, err
+		}
+		packet.AppendChild(child)
+	}
+
+	return packet, nil
+}
+
+/*
+BEREncode returns an instance of *[ber.Packet] alongside an error.
+*/
+func (r NotFilter) BEREncode() (*ber.Packet, error) {
+	if r.IsZero() {
+		return nil, errorTxt("Nil Filter, cannot BER encode")
+	}
+
+	packet := ber.Encode(ber.ClassContext,
+		ber.TypeConstructed,
+		ber.Tag(r.tag()),
+		nil,
+		r.Choice())
+
+	not, err := r.Filter.BEREncode()
+	if err != nil {
+		return nil, err
+	}
+
+	packet.AppendChild(not)
+
+	return packet, nil
+}
+
+/*
+BEREncode returns an instance of *[ber.Packet] alongside an error.
+*/
+func (r EqualityMatchFilter) BEREncode() (*ber.Packet, error) {
+	if r.IsZero() {
+		return nil, errorTxt("Nil Filter, cannot BER encode")
+	}
+
+	packet := ber.NewSequence(r.Choice())
+	packet.AppendChild(ber.Encode(ber.ClassContext,
+		ber.TypeConstructed,
+		ber.TagOctetString,
+		r.Desc.String(),
+		`AttributeDescription`))
+	packet.AppendChild(ber.Encode(ber.ClassContext,
+		ber.TypeConstructed,
+		ber.TagOctetString,
+		r.Value,
+		`AttributeValue`))
+
+	return packet, nil
+}
+
+/*
+BEREncode returns an instance of *[ber.Packet] alongside an error.
+*/
+func (r ApproximateMatchFilter) BEREncode() (*ber.Packet, error) {
+	if r.IsZero() {
+		return nil, errorTxt("Nil Filter, cannot BER encode")
+	}
+
+	packet := ber.NewSequence(r.Choice())
+	packet.AppendChild(ber.Encode(ber.ClassContext,
+		ber.TypeConstructed,
+		ber.TagOctetString,
+		r.Desc.String(),
+		`AttributeDescription`))
+	packet.AppendChild(ber.Encode(ber.ClassContext,
+		ber.TypeConstructed,
+		ber.TagOctetString,
+		r.Value,
+		`AttributeValue`))
+
+	return packet, nil
+}
+
+/*
+BEREncode returns an instance of *[ber.Packet] alongside an error.
+*/
+func (r GreaterOrEqualFilter) BEREncode() (*ber.Packet, error) {
+	if r.IsZero() {
+		return nil, errorTxt("Nil Filter, cannot BER encode")
+	}
+
+	packet := ber.NewSequence(r.Choice())
+	packet.AppendChild(ber.Encode(ber.ClassContext,
+		ber.TypeConstructed,
+		ber.TagOctetString,
+		r.Desc.String(),
+		`AttributeDescription`))
+	packet.AppendChild(ber.Encode(ber.ClassContext,
+		ber.TypeConstructed,
+		ber.TagOctetString,
+		r.Value,
+		`AttributeValue`))
+
+	return packet, nil
+}
+
+/*
+BEREncode returns an instance of *[ber.Packet] alongside an error.
+*/
+func (r LessOrEqualFilter) BEREncode() (*ber.Packet, error) {
+	if r.IsZero() {
+		return nil, errorTxt("Nil Filter, cannot BER encode")
+	}
+
+	packet := ber.NewSequence(r.Choice())
+	packet.AppendChild(ber.Encode(ber.ClassContext,
+		ber.TypeConstructed,
+		ber.TagOctetString,
+		r.Desc.String(),
+		`AttributeDescription`))
+	packet.AppendChild(ber.Encode(ber.ClassContext,
+		ber.TypeConstructed,
+		ber.TagOctetString,
+		r.Value,
+		`AttributeValue`))
+
+	return packet, nil
+}
+
+/*
+BEREncode returns an instance of *[ber.Packet] alongside an error.
+*/
+func (r PresentFilter) BEREncode() (*ber.Packet, error) {
+	if r.IsZero() {
+		return nil, errorTxt("Nil Filter, cannot BER encode")
+	}
+
+	return ber.NewString(ber.ClassContext,
+		ber.TypePrimitive,
+		ber.Tag(r.tag()),
+		r.Desc.String(),
+		`Present`), nil
+}
+
+/*
+BEREncode returns an instance of *[ber.Packet] alongside an error.
+*/
+func (r SubstringsFilter) BEREncode() (*ber.Packet, error) {
+	if r.IsZero() {
+		return nil, errorTxt("Nil Filter, cannot BER encode")
+	} else if r.Substrings.IsZero() {
+		return nil, errorTxt("Nil Substring Assertion, cannot BER encode")
+	}
+
+	packet := ber.NewSequence(r.Choice())
+	packet.AppendChild(ber.Encode(ber.ClassContext,
+		ber.TypeConstructed,
+		ber.TagOctetString,
+		r.Type.String(),
+		`AttributeDescription`))
+	substr := ber.Encode(ber.ClassUniversal,
+		ber.TypeConstructed,
+		ber.TagSequence,
+		nil,
+		r.Choice())
+
+	if len(r.Substrings.Initial) > 0 {
+		substr.AppendChild(ber.Encode(ber.ClassContext,
+			ber.TypeConstructed,
+			ber.Tag(0),
+			r.Substrings.Initial,
+			`Initial`))
+	}
+
+	substr.AppendChild(ber.Encode(ber.ClassContext,
+		ber.TypeConstructed,
+		ber.Tag(1),
+		r.Substrings.Any,
+		`Any`))
+
+	if len(r.Substrings.Final) > 0 {
+		substr.AppendChild(ber.Encode(ber.ClassContext,
+			ber.TypeConstructed,
+			ber.Tag(2),
+			r.Substrings.Final,
+			`Final`))
+	}
+
+	packet.AppendChild(substr)
+	return packet, nil
+}
+
+/*
+BEREncode returns an instance of *[ber.Packet] alongside an error.
+*/
+func (r ExtensibleMatchFilter) BEREncode() (*ber.Packet, error) {
+	if r.IsZero() {
+		return nil, errorTxt("Nil filter, cannot BER encode")
+	}
+
+	packet := ber.NewSequence(r.Choice())
+
+	if len(r.MatchValue) > 0 {
+		packet.AppendChild(ber.NewString(
+			ber.ClassContext,
+			ber.TypePrimitive,
+			ber.Tag(1),
+			r.MatchingRule,
+			`MatchingRule`))
+	}
+
+	if len(r.Type) > 0 {
+		packet.AppendChild(ber.NewString(
+			ber.ClassContext,
+			ber.TypePrimitive,
+			ber.Tag(2),
+			r.Type.String(),
+			`AttributeDescription`))
+	}
+
+	packet.AppendChild(ber.NewString(
+		ber.ClassContext,
+		ber.TypePrimitive,
+		ber.Tag(3),
+		string(r.MatchValue),
+		`MatchValue`))
+
+	if r.DNAttributes {
+		packet.AppendChild(ber.NewBoolean(
+			ber.ClassContext,
+			ber.TypePrimitive,
+			ber.Tag(4),
+			r.DNAttributes,
+			`DNAttributes`))
+	}
+
+	return packet, nil
+}
+
+/*
+BEREncode returns a nil instance of *[ber.Packet] alongside an error.
+*/
+func (r invalidFilter) BEREncode() (*ber.Packet, error) {
+	return nil, errorTxt("Nil filter, cannot BER encode")
+}
+
+// Verify parenthetical encapsulation is balanced
+func checkParenEncaps(a, b string) (err error) {
+	lencap := hasPfx(a, `(`)
+	rencap := hasSfx(b, `)`)
+	if lencap && !rencap {
+		err = errorTxt(`unexpected end of filter`)
+	} else if !lencap && rencap {
+		err = errorTxt(`unexpected end of filter`)
+	}
+
+	return
+}
+
+func checkParenBalanced(x string) bool {
+	return strcnt(x, `(`) == strcnt(x, `)`)
 }
 
 func checkFilterOIDs(t, m string) (err error) {

@@ -57,48 +57,32 @@ func (r SubstringAssertion) IsZero() bool {
 String returns the string representation of the receiver instance.
 */
 func (r SubstringAssertion) String() (s string) {
-	if r.IsZero() {
-		return
+	Any := func() string {
+		if len(r.Any) > 0 {
+			return `*` + r.Any.String() + `*`
+		}
+		return `*`
 	}
 
-	if len(r.Initial) > 0 {
-		s += string(r.Initial)
+	if !r.IsZero() {
+		bld := newStrBuilder()
 
-		if len(r.Any) > 0 {
-			s += `*`
-			for i := 0; i < len(r.Any); i++ {
-				s += string(rune(r.Any[i]))
-			}
-			s += `*`
-		} else {
-			s += `*`
-		}
-
-		if len(r.Final) > 0 {
-			s += string(r.Final)
-		}
-	} else if len(r.Final) > 0 {
 		if len(r.Initial) > 0 {
-			s += string(r.Initial)
-		}
-
-		if len(r.Any) > 0 {
-			s += `*`
-			for i := 0; i < len(r.Any); i++ {
-				s += string(rune(r.Any[i]))
+			bld.WriteString(r.Initial.String())
+			bld.WriteString(Any())
+			if len(r.Final) > 0 {
+				bld.WriteString(r.Final.String())
 			}
-			s += `*`
+		} else if len(r.Final) > 0 {
+			bld.WriteString(Any())
+			bld.WriteString(r.Final.String())
 		} else {
-			s += `*`
+			// If a star is the only value,
+			// don't save anything.
+			bld.WriteString(Any())
 		}
 
-		s += string(r.Final)
-	} else if len(r.Any) > 0 {
-		s += `*`
-		for i := 0; i < len(r.Any); i++ {
-			s += string(rune(r.Any[i]))
-		}
-		s += `*`
+		s = bld.String()
 	}
 
 	return

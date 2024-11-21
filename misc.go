@@ -659,13 +659,13 @@ func assertionValueRunes(x any, zok ...bool) (err error) {
 		if raw[i] == '\\' {
 			// Check if there are at least
 			// two more characters
-			if i+2 >= len(raw) {
+			if i+3 > len(raw) {
 				err = _err
 				break
 			}
 			// Check if the next two characters
 			// are valid hexadecimals.
-			if !isHex(raw[i+1]) || !isHex(raw[i+2]) {
+			if !isHex(rune(raw[i+1])) || !isHex(rune(raw[i+2])) {
 				err = _err
 				break
 			}
@@ -684,8 +684,8 @@ func assertionValueRunes(x any, zok ...bool) (err error) {
 
 func isHex(char rune) bool {
 	return ('0' <= char && char <= '9') ||
-		('A' <= char && char <= 'Z') ||
-		('a' <= char && char <= 'z')
+		('A' <= char && char <= 'F') ||
+		('a' <= char && char <= 'f')
 }
 
 /*

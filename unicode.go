@@ -19,6 +19,7 @@ var (
 )
 
 var runeSelf rune = utf8.RuneSelf
+var maxASCII rune = unicode.MaxASCII
 
 var t61NonContiguous []rune
 

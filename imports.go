@@ -3,6 +3,7 @@ package dirsyn
 import (
 	"encoding/asn1"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"os"
 	"strconv"
@@ -30,6 +31,9 @@ var (
 	repAll   func(string, string, string) string       = strings.ReplaceAll
 	eqf      func(string, string) bool                 = strings.EqualFold
 	puint    func(string, int, int) (uint64, error)    = strconv.ParseUint
+	fuint    func(uint64, int) string                  = strconv.FormatUint
+	hexdec   func(string) ([]byte, error)              = hex.DecodeString
+	enchex   func([]byte) string                       = hex.EncodeToString
 	asn1m    func(any) ([]byte, error)                 = asn1.Marshal
 	asn1mp   func(any, string) ([]byte, error)         = asn1.MarshalWithParams
 	asn1um   func([]byte, any) ([]byte, error)         = asn1.Unmarshal
@@ -45,6 +49,59 @@ var (
 
 func newStrBuilder() strings.Builder {
 	return strings.Builder{}
+}
+
+func hexEncode(x any) string {
+	var r string
+	switch tv := x.(type) {
+	case string:
+		r = tv
+	case []byte:
+		r = string(tv)
+	default:
+		return ``
+	}
+
+	e := newStrBuilder()
+	for _, c := range r {
+		for _, b := range []byte(string(c)) {
+			e.WriteString("\\")
+			e.WriteString(fuint(uint64(b), 16))
+		}
+	}
+	return e.String()
+}
+
+func hexDecode(x any) string {
+	var r string
+	switch tv := x.(type) {
+	case string:
+		r = tv
+	case []byte:
+		r = string(tv)
+	default:
+		return ``
+	}
+
+	d := newStrBuilder()
+	length := len(r)
+
+	for i := 0; i < length; i++ {
+		if r[i] == '\\' && i+3 <= length {
+			b, err := hexdec(r[i+1 : i+3])
+			if err != nil {
+				return ``
+			} else if !isHex(rune(r[i+1])) || !isHex(rune(r[i+2])) {
+				return ``
+			}
+			d.Write(b)
+			i += 2
+		} else {
+			d.WriteString(string(r[i]))
+		}
+	}
+
+	return d.String()
 }
 
 func isBase64(x any) (is bool) {
