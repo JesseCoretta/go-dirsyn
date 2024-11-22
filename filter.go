@@ -1408,7 +1408,7 @@ To decode the return *[ber.Packet], pass it to [RFC4515.Filter] as the
 input value.
 */
 func (r invalidFilter) BER() (*ber.Packet, error) {
-	return nil, errorTxt("Nil filter, cannot BER encode")
+	return nil, errorTxt("Nil Filter, cannot BER encode")
 }
 
 // Verify parenthetical encapsulation is balanced
@@ -1470,7 +1470,7 @@ func splitFilterParts(input string) []string {
 func unmarshalFilterBER(packet *ber.Packet) (filter Filter, err error) {
 	filter = invalidFilter{}
 	if packet == nil {
-		err = errorTxt("Nil BER packet; cannot unmarshal")
+		err = errorTxt("Nil Filter BER packet; cannot unmarshal")
 		return
 	}
 

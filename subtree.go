@@ -1,6 +1,14 @@
 package dirsyn
 
 /*
+subtree.go implements RFC3672 SubtreeSpecification.
+*/
+
+import (
+	ber "github.com/go-asn1-ber/asn1-ber"
+)
+
+/*
 SubtreeSpecification implements the Subtree Specification construct.
 
 At present, instances of this type are not ASN.1 encode-friendly due
@@ -11,6 +19,30 @@ types.
 A zero instance of this type is equal to "{}" when represented as a
 string value, which is a valid default value when populated for an
 entry's "[subtreeSpecification]" attribute type instance within a DIT.
+
+From [§ 2.1 of RFC 3672]:
+
+	SubtreeSpecification ::= SEQUENCE {
+	    base                [0] LocalName DEFAULT { },
+	                            COMPONENTS OF ChopSpecification,
+	    specificationFilter [4] Refinement OPTIONAL }
+
+	LocalName ::= RDNSequence
+
+	ChopSpecification ::= SEQUENCE {
+	    specificExclusions  [1] SET OF CHOICE {
+	                            chopBefore [0] LocalName,
+	                            chopAfter [1] LocalName } OPTIONAL,
+	    minimum             [2] BaseDistance DEFAULT 0,
+	    maximum             [3] BaseDistance OPTIONAL }
+
+	BaseDistance ::= INTEGER (0 .. MAX)
+
+	Refinement ::= CHOICE {
+	    item                [0] OBJECT-CLASS.&id,
+	    and                 [1] SET OF Refinement,
+	    or                  [2] SET OF Refinement,
+	    not                 [3] Refinement }
 
 From [Appendix A of RFC 3672]:
 
@@ -47,14 +79,16 @@ From [§ 6 of RFC 3642]:
 
 [Appendix A of RFC 3672]: https://datatracker.ietf.org/doc/html/rfc3672#appendix-A
 [subtreeSpecification]: https://datatracker.ietf.org/doc/html/rfc3672#section-2.3
+[§ 2.1 of RFC 3672]: https://datatracker.ietf.org/doc/html/rfc3672#section-2.1
 [§ 6 of RFC 3642]: https://datatracker.ietf.org/doc/html/rfc3642#section-6
 */
 type SubtreeSpecification struct {
-	Base                LocalName
-	SpecificExclusions  SpecificExclusions
-	Min                 BaseDistance
-	Max                 BaseDistance
-	SpecificationFilter Refinement
+	Base LocalName `asn1:"tag:0,default:"`
+
+	// COMPONENTS OF chopSpecification
+	ChopSpecification
+
+	SpecificationFilter Refinement `asn1:"tag:4,optional"`
 }
 
 /*
@@ -63,8 +97,14 @@ context of a Subtree Specification.
 */
 func (r RFC3672) SubtreeSpecification(x any) (ss SubtreeSpecification, err error) {
 	var raw string
-	if raw, err = assertString(x, 1, "Subtree Specification"); err != nil {
+	switch tv := x.(type) {
+	case *ber.Packet:
+		ss, err = unmarshalSubtreeSpecificationBER(tv)
 		return
+	default:
+		if raw, err = assertString(x, 1, "Subtree Specification"); err != nil {
+			return
+		}
 	}
 
 	if raw[0] != '{' || raw[len(raw)-1] != '}' {
@@ -90,7 +130,7 @@ func (r RFC3672) SubtreeSpecification(x any) (ss SubtreeSpecification, err error
 	if begin := stridx(raw, `specificExclusions `); begin != -1 {
 		var end int
 		begin += 19
-		if ss.SpecificExclusions, end, err = subtreeExclusions(raw, begin); err != nil {
+		if ss.ChopSpecification.Exclusions, end, err = subtreeExclusions(raw, begin); err != nil {
 			return
 		}
 		end = begin + end
@@ -100,7 +140,7 @@ func (r RFC3672) SubtreeSpecification(x any) (ss SubtreeSpecification, err error
 	if begin := stridx(raw, `minimum `); begin != -1 {
 		var end int
 		begin += 8
-		if ss.Min, end, err = subtreeMinMax(raw, begin); err != nil {
+		if ss.ChopSpecification.Minimum, end, err = subtreeMinMax(raw, begin); err != nil {
 			return
 		}
 		end = begin + end
@@ -110,7 +150,7 @@ func (r RFC3672) SubtreeSpecification(x any) (ss SubtreeSpecification, err error
 	if begin := stridx(raw, `maximum `); begin != -1 {
 		var end int
 		begin += 8
-		if ss.Max, end, err = subtreeMinMax(raw, begin); err != nil {
+		if ss.ChopSpecification.Maximum, end, err = subtreeMinMax(raw, begin); err != nil {
 			return
 		}
 		end = begin + end
@@ -130,38 +170,50 @@ func (r RFC3672) SubtreeSpecification(x any) (ss SubtreeSpecification, err error
 }
 
 /*
-Encode returns the ASN.1 encoding of the receiver instance alongside an error.
-*/
-/*
-// FIXME - figure out a work around, or scrap the idea for encoding
-// instances of this type altogether.
-func (r SubtreeSpecification) Encode() (b []byte, err error) {
-	b, err = asn1m(r)
-	return
-}
-*/
+BER returns the BER encoding of the receiver instance alongside an error.
 
-/*
-Decode returns an error following an attempt to decode ASN.1 encoded bytes b into
-the receiver instance. This results in the receiver being overwritten with new data.
+To decode the return *[ber.Packet], pass it to [RFC3672.SubtreeSpecification]
+as the   input value.
 */
-/*
-// FIXME - figure out a work around, or scrap the idea for decoding
-// instances of this type altogether.
-func (r *SubtreeSpecification) Decode(b []byte) (err error) {
-	var rest []byte
-	if rest, err = asn1um(b, r); err == nil {
-		if len(rest) > 0 {
-			err = errorTxt("Extra left-over content found during ASN.1 unmarshal: '" + string(rest) + "'")
-		}
+func (r SubtreeSpecification) BER() (*ber.Packet, error) {
+	if r.IsZero() {
+		return ber.NewSequence(`SubtreeSpecification`), nil
 	}
 
-	return
+	packet := ber.NewSequence(`SubtreeSpecification`)
+
+	if !r.Base.IsZero() {
+		packet.AppendChild(ber.NewString(
+			ber.ClassContext,
+			ber.TypeConstructed,
+			ber.Tag(0),
+			r.Base.String(),
+			`base`))
+	}
+
+	if !r.ChopSpecification.IsZero() {
+		child, err := r.ChopSpecification.BER()
+		if err != nil {
+			return nil, err
+		}
+		packet.AppendChild(child)
+	}
+
+	// SpecFilter is an interface, check nil.
+	if r.SpecificationFilter != nil {
+		child, err := r.SpecificationFilter.BER()
+		if err != nil {
+			return nil, err
+		}
+		packet.AppendChild(child)
+	}
+
+	return packet, nil
 }
-*/
 
 /*
-SpecificExclusions implements the Subtree Specification exclusions construct.
+SpecificExclusions implements the chopSpecification specificExclusions ASN.1
+SET OF CHOICE component.
 
 From [Appendix A of RFC 3672]:
 
@@ -171,8 +223,20 @@ From [Appendix A of RFC 3672]:
 */
 type SpecificExclusions []SpecificExclusion
 
+func (r SpecificExclusions) Len() int {
+	return len(r)
+}
+
 /*
-SpecificExclusion implements the Subtree Specification exclusion construct.
+SpecificExclusion implements the chopSpecification specificExclusion component.
+
+From [§ 2.1 of RFC3672]:
+
+	        LocalName ::= RDNSequence
+
+		SET OF CHOICE {
+	   	   chopBefore [0] LocalName,
+	           chopAfter  [1] LocalName }
 
 From [Appendix A of RFC 3672]:
 
@@ -183,10 +247,57 @@ From [Appendix A of RFC 3672]:
 	id-chopAfter       = %x63.68.6F.70.41.66.74.65.72    ; "chopAfter"
 
 [Appendix A of RFC 3672]: https://datatracker.ietf.org/doc/html/rfc3672#appendix-A
+
+[§ 2.1 of RFC 3672]: https://datatracker.ietf.org/doc/html/rfc3672#section-2.1
 */
 type SpecificExclusion struct {
-	Name  LocalName
-	After bool // false = Before
+	ChopBefore LocalName `asn1:"tag:0"`
+	ChopAfter  LocalName `asn1:"tag:1"`
+}
+
+/*
+ChopSpecification implements the chopSpecification component of an
+instance of [SubtreeSpecification].
+*/
+type ChopSpecification struct {
+	Exclusions SpecificExclusions `asn1:"tag:1,optional"`
+	Minimum    BaseDistance       `asn1:"tag:2,default:0"`
+	Maximum    BaseDistance       `asn1:"tag:3,optional"`
+}
+
+func (r ChopSpecification) IsZero() bool {
+	return &r == nil
+}
+
+func (r ChopSpecification) BER() (*ber.Packet, error) {
+	if r.IsZero() {
+		return nil, errorTxt("Nil ChopSpecification, cannot BER encode")
+	}
+
+	packet := ber.NewSequence(`ChopSpecification`)
+
+	if r.Exclusions.Len() > 0 {
+		child, err := r.Exclusions.BER()
+		if err != nil {
+			return nil, err
+		}
+		packet.AppendChild(child)
+	}
+
+	packet.AppendChild(ber.NewInteger(
+		ber.ClassContext,
+		ber.TypeConstructed,
+		ber.Tag(2),
+		int(r.Minimum),
+		`minimum`))
+	packet.AppendChild(ber.NewInteger(
+		ber.ClassContext,
+		ber.TypeConstructed,
+		ber.Tag(3),
+		int(r.Maximum),
+		`maximum`))
+
+	return packet, nil
 }
 
 /*
@@ -218,6 +329,24 @@ type LocalName string
 /*
 String returns the string representation of the receiver instance.
 */
+func (r LocalName) String() string {
+	return string(r)
+}
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r LocalName) IsZero() bool {
+	return r == ``
+}
+
+func (r SpecificExclusions) IsZero() bool {
+	return &r == nil
+}
+
+/*
+String returns the string representation of the receiver instance.
+*/
 func (r SpecificExclusions) String() string {
 	if len(r) == 0 {
 		return `{ }`
@@ -231,19 +360,89 @@ func (r SpecificExclusions) String() string {
 	return `{ ` + join(_s, `, `) + ` }`
 }
 
+func (r SpecificExclusions) BER() (*ber.Packet, error) {
+	if r.Len() == 0 {
+		return nil, errorTxt("Nil Exclusions; cannot BER encode")
+	}
+
+	packet := ber.Encode(ber.ClassContext,
+		ber.TypeConstructed,
+		ber.Tag(1),
+		nil,
+		`specificExclusions`)
+
+	for i := 0; i < r.Len(); i++ {
+		child, err := r[i].BER()
+		if err != nil {
+			return nil, err
+		}
+		packet.AppendChild(child)
+	}
+
+	return packet, nil
+
+}
+
+func (r SpecificExclusion) IsZero() bool {
+	return &r == nil
+}
+
+/*
+String returns the string literal "before" or "after" as the selected
+ASN.1 CHOICE. The determination is made based upon non-zeroness of the
+respective [LocalName] value. A zero string is returned if the instance
+is invalid.
+*/
+func (r SpecificExclusion) Choice() (se string) {
+	if chopB := r.ChopBefore.String(); chopB != "" {
+		se = `before`
+	} else if chopA := r.ChopAfter.String(); chopA != "" {
+		se = `after`
+	}
+
+	return
+}
+
 /*
 String returns the string representation of the receiver instance.
 */
 func (r SpecificExclusion) String() (s string) {
-	if len(r.Name) > 0 {
-		if r.After {
-			s = `chopAfter ` + `"` + string(r.Name) + `"`
-		} else {
-			s = `chopBefore ` + `"` + string(r.Name) + `"`
-		}
+	choice := r.Choice()
+	if choice == "before" {
+		s = `chopBefore ` + `"` + r.ChopBefore.String() + `"`
+	} else if choice == "after" {
+		s = `chopAfter ` + `"` + r.ChopAfter.String() + `"`
 	}
 
 	return
+}
+
+func (r SpecificExclusion) BER() (*ber.Packet, error) {
+	if r.IsZero() || r.Choice() == "" {
+		return nil, errorTxt("Nil SpecificExclusion, cannot BER encode")
+	}
+
+	var (
+		tag  uint64
+		val  string
+		desc string
+	)
+
+	if r.Choice() == `after` {
+		tag = uint64(1)
+		desc = `chopAfter`
+		val = r.ChopAfter.String()
+	} else {
+		desc = `chopBefore`
+		val = r.ChopBefore.String()
+	}
+
+	return ber.NewString(
+		ber.ClassContext,
+		ber.TypeConstructed,
+		ber.Tag(tag),
+		val,
+		desc), nil
 }
 
 func subtreeExclusions(raw string, begin int) (excl SpecificExclusions, end int, err error) {
@@ -260,7 +459,6 @@ func subtreeExclusions(raw string, begin int) (excl SpecificExclusions, end int,
 	}
 
 	values := fields(raw[pos:end])
-	excl = make(SpecificExclusions, 0)
 
 	for i := 0; i < len(values); i += 2 {
 		var ex SpecificExclusion
@@ -269,11 +467,15 @@ func subtreeExclusions(raw string, begin int) (excl SpecificExclusions, end int,
 			break
 
 		}
-		ex.After = values[i] == `chopAfter`
+		after := values[i] == `chopAfter`
 
 		localName := trim(trimR(values[i+1], `,`), `"`)
 		if err = isSafeUTF8(localName); err == nil {
-			ex.Name = LocalName(localName)
+			if after {
+				ex.ChopAfter = LocalName(localName)
+			} else {
+				ex.ChopBefore = LocalName(localName)
+			}
 			excl = append(excl, ex)
 		}
 	}
@@ -365,17 +567,17 @@ func (r SubtreeSpecification) String() (s string) {
 		_s = append(_s, `base `+`"`+string(r.Base)+`"`)
 	}
 
-	if x := r.SpecificExclusions; len(x) > 0 {
+	if x := r.ChopSpecification.Exclusions; len(x) > 0 {
 		_s = append(_s, `specificExclusions `+x.String())
 	}
 
-	if r.Min > 0 {
-		_s = append(_s, `minimum `+itoa(int(r.Min)))
+	if r.ChopSpecification.Minimum > 0 {
+		_s = append(_s, `minimum `+itoa(int(r.ChopSpecification.Minimum)))
 
 	}
 
-	if r.Max > 0 {
-		_s = append(_s, `maximum `+itoa(int(r.Max)))
+	if r.ChopSpecification.Maximum > 0 {
+		_s = append(_s, `maximum `+itoa(int(r.ChopSpecification.Maximum)))
 
 	}
 
@@ -426,10 +628,38 @@ From [ITU-T Rec. X.501 clause 12.3.5]:
 [Appendix A of RFC 3672]: https://datatracker.ietf.org/doc/html/rfc3672#appendix-A
 */
 type Refinement interface {
+	// BER returns the BER encoding of the receiver
+	// instance alongside an error.
+	BER() (*ber.Packet, error)
+
+	// Index returns the Nth slice index found within
+	// the receiver instance. This is only useful if
+	// the receiver is an AndRefinement or OrRefinement
+	// Refinement qualifier type instance.
+	Index(int) Refinement
+
+	// IsZero returns a Boolean value indicative of
+	// a nil receiver state.
 	IsZero() bool
+
+	// String returns the string representation of
+	// the receiver instance.
 	String() string
-	Type() string
+
+	// Choice returns the string CHOICE "name" of the
+	// receiver instance. Use of this method is merely
+	// intended as a convenient alternative to type
+	// assertion checks.
+	Choice() string
+
+	// Len returns the integer length of the receiver
+	// instance. This is only useful if the receiver is
+	// an AndRefinement or OrRefinement Refinement
+	// qualifier type instance.
 	Len() int
+
+	// differentiate Refinement from other interfaces
+	isRefinement()
 }
 
 /*
@@ -484,9 +714,9 @@ func (r AndRefinement) String() string {
 }
 
 /*
-Type returns the string literal "and".
+Type returns the string literal "and" as the ASN.1 CHOICE.
 */
-func (r AndRefinement) Type() string {
+func (r AndRefinement) Choice() string {
 	return "and"
 }
 
@@ -495,6 +725,19 @@ Len returns the integer length of the receiver instance.
 */
 func (r AndRefinement) Len() int {
 	return len(r)
+}
+
+/*
+Index returns the Nth slice index found within the receiver instance.
+*/
+func (r AndRefinement) Index(idx int) (x Refinement) {
+	rl := r.Len()
+	x = invalidRefinement{}
+	if 0 <= idx && idx < rl {
+		x = r[idx]
+	}
+
+	return
 }
 
 /*
@@ -521,9 +764,9 @@ func (r OrRefinement) String() string {
 }
 
 /*
-Type returns the string literal "or".
+Type returns the string literal "or" as the ASN.1 CHOICE.
 */
-func (r OrRefinement) Type() string {
+func (r OrRefinement) Choice() string {
 	return "or"
 }
 
@@ -532,6 +775,19 @@ Len returns the integer length of the receiver instance.
 */
 func (r OrRefinement) Len() int {
 	return len(r)
+}
+
+/*
+Index returns the Nth slice index found within the receiver instance.
+*/
+func (r OrRefinement) Index(idx int) (x Refinement) {
+	rl := r.Len()
+	x = invalidRefinement{}
+	if 0 <= idx && idx < rl {
+		x = r[idx]
+	}
+
+	return
 }
 
 /*
@@ -558,9 +814,9 @@ func (r NotRefinement) String() string {
 }
 
 /*
-Type returns the string literal "not".
+Type returns the string literal "not" as the ASN.1 CHOICE.
 */
-func (r NotRefinement) Type() string {
+func (r NotRefinement) Choice() string {
 	return "not"
 }
 
@@ -569,6 +825,36 @@ Len returns the integer length of the receiver instance.
 */
 func (r NotRefinement) Len() int {
 	return r.Refinement.Len()
+}
+
+/*
+Index returns the Nth slice index found within the receiver instance.
+*/
+func (r NotRefinement) Index(idx int) (x Refinement) {
+	x = invalidRefinement{}
+
+	if !r.IsZero() {
+		x = r.Refinement.Index(idx)
+	}
+
+	return
+}
+
+func (r OrRefinement) isRefinement()   {}
+func (r AndRefinement) isRefinement()  {}
+func (r NotRefinement) isRefinement()  {}
+func (r ItemRefinement) isRefinement() {}
+
+type invalidRefinement struct{}
+
+func (r invalidRefinement) isRefinement()          {}
+func (r invalidRefinement) String() string         { return `` }
+func (r invalidRefinement) IsZero() bool           { return false }
+func (r invalidRefinement) Len() int               { return 0 }
+func (r invalidRefinement) Index(_ int) Refinement { return invalidRefinement{} }
+func (r invalidRefinement) Choice() string         { return `invalid` }
+func (r invalidRefinement) BER() (*ber.Packet, error) {
+	return nil, errorTxt("Nil Refinement, cannot BER encode")
 }
 
 /*
@@ -596,9 +882,9 @@ func (r ItemRefinement) String() string {
 }
 
 /*
-Type returns the string literal "item".
+Type returns the string literal "item" as the ASN.1 CHOICE.
 */
-func (r ItemRefinement) Type() string {
+func (r ItemRefinement) Choice() string {
 	return "item"
 }
 
@@ -608,6 +894,14 @@ Go's interface signature requirements.
 */
 func (r ItemRefinement) Len() int {
 	return 1
+}
+
+/*
+Index returns the receiver instance of [Refinement]. This method only
+exists to satisfy Go's interface signature requirement.
+*/
+func (r ItemRefinement) Index(_ int) Refinement {
+	return r
 }
 
 func subtreeBase(x any) (base LocalName, end int, err error) {
@@ -736,4 +1030,303 @@ func splitRefinementParts(input string) []string {
 	}
 
 	return parts
+}
+
+/*
+BER returns the BER encoding of the receiver instance.
+*/
+func (r ItemRefinement) BER() (packet *ber.Packet, err error) {
+	if len(r) == 0 {
+		err = errorTxt("Nil Refinement; cannot BER encode")
+		return
+	}
+
+	packet = ber.NewSequence(`Refinement`)
+	packet.Tag = ber.Tag(4)
+	packet.AppendChild(ber.NewString(
+		ber.ClassContext,
+		ber.TypePrimitive,
+		ber.Tag(0),
+		string(r),
+		`item`))
+
+	return
+}
+
+/*
+BER returns the BER encoding of the receiver instance.
+*/
+func (r AndRefinement) BER() (packet *ber.Packet, err error) {
+	if r.IsZero() || r.Len() == 0 {
+		err = errorTxt("Nil Refinement, cannot BER encode")
+		return
+	}
+
+	packet = ber.NewSequence(`Refinement`)
+	packet.Tag = ber.Tag(4)
+	set := ber.Encode(ber.ClassContext,
+		ber.TypeConstructed,
+		ber.Tag(1),
+		nil,
+		r.Choice())
+
+	for i := 0; i < r.Len(); i++ {
+		var child *ber.Packet
+		if child, err = r[i].BER(); err != nil {
+			return
+		}
+		set.AppendChild(child)
+	}
+
+	packet.AppendChild(set)
+
+	return
+}
+
+/*
+BER returns the BER encoding of the receiver instance.
+*/
+func (r OrRefinement) BER() (packet *ber.Packet, err error) {
+	if r.IsZero() || r.Len() == 0 {
+		err = errorTxt("Nil Refinement, cannot BER encode")
+		return
+	}
+
+	packet = ber.NewSequence(`Refinement`)
+	packet.Tag = ber.Tag(4)
+	set := ber.Encode(ber.ClassContext,
+		ber.TypeConstructed,
+		ber.Tag(1),
+		nil,
+		r.Choice())
+
+	for i := 0; i < r.Len(); i++ {
+		var child *ber.Packet
+		if child, err = r[i].BER(); err != nil {
+			return
+		}
+		set.AppendChild(child)
+	}
+
+	packet.AppendChild(set)
+
+	return
+}
+
+/*
+BER returns the BER encoding of the receiver instance.
+*/
+func (r NotRefinement) BER() (packet *ber.Packet, err error) {
+	if r.IsZero() {
+		return nil, errorTxt("Nil Refinement, cannot BER encode")
+	}
+
+	packet = ber.NewSequence(`Refinement`)
+	packet.Tag = ber.Tag(4)
+	inner := ber.Encode(ber.ClassContext,
+		ber.TypeConstructed,
+		ber.Tag(3),
+		nil,
+		r.Choice())
+
+	not, err := r.Refinement.BER()
+	if err != nil {
+		return nil, err
+	}
+
+	inner.AppendChild(not)
+	packet.AppendChild(inner)
+
+	return packet, nil
+}
+
+func unmarshalSubtreeSpecificationBER(packet *ber.Packet) (ss SubtreeSpecification, err error) {
+	if packet == nil {
+		err = errorTxt("Nil SubtreeSpecification BER packet; cannot unmarshal")
+		return
+	}
+	lc := len(packet.Children)
+
+	for i := 0; i < lc && err == nil; i++ {
+		child := packet.Children[i]
+		switch uint64(child.Tag) {
+		case 0:
+			// Base
+			var ln string
+			var ok bool
+			if ln, ok = child.Value.(string); !ok {
+				err = errorTxt("Failed to unmarshal base RDNSequence")
+				break
+			}
+			ss.Base = LocalName(ln)
+		case 4:
+			// Refinement
+			var ref Refinement
+			if ref, err = unmarshalRefinementBER(child); err != nil {
+				break
+			}
+			ss.SpecificationFilter = ref
+		default:
+			// ChopSpecification ... maybe
+			if child.Description == "ChopSpecification" {
+				var chop ChopSpecification
+				if chop, err = unmarshalChopSpecificationBER(child); err != nil {
+					break
+				}
+				ss.ChopSpecification = chop
+			} else {
+				err = errorTxt("Unknown child packet (want:ChopSpecification); cannot unmarshal")
+			}
+		}
+	}
+
+	return
+}
+
+func unmarshalNotRefinementBER(packet *ber.Packet) (not Refinement, err error) {
+	not = invalidRefinement{}
+	if len(packet.Children) != 1 {
+		err = errorTxt("Invalid Not Refinement (no payload); cannot unmarshal")
+		return
+	}
+
+	var nest Refinement
+	if nest, err = unmarshalRefinementBER(packet.Children[0]); err == nil {
+		not = NotRefinement{nest}
+	}
+
+	return
+}
+
+func unmarshalRefinementBER(packet *ber.Packet) (refinement Refinement, err error) {
+	refinement = invalidRefinement{}
+	if packet == nil || len(packet.Children) != 1 {
+		err = errorTxt("Nil BER packet; cannot unmarshal")
+		return
+	}
+
+	refpkt := packet.Children[0]
+
+	switch refpkt.Description {
+	case "item":
+		refinement, err = unmarshalItemRefinementBER(refpkt)
+	case "not":
+		refinement, err = unmarshalNotRefinementBER(refpkt)
+	case "and", "or":
+		refinement, err = unmarshalSetRefinementBER(refpkt)
+	default:
+		err = errorTxt("Unidentified BER packet; cannot unmarshal to Refinement")
+
+	}
+
+	return
+}
+
+func unmarshalItemRefinementBER(packet *ber.Packet) (item Refinement, err error) {
+
+	v, vok := packet.Value.(string)
+	if !vok {
+		err = errorTxt("Invalid or absent item refinement objectClass ID; cannot unmarshal")
+	} else {
+		item = ItemRefinement(v)
+	}
+
+	return
+}
+
+func unmarshalSetRefinementBER(packet *ber.Packet) (refinement Refinement, err error) {
+	lc := len(packet.Children)
+	refinement = invalidRefinement{}
+
+	var refs []Refinement
+	and := packet.Description == "and"
+
+	if lc == 0 || packet.Description == "invalid" || !(and || packet.Description == "or") {
+		err = errorTxt("No Refinement qualifiers present within set packet; cannot unmarshal")
+		return
+	}
+
+	for i := 0; i < lc && err == nil; i++ {
+		child := packet.Children[i]
+		var subref Refinement
+		if subref, err = unmarshalRefinementBER(child); err == nil {
+			refs = append(refs, subref)
+		}
+	}
+
+	if err != nil {
+		refinement = invalidRefinement{}
+	} else if and {
+		refinement = AndRefinement(refs)
+	} else {
+		refinement = OrRefinement(refs)
+	}
+
+	return
+}
+
+func unmarshalChopSpecificationBER(packet *ber.Packet) (chop ChopSpecification, err error) {
+	lc := len(packet.Children)
+	if !(1 <= lc && lc < 4) {
+		err = errorTxt("Unexpected number of ChopSpecification fields (want:1-3); cannot unmarshal")
+		return
+	}
+
+	for i := 0; i < lc && err == nil; i++ {
+		child := packet.Children[i]
+		switch uint64(child.Tag) {
+		case 1:
+			// Exclusions
+			var ses SpecificExclusions
+			if ses, err = unmarshalExclusionsBER(child); err == nil {
+				chop.Exclusions = ses
+			}
+		case 2:
+			// Minimum base distance
+			if min, _ := child.Value.(int); min > 0 {
+				chop.Minimum = BaseDistance(min)
+			}
+		case 3:
+			// Maximum base distance
+			if max, _ := child.Value.(int); max > 0 {
+				chop.Maximum = BaseDistance(max)
+			}
+		default:
+			// bogus tag
+			err = errorTxt("Unknown ChopSpecification tag (want:1-3); cannot unmarshal")
+		}
+	}
+
+	return
+}
+
+func unmarshalExclusionsBER(packet *ber.Packet) (ses SpecificExclusions, err error) {
+	lc := len(packet.Children)
+
+	var _ses SpecificExclusions
+	for i := 0; i < lc && err == nil; i++ {
+		child := packet.Children[i]
+		var se SpecificExclusion
+		if se, err = unmarshalExclusionBER(child); err == nil {
+			_ses = append(_ses, se)
+		}
+	}
+
+	if err == nil {
+		ses = _ses
+	}
+
+	return
+}
+
+func unmarshalExclusionBER(packet *ber.Packet) (se SpecificExclusion, err error) {
+	if packet.Description == "chopBefore" {
+		se.ChopBefore = LocalName(packet.Value.(string))
+	} else if packet.Description == "chopAfter" {
+		se.ChopAfter = LocalName(packet.Value.(string))
+	} else {
+		err = errorTxt("Unidentified SpecificExclusion (want:chopBefore|chopAfter); cannot unmarshal")
+	}
+
+	return
 }

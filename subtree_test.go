@@ -1,6 +1,8 @@
 package dirsyn
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestSubtreeSpecification(t *testing.T) {
 	var r RFC3672
@@ -21,6 +23,23 @@ func TestSubtreeSpecification(t *testing.T) {
 		} else if got := v.String(); got != raw {
 			t.Errorf("%s[%d] failed:\n\twant: '%s'\n\tgot: '%s'",
 				t.Name(), idx, raw, got)
+		} else {
+			pkt, xerr := v.BER()
+			if xerr != nil {
+				t.Errorf("%s[%d] BER encoding failed: %v",
+					t.Name(), idx, xerr)
+				continue
+			}
+
+			var v2 SubtreeSpecification
+			if v2, err = r.SubtreeSpecification(pkt); err != nil {
+				t.Errorf("%s[%d] BER decoding failed: %v", t.Name(), idx, err)
+				continue
+			}
+			if ngot := v2.String(); ngot != got {
+				t.Errorf("%s[%d] post-BER check failed:\n\twant: '%s'\n\tgot: '%s'",
+					t.Name(), idx, got, ngot)
+			}
 		}
 	}
 }
