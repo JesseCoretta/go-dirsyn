@@ -24,6 +24,34 @@ Content developed or appropriated from external sources, such as that found with
 
 The scope of this package is intended to, ultimately, cover all of the syntactical components and logic of [ITU-T Rec. X.500](https://www.itu.int/rec/T-REC-X.500). Though exclusive to directory services, it is not exclusive to LDAP.
 
+## Dependencies
+
+This package relies upon the following packages from the standard library:
+
+  - `encoding/asn1`
+  - `encoding/base64`
+  - `encoding/hex`
+  - `errors`
+  - `fmt`<sup><sup>†</sup></sup>
+  - `math/big`
+  - `os`
+  - `sort`
+  - `strconv`
+  - `strings`
+  - `testing`
+  - `time`
+  - `unicode`
+  - `unicode/utf8`
+  - `unicode/utf16`
+
+<sup><sup>**†** - ONLY used for testing/examples</sup></sup>
+
+This package relies upon the following third-party packages:
+
+  - [`uuid`](https://github.com/google/uuid)
+  - [`asn1-ber`](https://github.com/go-asn1-ber/asn1-ber)
+  - [`objectid`](https://github.com/JesseCoretta/go-objectid)
+
 ## Supported Syntaxes
 
 The following syntaxes are supported by this package at this time.  More will be added in the future:
@@ -43,7 +71,7 @@ The following syntaxes are supported by this package at this time.  More will be
   - Enhanced Guide ([RFC 4517 § 3.3.10](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.10))
   - Facsimile Telephone Number ([RFC 4517 § 3.3.11](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.11))
   - Fax ([RFC 4517 § 3.3.12](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.12))
-  - Filter [RFC 4515 § 2](https://datatracker.ietf.org/doc/html/rfc4515#section-2))
+  - Filter ([RFC 4515 § 2](https://datatracker.ietf.org/doc/html/rfc4515#section-2) and [RFC 4515 § 3](https://datatracker.ietf.org/doc/html/rfc4515#section-3))
   - Generalized Time ([RFC 4517 § 3.3.13](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.13))
   - Guide ([RFC 4517 § 3.3.14](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.14))
   - IA5 String ([RFC 4517 § 3.3.15](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.15))
@@ -64,7 +92,7 @@ The following syntaxes are supported by this package at this time.  More will be
   - UTC Time ([RFC 4517 § 3.3.34](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.34))
   - UUID ([RFC 4530 § 2.1](https://datatracker.ietf.org/doc/html/rfc4530#section-2.1))
 
-The following [RFC 4517](https://datatracker.ietf.org/doc/html/rfc4517) syntaxes are not supported by this package:
+The following [RFC 4517](https://datatracker.ietf.org/doc/html/rfc4517) syntaxes are currently not supported by this package:
 
   - Attribute Type Description 
   - DIT Content Rule Description 
@@ -79,8 +107,3 @@ For parsing of the above eight (8) syntaxes, see [`go-antlr4512`](https://github
 
 Additionally, to parse Netscape's "aci" syntax, see [`go-antlraci`](https://github.com/JesseCoretta/go-antlraci), or the full-featured [`go-aci`](https://github.com/Jessecoretta/go-aci).
 
-## ASN.1 considerations
-
-While this package offers complete syntax parsing capabilities, support for ASN.1 encoding and decoding of package-defined type instances is limited. Not all types are eligible for ASN.1 support at this time. One example of this is the [Subtree Specification](https://datatracker.ietf.org/doc/html/rfc3672#appendix-A) type.
-
-Due to its nested nature and its (necessary) use of pointer-based struct field values, limitations of the Go ASN.1 package preclude seamless encoding *AND* decoding of such instances. This may or may not be resolved in future revisions of this package.
