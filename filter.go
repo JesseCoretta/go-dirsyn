@@ -9,7 +9,18 @@ import (
 )
 
 /*
-Filter returns an instance of [Filter] alongside an error.
+Filter returns a [Filter] qualifier instance alongside an error.
+
+If the input is nil, the default [PresentFilter] (e.g.: "(objectClass=*)")
+is returned.
+
+If the input is a string, an attempt to marshal the value is made. If
+the string is zero, this is equivalent to providing nil.
+
+If the input is a *[ber.Packet] instance, it is unmarshaled into the
+return instance of [Filter].
+
+Any errors found will result in the return of an invalid [Filter] instance.
 */
 func (r RFC4515) Filter(x any) (filter Filter, err error) {
 	switch tv := x.(type) {
@@ -26,12 +37,16 @@ func (r RFC4515) Filter(x any) (filter Filter, err error) {
 			}
 			return
 		}
+	case *ber.Packet:
+		// unmarshal BER encoding into Filter instance
+		filter, err = unmarshalFilterBER(tv)
+		return
 	}
 
 	if filter, err = processFilter(x); filter == nil {
 		// just to avoid panics in the event
 		// the user does not check errors.
-		filter = Filter(invalidFilter{})
+		filter = invalidFilter{}
 		err = errorTxt("Invalid filter")
 	}
 
@@ -45,10 +60,36 @@ Filter implements [Section 2] and [Section 3] of RFC4515.
 [Section 3]: https://datatracker.ietf.org/doc/html/rfc4515#section-3
 */
 type Filter interface {
-	BEREncode() (*ber.Packet, error)
+	// BER returns the BER encoding of the receiver
+	// instance alongside an error. The *ber.Packet
+	// instance can be decoded back to an instance
+	// of Filter via the RFC4515.Filter method.
+	BER() (*ber.Packet, error)
+
+	// Index returns the Nth slice index found within
+	// the receiver instance. This is only useful if
+	// the receiver is an AndFilter or OrFilter Filter
+	// qualifier type instance.
+	Index(int) Filter
+
+	// IsZero returns a Boolean value indicative of
+	// a nil receiver state.
 	IsZero() bool
+
+	// String returns the string representation of
+	// the receiver instance.
 	String() string
+
+	// Choice returns the string CHOICE "name" of the
+	// receiver instance. Use of this method is merely
+	// intended as a convenient alternative to type
+	// assertion checks.
 	Choice() string
+
+	// Len returns the integer length of the receiver
+	// instance. This is only useful if the receiver is
+	// an AndFilter or OrFilter Filter qualifier type
+	// instance.
 	Len() int
 }
 
@@ -118,7 +159,7 @@ type AttributeDescription string
 AssertionValue implements the OCTET STRING value component of an instance
 of [AttributeValueAssertion].
 */
-type AssertionValue []byte
+type AssertionValue []uint8
 
 /*
 PresentFilter implements the "present" CHOICE of an instance of [Filter].
@@ -210,6 +251,156 @@ IsZero returns a Boolean value indicative of a nil receiver state.
 func (r ExtensibleMatchFilter) IsZero() bool { return &r == nil }
 
 /*
+Index returns the Nth [Filter] slice instance from within the receiver.
+*/
+func (r AndFilter) Index(idx int) (filter Filter) {
+	filter = invalidFilter{}
+
+	if !r.IsZero() {
+		if 0 <= idx && idx < r.Len() {
+			filter = r[idx]
+		}
+	}
+
+	return
+}
+
+/*
+Index returns the Nth [Filter] slice instance from within the receiver.
+*/
+func (r OrFilter) Index(idx int) (filter Filter) {
+	filter = invalidFilter{}
+
+	if !r.IsZero() {
+		if 0 <= idx && idx < r.Len() {
+			filter = r[idx]
+		}
+	}
+
+	return
+}
+
+/*
+Index returns the Nth [Filter] slice instance from within the receiver.
+*/
+func (r NotFilter) Index(idx int) (filter Filter) {
+	filter = invalidFilter{}
+
+	if !r.IsZero() {
+		filter = r.Filter.Index(idx)
+	}
+
+	return
+}
+
+/*
+Index returns an invalid [Filter] instance. This method only exists to
+satisfy Go's interface signature requirement.
+*/
+func (r invalidFilter) Index(_ int) (filter Filter) {
+	filter = invalidFilter{}
+	return
+}
+
+/*
+Index returns the receiver instance of [Filter]. This method only exists
+to satisfy Go's interface signature requirement.
+*/
+func (r GreaterOrEqualFilter) Index(_ int) (filter Filter) {
+	filter = invalidFilter{}
+
+	if !r.IsZero() {
+		filter = r
+	}
+
+	return
+}
+
+/*
+Index returns the receiver instance of [Filter]. This method only exists
+to satisfy Go's interface signature requirement.
+*/
+func (r LessOrEqualFilter) Index(_ int) (filter Filter) {
+	filter = invalidFilter{}
+
+	if !r.IsZero() {
+		filter = r
+	}
+
+	return
+}
+
+/*
+Index returns the receiver instance of [Filter]. This method only exists
+to satisfy Go's interface signature requirement.
+*/
+func (r EqualityMatchFilter) Index(_ int) (filter Filter) {
+	filter = invalidFilter{}
+
+	if !r.IsZero() {
+		filter = r
+	}
+
+	return
+}
+
+/*
+Index returns the receiver instance of [Filter]. This method only exists
+to satisfy Go's interface signature requirement.
+*/
+func (r SubstringsFilter) Index(_ int) (filter Filter) {
+	filter = invalidFilter{}
+
+	if !r.IsZero() {
+		filter = r
+	}
+
+	return
+}
+
+/*
+Index returns the receiver instance of [Filter]. This method only exists
+to satisfy Go's interface signature requirement.
+*/
+func (r ApproximateMatchFilter) Index(_ int) (filter Filter) {
+	filter = invalidFilter{}
+
+	if !r.IsZero() {
+		filter = r
+	}
+
+	return
+}
+
+/*
+Index returns the receiver instance of [Filter]. This method only exists
+to satisfy Go's interface signature requirement.
+*/
+func (r PresentFilter) Index(_ int) (filter Filter) {
+	filter = invalidFilter{}
+
+	if !r.IsZero() {
+		filter = r
+	}
+
+	return
+}
+
+/*
+Index returns the receiver instance of [Filter]. This method only exists
+to satisfy Go's interface signature requirement.
+*/
+func (r ExtensibleMatchFilter) Index(_ int) (filter Filter) {
+	filter = invalidFilter{}
+
+	if !r.IsZero() {
+		filter = r
+	}
+
+	return
+}
+
+/*
 String returns a zero string.
 */
 func (r invalidFilter) String() string { return `` }
@@ -223,37 +414,44 @@ func (r AttributeDescription) String() string {
 
 /*
 String returns the string representation of the receiver instance.
+Note that this method is an alias of [AssertionValue.Escaped].
 */
 func (r AssertionValue) String() string {
-	bld := newStrBuilder()
-	for _, r := range string(r) {
-		if r > maxASCII {
-			for _, c := range []byte(string(r)) {
-				bld.WriteString(`\`)
-				bld.WriteString(fuint(uint64(c), 16))
-			}
-		} else {
-			bld.WriteString(string(byte(r)))
-		}
+	return r.Escaped()
+}
+
+func (r AssertionValue) Unescaped() string {
+	var u string
+	if len(r) > 0 {
+		u = hexDecode(string(r))
 	}
 
-	return bld.String()
+	return u
+}
+
+func (r AssertionValue) Escaped() (esc string) {
+	if len(r) > 0 {
+		esc = escapeString(string(r))
+	}
+
+	return
 }
 
 /*
-Encoded returns the string representation of the hex encoded receiver
-instance.
+Set assigns x to the receiver instance.
 */
-func (r AssertionValue) HexEncode() string {
-	return hexEncode([]byte(r))
-}
+func (r *AssertionValue) Set(x any) {
+	var s string
+	switch tv := x.(type) {
+	case string:
+		s = tv
+	case []byte:
+		s = string(tv)
+	default:
+		return
+	}
 
-/*
-Decoded returns the string representation of the hex decoded receiver
-instance.
-*/
-func (r AssertionValue) HexDecode() string {
-	return hexDecode(string(r))
+	*r = AssertionValue(escapeString(s))
 }
 
 /*
@@ -722,9 +920,12 @@ func parseExtensibleMatch(a, b string) (filter Filter, err error) {
 }
 
 /*
-BEREncode returns an instance of *[ber.Packet] alongside an error.
+BER returns the BER encoding of the receiver instance alongside an error.
+
+To decode the return *[ber.Packet], pass it to [RFC4515.Filter] as the
+input value.
 */
-func (r AndFilter) BEREncode() (*ber.Packet, error) {
+func (r AndFilter) BER() (*ber.Packet, error) {
 	if r.IsZero() || r.Len() == 0 {
 		return nil, errorTxt("Nil Filter, cannot BER encode")
 	}
@@ -736,7 +937,7 @@ func (r AndFilter) BEREncode() (*ber.Packet, error) {
 		r.Choice())
 
 	for i := 0; i < r.Len(); i++ {
-		child, err := r[i].BEREncode()
+		child, err := r[i].BER()
 		if err != nil {
 			return nil, err
 		}
@@ -748,9 +949,12 @@ func (r AndFilter) BEREncode() (*ber.Packet, error) {
 }
 
 /*
-BEREncode returns an instance of *[ber.Packet] alongside an error.
+BER returns the BER encoding of the receiver instance alongside an error.
+
+To decode the return *[ber.Packet], pass it to [RFC4515.Filter] as the
+input value.
 */
-func (r OrFilter) BEREncode() (*ber.Packet, error) {
+func (r OrFilter) BER() (*ber.Packet, error) {
 	if r.IsZero() || r.Len() == 0 {
 		return nil, errorTxt("Nil Filter, cannot BER encode")
 	}
@@ -762,7 +966,7 @@ func (r OrFilter) BEREncode() (*ber.Packet, error) {
 		r.Choice())
 
 	for i := 0; i < r.Len(); i++ {
-		child, err := r[i].BEREncode()
+		child, err := r[i].BER()
 		if err != nil {
 			return nil, err
 		}
@@ -773,9 +977,12 @@ func (r OrFilter) BEREncode() (*ber.Packet, error) {
 }
 
 /*
-BEREncode returns an instance of *[ber.Packet] alongside an error.
+BER returns the BER encoding of the receiver instance alongside an error.
+
+To decode the return *[ber.Packet], pass it to [RFC4515.Filter] as the
+input value.
 */
-func (r NotFilter) BEREncode() (*ber.Packet, error) {
+func (r NotFilter) BER() (*ber.Packet, error) {
 	if r.IsZero() {
 		return nil, errorTxt("Nil Filter, cannot BER encode")
 	}
@@ -786,7 +993,7 @@ func (r NotFilter) BEREncode() (*ber.Packet, error) {
 		nil,
 		r.Choice())
 
-	not, err := r.Filter.BEREncode()
+	not, err := r.Filter.BER()
 	if err != nil {
 		return nil, err
 	}
@@ -797,9 +1004,12 @@ func (r NotFilter) BEREncode() (*ber.Packet, error) {
 }
 
 /*
-BEREncode returns an instance of *[ber.Packet] alongside an error.
+BER returns the BER encoding of the receiver instance alongside an error.
+
+To decode the return *[ber.Packet], pass it to [RFC4515.Filter] as the
+input value.
 */
-func (r EqualityMatchFilter) BEREncode() (*ber.Packet, error) {
+func (r EqualityMatchFilter) BER() (*ber.Packet, error) {
 	if r.IsZero() {
 		return nil, errorTxt("Nil Filter, cannot BER encode")
 	}
@@ -808,21 +1018,24 @@ func (r EqualityMatchFilter) BEREncode() (*ber.Packet, error) {
 	packet.AppendChild(ber.Encode(ber.ClassContext,
 		ber.TypeConstructed,
 		ber.TagOctetString,
-		r.Desc.String(),
-		`AttributeDescription`))
+		r.Desc,
+		`attributeDescription`))
 	packet.AppendChild(ber.Encode(ber.ClassContext,
 		ber.TypeConstructed,
 		ber.TagOctetString,
 		r.Value,
-		`AttributeValue`))
+		`assertionValue`))
 
 	return packet, nil
 }
 
 /*
-BEREncode returns an instance of *[ber.Packet] alongside an error.
+BER returns the BER encoding of the receiver instance alongside an error.
+
+To decode the return *[ber.Packet], pass it to [RFC4515.Filter] as the
+input value.
 */
-func (r ApproximateMatchFilter) BEREncode() (*ber.Packet, error) {
+func (r ApproximateMatchFilter) BER() (*ber.Packet, error) {
 	if r.IsZero() {
 		return nil, errorTxt("Nil Filter, cannot BER encode")
 	}
@@ -831,21 +1044,24 @@ func (r ApproximateMatchFilter) BEREncode() (*ber.Packet, error) {
 	packet.AppendChild(ber.Encode(ber.ClassContext,
 		ber.TypeConstructed,
 		ber.TagOctetString,
-		r.Desc.String(),
-		`AttributeDescription`))
+		r.Desc,
+		`attributeDescription`))
 	packet.AppendChild(ber.Encode(ber.ClassContext,
 		ber.TypeConstructed,
 		ber.TagOctetString,
 		r.Value,
-		`AttributeValue`))
+		`assertionValue`))
 
 	return packet, nil
 }
 
 /*
-BEREncode returns an instance of *[ber.Packet] alongside an error.
+BER returns the BER encoding of the receiver instance alongside an error.
+
+To decode the return *[ber.Packet], pass it to [RFC4515.Filter] as the
+input value.
 */
-func (r GreaterOrEqualFilter) BEREncode() (*ber.Packet, error) {
+func (r GreaterOrEqualFilter) BER() (*ber.Packet, error) {
 	if r.IsZero() {
 		return nil, errorTxt("Nil Filter, cannot BER encode")
 	}
@@ -854,21 +1070,24 @@ func (r GreaterOrEqualFilter) BEREncode() (*ber.Packet, error) {
 	packet.AppendChild(ber.Encode(ber.ClassContext,
 		ber.TypeConstructed,
 		ber.TagOctetString,
-		r.Desc.String(),
-		`AttributeDescription`))
+		r.Desc,
+		`attributeDescription`))
 	packet.AppendChild(ber.Encode(ber.ClassContext,
 		ber.TypeConstructed,
 		ber.TagOctetString,
 		r.Value,
-		`AttributeValue`))
+		`assertionValue`))
 
 	return packet, nil
 }
 
 /*
-BEREncode returns an instance of *[ber.Packet] alongside an error.
+BER returns the BER encoding of the receiver instance alongside an error.
+
+To decode the return *[ber.Packet], pass it to [RFC4515.Filter] as the
+input value.
 */
-func (r LessOrEqualFilter) BEREncode() (*ber.Packet, error) {
+func (r LessOrEqualFilter) BER() (*ber.Packet, error) {
 	if r.IsZero() {
 		return nil, errorTxt("Nil Filter, cannot BER encode")
 	}
@@ -877,36 +1096,42 @@ func (r LessOrEqualFilter) BEREncode() (*ber.Packet, error) {
 	packet.AppendChild(ber.Encode(ber.ClassContext,
 		ber.TypeConstructed,
 		ber.TagOctetString,
-		r.Desc.String(),
-		`AttributeDescription`))
+		r.Desc,
+		`attributeDescription`))
 	packet.AppendChild(ber.Encode(ber.ClassContext,
 		ber.TypeConstructed,
 		ber.TagOctetString,
 		r.Value,
-		`AttributeValue`))
+		`assertionValue`))
 
 	return packet, nil
 }
 
 /*
-BEREncode returns an instance of *[ber.Packet] alongside an error.
+BER returns the BER encoding of the receiver instance alongside an error.
+
+To decode the return *[ber.Packet], pass it to [RFC4515.Filter] as the
+input value.
 */
-func (r PresentFilter) BEREncode() (*ber.Packet, error) {
+func (r PresentFilter) BER() (*ber.Packet, error) {
 	if r.IsZero() {
 		return nil, errorTxt("Nil Filter, cannot BER encode")
 	}
 
-	return ber.NewString(ber.ClassContext,
+	return ber.Encode(ber.ClassContext,
 		ber.TypePrimitive,
 		ber.Tag(r.tag()),
-		r.Desc.String(),
-		`Present`), nil
+		r.Desc,
+		r.Choice()), nil
 }
 
 /*
-BEREncode returns an instance of *[ber.Packet] alongside an error.
+BER returns the BER encoding of the receiver instance alongside an error.
+
+To decode the return *[ber.Packet], pass it to [RFC4515.Filter] as the
+input value.
 */
-func (r SubstringsFilter) BEREncode() (*ber.Packet, error) {
+func (r SubstringsFilter) BER() (*ber.Packet, error) {
 	if r.IsZero() {
 		return nil, errorTxt("Nil Filter, cannot BER encode")
 	} else if r.Substrings.IsZero() {
@@ -917,8 +1142,8 @@ func (r SubstringsFilter) BEREncode() (*ber.Packet, error) {
 	packet.AppendChild(ber.Encode(ber.ClassContext,
 		ber.TypeConstructed,
 		ber.TagOctetString,
-		r.Type.String(),
-		`AttributeDescription`))
+		r.Type,
+		`attributeDescription`))
 	substr := ber.Encode(ber.ClassUniversal,
 		ber.TypeConstructed,
 		ber.TagSequence,
@@ -930,31 +1155,209 @@ func (r SubstringsFilter) BEREncode() (*ber.Packet, error) {
 			ber.TypeConstructed,
 			ber.Tag(0),
 			r.Substrings.Initial,
-			`Initial`))
+			`initial`))
 	}
 
 	substr.AppendChild(ber.Encode(ber.ClassContext,
 		ber.TypeConstructed,
 		ber.Tag(1),
 		r.Substrings.Any,
-		`Any`))
+		`any`))
 
 	if len(r.Substrings.Final) > 0 {
 		substr.AppendChild(ber.Encode(ber.ClassContext,
 			ber.TypeConstructed,
 			ber.Tag(2),
 			r.Substrings.Final,
-			`Final`))
+			`final`))
 	}
 
 	packet.AppendChild(substr)
 	return packet, nil
 }
 
+func unmarshalPresentFilterBER(packet *ber.Packet) (item Filter, err error) {
+
+	if str, ok := packet.Value.(AttributeDescription); !ok {
+		item = invalidFilter{}
+		err = errorTxt("Invalid or absent AttributeDescription; cannot unmarshal")
+	} else {
+		item = PresentFilter{Desc: AttributeDescription(str)}
+	}
+
+	return
+}
+
+func unmarshalGeLeFilterBER(packet *ber.Packet) (item Filter, err error) {
+	if len(packet.Children) != 2 {
+		err = errorTxt("Unexpected number of Ge/Le sequence fields (want:2); cannot unmarshal")
+		item = invalidFilter{}
+		return
+	}
+
+	typ := packet.Description
+	atd := packet.Children[0]
+	val := packet.Children[1]
+
+	a, aok := atd.Value.(AttributeDescription)
+	v, vok := val.Value.(AssertionValue)
+
+	if !aok || !vok {
+		err = errorTxt("Invalid or absent Ge/Le descr or value; cannot unmarshal")
+		item = invalidFilter{}
+	} else {
+		if typ == "greaterOrEqual" {
+			item = GreaterOrEqualFilter{Desc: AttributeDescription(a), Value: AssertionValue(v)}
+		} else if typ == "lessOrEqual" {
+			item = LessOrEqualFilter{Desc: AttributeDescription(a), Value: AssertionValue(v)}
+		} else {
+			err = errorTxt("Invalid or absent type identifier; cannot unmarshal")
+			item = invalidFilter{}
+		}
+	}
+
+	return
+}
+
+func unmarshalApproxFilterBER(packet *ber.Packet) (item Filter, err error) {
+	if len(packet.Children) != 2 {
+		err = errorTxt("Unexpected number of Approx sequence fields (want:2); cannot unmarshal")
+		item = invalidFilter{}
+		return
+	}
+
+	atd := packet.Children[0]
+	val := packet.Children[1]
+
+	a, aok := atd.Value.(AttributeDescription)
+	v, vok := val.Value.(AssertionValue)
+
+	if !aok || !vok {
+		err = errorTxt("Invalid or absent Approx descr or value; cannot unmarshal")
+		item = invalidFilter{}
+	} else {
+		item = ApproximateMatchFilter{Desc: AttributeDescription(a), Value: AssertionValue(v)}
+	}
+
+	return
+}
+
+func unmarshalExtensibleFilterBER(packet *ber.Packet) (item Filter, err error) {
+	item = invalidFilter{}
+	lc := len(packet.Children)
+	if !(1 <= lc && lc < 5) {
+		err = errorTxt("Unexpected number of Extensible seq fields (want:1-4); cannot unmarshal")
+		return
+	}
+
+	_item := ExtensibleMatchFilter{}
+
+	var val bool
+	for i := 0; i < lc && _item.Choice() != "invalid"; i++ {
+		child := packet.Children[i]
+		var ok bool
+		switch uint64(child.Tag) {
+		case 1:
+			if _item.MatchingRule, ok = child.Value.(string); !ok {
+				err = errorTxt("Invalid MatchingRule for extensible filter (want:string)")
+			}
+		case 2:
+			if _item.Type, ok = child.Value.(AttributeDescription); !ok {
+				err = errorTxt("Invalid Attribute for extensible filter (want:AttributeDescription)")
+			}
+		case 3:
+			if _item.MatchValue, val = child.Value.(AssertionValue); !val {
+				err = errorTxt("Invalid MatchingValue for extensible filter (want:AssertionValue)")
+			}
+		case 4:
+			if _item.DNAttributes, ok = child.Value.(bool); !ok {
+				err = errorTxt("Invalid DNAttributes for extensible filter (want:bool)")
+			}
+		}
+	}
+
+	if err == nil {
+		item = _item
+	}
+
+	return
+}
+
+func unmarshalEqualityFilterBER(packet *ber.Packet) (item Filter, err error) {
+	if len(packet.Children) != 2 {
+		err = errorTxt("Unexpected number of Approx seq fields (want:2); cannot unmarshal")
+		item = invalidFilter{}
+		return
+	}
+
+	atd := packet.Children[0]
+	val := packet.Children[1]
+
+	a, aok := atd.Value.(AttributeDescription)
+	v, vok := val.Value.(AssertionValue)
+
+	if !aok || !vok {
+		err = errorTxt("Invalid or absent Equality descr or value; cannot unmarshal")
+		item = invalidFilter{}
+	} else {
+		item = EqualityMatchFilter{Desc: AttributeDescription(a), Value: AssertionValue(v)}
+	}
+
+	return
+}
+
+func unmarshalSubstringsFilterBER(packet *ber.Packet) (item Filter, err error) {
+	item = invalidFilter{}
+	if len(packet.Children) != 2 {
+		err = errorTxt("Unexpected number of AttributeType instances (want:2); cannot unmarshal")
+		return
+	}
+
+	at := packet.Children[0]
+	ss := packet.Children[1]
+
+	lc := len(ss.Children)
+	if !(1 <= lc && lc < 4) {
+		err = errorTxt("Unexpected number of AssertionValue instances (want 1-3); cannot unmarshal")
+		return
+	}
+
+	_item := SubstringsFilter{
+		Type:       at.Value.(AttributeDescription),
+		Substrings: SubstringAssertion{},
+	}
+
+	var Any bool
+	for i := 0; i < lc; i++ {
+		child := ss.Children[i]
+		switch uint64(child.Tag) {
+		case 0:
+			_item.Substrings.Initial = AssertionValue(child.Value.(AssertionValue))
+		case 1:
+			_item.Substrings.Any = AssertionValue(child.Value.(AssertionValue))
+			Any = true
+		case 2:
+			_item.Substrings.Final = AssertionValue(child.Value.(AssertionValue))
+		}
+	}
+
+	if !Any {
+		err = errorTxt("Missing Substrings.Any assertion value; cannot unmarshal")
+		item = invalidFilter{}
+	} else {
+		item = _item
+	}
+
+	return
+}
+
 /*
-BEREncode returns an instance of *[ber.Packet] alongside an error.
+BER returns the BER encoding of the receiver instance alongside an error.
+
+To decode the return *[ber.Packet], pass it to [RFC4515.Filter] as the
+input value.
 */
-func (r ExtensibleMatchFilter) BEREncode() (*ber.Packet, error) {
+func (r ExtensibleMatchFilter) BER() (*ber.Packet, error) {
 	if r.IsZero() {
 		return nil, errorTxt("Nil filter, cannot BER encode")
 	}
@@ -967,24 +1370,24 @@ func (r ExtensibleMatchFilter) BEREncode() (*ber.Packet, error) {
 			ber.TypePrimitive,
 			ber.Tag(1),
 			r.MatchingRule,
-			`MatchingRule`))
+			`matchingRule`))
 	}
 
 	if len(r.Type) > 0 {
-		packet.AppendChild(ber.NewString(
+		packet.AppendChild(ber.Encode(
 			ber.ClassContext,
 			ber.TypePrimitive,
 			ber.Tag(2),
-			r.Type.String(),
-			`AttributeDescription`))
+			r.Type,
+			`attributeDescription`))
 	}
 
-	packet.AppendChild(ber.NewString(
+	packet.AppendChild(ber.Encode(
 		ber.ClassContext,
 		ber.TypePrimitive,
 		ber.Tag(3),
-		string(r.MatchValue),
-		`MatchValue`))
+		r.MatchValue,
+		`assertionValue`))
 
 	if r.DNAttributes {
 		packet.AppendChild(ber.NewBoolean(
@@ -992,16 +1395,19 @@ func (r ExtensibleMatchFilter) BEREncode() (*ber.Packet, error) {
 			ber.TypePrimitive,
 			ber.Tag(4),
 			r.DNAttributes,
-			`DNAttributes`))
+			`dNAttributes`))
 	}
 
 	return packet, nil
 }
 
 /*
-BEREncode returns a nil instance of *[ber.Packet] alongside an error.
+BER returns the BER encoding of the receiver instance alongside an error.
+
+To decode the return *[ber.Packet], pass it to [RFC4515.Filter] as the
+input value.
 */
-func (r invalidFilter) BEREncode() (*ber.Packet, error) {
+func (r invalidFilter) BER() (*ber.Packet, error) {
 	return nil, errorTxt("Nil filter, cannot BER encode")
 }
 
@@ -1059,4 +1465,101 @@ func splitFilterParts(input string) []string {
 		parts = append(parts, currentPart.String())
 	}
 	return parts
+}
+
+func unmarshalFilterBER(packet *ber.Packet) (filter Filter, err error) {
+	filter = invalidFilter{}
+	if packet == nil {
+		err = errorTxt("Nil BER packet; cannot unmarshal")
+		return
+	}
+
+	switch packet.Description {
+	case "present",
+		"substrings",
+		"approxMatch",
+		"lessOrEqual",
+		"equalityMatch",
+		"greaterOrEqual",
+		"extensibleMatch":
+		filter, err = unmarshalItemFilterBER(packet)
+	case "not":
+		filter, err = unmarshalNotFilterBER(packet)
+	case "and", "or":
+		filter, err = unmarshalSetFilterBER(packet)
+	default:
+		err = errorTxt("Unidentified BER packet; cannot unmarshal to Filter")
+
+	}
+
+	return
+}
+
+func unmarshalItemFilterBER(packet *ber.Packet) (item Filter, err error) {
+	item = invalidFilter{}
+
+	switch packet.Description {
+	case "equalityMatch":
+		item, err = unmarshalEqualityFilterBER(packet)
+	case "present":
+		item, err = unmarshalPresentFilterBER(packet)
+	case "substrings":
+		item, err = unmarshalSubstringsFilterBER(packet)
+	case "approxMatch":
+		item, err = unmarshalApproxFilterBER(packet)
+	case "lessOrEqual", "greaterOrEqual":
+		item, err = unmarshalGeLeFilterBER(packet)
+	case "extensibleMatch":
+		item, err = unmarshalExtensibleFilterBER(packet)
+	default:
+		err = errorTxt("Invalid BER packet; cannot unmarshal")
+	}
+
+	return
+}
+
+func unmarshalSetFilterBER(packet *ber.Packet) (filter Filter, err error) {
+	lc := len(packet.Children)
+	filter = invalidFilter{}
+
+	var filters []Filter
+	and := packet.Description == "and"
+
+	if lc == 0 || packet.Description == "invalid" || !(and || packet.Description == "or") {
+		err = errorTxt("No Filter qualifiers present within set packet; cannot unmarshal")
+		return
+	}
+
+	for i := 0; i < lc && err == nil; i++ {
+		child := packet.Children[i]
+		var subfilter Filter
+		if subfilter, err = unmarshalFilterBER(child); err == nil {
+			filters = append(filters, subfilter)
+		}
+	}
+
+	if err != nil {
+		filter = invalidFilter{}
+	} else if and {
+		filter = AndFilter(filters)
+	} else {
+		filter = OrFilter(filters)
+	}
+
+	return
+}
+
+func unmarshalNotFilterBER(packet *ber.Packet) (filter Filter, err error) {
+	filter = invalidFilter{}
+	if len(packet.Children) != 1 {
+		err = errorTxt("Invalid Not Filter (no payload); cannot unmarshal")
+		return
+	}
+
+	var nest Filter
+	if nest, err = unmarshalFilterBER(packet.Children[0]); err == nil {
+		filter = NotFilter{nest}
+	}
+
+	return
 }

@@ -51,6 +51,26 @@ func newStrBuilder() strings.Builder {
 	return strings.Builder{}
 }
 
+func escapeString(x string) (esc string) {
+	if len(x) > 0 {
+		bld := newStrBuilder()
+		for _, z := range x {
+			if z > maxASCII {
+				for _, c := range []byte(string(z)) {
+					bld.WriteString(`\`)
+					bld.WriteString(fuint(uint64(c), 16))
+				}
+			} else {
+				bld.WriteRune(z)
+			}
+		}
+
+		esc = bld.String()
+	}
+
+	return
+}
+
 func hexEncode(x any) string {
 	var r string
 	switch tv := x.(type) {

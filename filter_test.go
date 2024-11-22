@@ -5,11 +5,28 @@ import (
 	"testing"
 )
 
-func ExampleFilter_BEREncode() {
-	var r RFC4515
-	f, _ := r.Filter(`(&(sn=Lu\c4\8di\c4\87)(objectClass=person))`)
+/*
+This example demonstrates the means for properly assigning a value to
+an instance of [AssertionValue].
+*/
+func ExampleAssertionValue_Set() {
+	var av AssertionValue
+	av.Set(`Lučić`)
+	fmt.Printf("%s / %s\n",
+		av.Escaped(),
+		av.Unescaped())
+	// Output: Lu\c4\8di\c4\87 / Lučić
+}
 
-	packet, err := f.BEREncode()
+/*
+This example demonstrates the means for accessing the BER encoding of
+an instance of [Filter].
+*/
+func ExampleFilter_BER() {
+	var r RFC4515
+	f, _ := r.Filter(`(&(sn=Lučić)(objectClass=person))`)
+
+	packet, err := f.BER()
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -21,6 +38,45 @@ func ExampleFilter_BEREncode() {
 
 	fmt.Printf("%s: %s=%s\n", typ, at, val)
 	// Output: equalityMatch: sn=Lu\c4\8di\c4\87
+}
+
+/*
+This example demonstrates the means for accessing a specific slice index
+within the return instance of [Filter].
+*/
+func ExampleAndFilter_Index() {
+	var r RFC4515
+	f, _ := r.Filter(`(&(|(sn=Lučić)(employeeID=123456789))(objectClass=person))`)
+
+	slice := f.Index(0).Index(1)
+	fmt.Printf("%s\n", slice)
+	// Output: (employeeID=123456789)
+}
+
+/*
+This example demonstrates the means for accessing a specific slice index
+within the return instance of [Filter].
+*/
+func ExampleNotFilter_Index() {
+	var r RFC4515
+	f, _ := r.Filter(`(&(objectClass=*)(!(terminationDate=*)))`)
+
+	slice := f.Index(1)
+	fmt.Printf("%s\n", slice.Choice())
+	// Output: not
+}
+
+/*
+This example demonstrates the means for accessing a specific slice index
+within the return instance of [Filter].
+*/
+func ExampleOrFilter_Index() {
+	var r RFC4515
+	f, _ := r.Filter(`(&(|(sn=Lučić)(employeeID=123456789))(objectClass=person))`)
+
+	slice := f.Index(0)
+	fmt.Printf("%s [%d]\n", slice.Choice(), slice.Len())
+	// Output: or [2]
 }
 
 func TestFilter(t *testing.T) {
@@ -239,6 +295,12 @@ func TestFilter(t *testing.T) {
 			Length: 1,
 		},
 		{
+			Input:  `(sn=Lučić)`,
+			Output: `(sn=Lu\c4\8di\c4\87)`,
+			Choice: `equalityMatch`,
+			Length: 1,
+		},
+		{
 			Input:  `(sn=Lu\c4\8di\c4\87)`,
 			Output: `(sn=Lu\c4\8di\c4\87)`,
 			Choice: `equalityMatch`,
@@ -306,12 +368,34 @@ func TestFilter(t *testing.T) {
 			t.Errorf("%s[%d] length check failed:\nwant: %d\ngot:  %d\n",
 				t.Name(), idx, x.Length, l)
 			continue
-		} else if _, err = filter.BEREncode(); choice != `invalid` && err != nil {
+		} else if _, err = filter.BER(); choice != `invalid` && err != nil {
 			t.Errorf("%s[%d] encoding failed: %v", t.Name(), idx, err)
 			continue
 		}
 
-		filter.IsZero()
+		// Assuming we have a valid Filter, let's encode to
+		// BER and then decode BER back into a Filter for
+		// subsequent string comparison.
+		if !filter.IsZero() {
+			pkt, err := filter.BER()
+			if err != nil {
+				t.Errorf("%s[%d] BER encoding failed: %v", t.Name(), idx, err)
+				continue
+			}
+			var filter2 Filter
+			if filter2, err = r.Filter(pkt); err != nil {
+				t.Errorf("%s[%d] BER decoding failed: %v", t.Name(), idx, err)
+				continue
+			}
+
+			fstr := filter.String()
+			fstr2 := filter2.String()
+			if fstr != fstr2 {
+				t.Errorf("%s[%d]:\nwant: %s\ngot: %s)\n",
+					t.Name(), idx, fstr, fstr2)
+				continue
+			}
+		}
 	}
 
 	// antipanic checks
@@ -389,7 +473,8 @@ func BenchmarkFilterParse(b *testing.B) {
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, _ = r.Filter(filters[i%maxIdx])
-		//_, _ = f.BEREncode()
+		f, _ := r.Filter(filters[i%maxIdx])
+		pkt, _ := f.BER()
+		_, _ = r.Filter(pkt)
 	}
 }
