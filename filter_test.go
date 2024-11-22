@@ -59,11 +59,11 @@ within the return instance of [Filter].
 */
 func ExampleNotFilter_Index() {
 	var r RFC4515
-	f, _ := r.Filter(`(&(objectClass=*)(!(terminationDate=*)))`)
+	f, _ := r.Filter(`(!(&(objectClass=employee)(terminated=TRUE)))`)
 
-	slice := f.Index(1)
+	slice := f.Index(0)
 	fmt.Printf("%s\n", slice.Choice())
-	// Output: not
+	// Output: equalityMatch
 }
 
 /*
@@ -397,6 +397,84 @@ func TestFilter(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestFilter_codecov(t *testing.T) {
+
+	var av AssertionValue
+	av.Set([]byte(`hello`))
+	av.Set(struct{}{})
+
+	var gEqual GreaterOrEqualFilter
+	_ = gEqual.String()
+	gEqual.Index(9)
+	gEqual.IsZero()
+	gEqual.Len()
+	gEqual.BER()
+	gEqual.tag()
+
+	var lEqual LessOrEqualFilter
+	_ = lEqual.String()
+	lEqual.Index(9)
+	lEqual.IsZero()
+	lEqual.Len()
+	lEqual.BER()
+	lEqual.tag()
+
+	var exts ExtensibleMatchFilter
+	exts.Index(9)
+	exts.IsZero()
+	_ = exts.String()
+	exts.Len()
+	exts.BER()
+	exts.tag()
+
+	var substr SubstringsFilter
+	_ = substr.String()
+	substr.Index(9)
+	substr.IsZero()
+	substr.Len()
+	substr.BER()
+	substr.tag()
+	substr.Substrings = SubstringAssertion{Any: AssertionValue(`blarg`)}
+	substr.BER()
+
+	var eqly EqualityMatchFilter
+	_ = eqly.String()
+	eqly.Index(9)
+	eqly.IsZero()
+	eqly.Len()
+	eqly.BER()
+	eqly.tag()
+
+	var pres PresentFilter
+	_ = pres.String()
+	pres.Index(9)
+	pres.IsZero()
+	pres.Len()
+	pres.BER()
+	pres.tag()
+
+	var aprx ApproximateMatchFilter
+	_ = aprx.String()
+	aprx.Index(9)
+	aprx.IsZero()
+	aprx.Len()
+	aprx.BER()
+	aprx.tag()
+
+	var invalid invalidFilter
+	_ = invalid.String()
+	invalid.Index(9)
+	invalid.IsZero()
+	invalid.Len()
+	invalid.BER()
+	invalid.tag()
+
+	checkParenEncaps(`(bdf`, `fdhjds`)
+	checkParenEncaps(`bdf`, `fdhjds)`)
+	checkParenEncaps(`bdf`, `fdhjds`)
+	checkParenEncaps(`Ibdf`, `fdhjds)`)
 
 	// antipanic checks
 	checkFilterOIDs(`at`, `_lr`)
@@ -410,6 +488,7 @@ func TestFilter(t *testing.T) {
 	checkFilterOIDs(`%$^&@#`, `#^@`)
 
 	parseItemFilter(`4783`)
+	parseItemFilter("(something=value")
 	parseItemFilter(`47=83`)
 	parseItemFilter(`47=_83`)
 	parseItemFilter(`a:dn:1.2.3:=John`)

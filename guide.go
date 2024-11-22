@@ -71,7 +71,7 @@ func (r RFC4517) EnhancedGuide(x any) (guide EnhancedGuide, err error) {
 	// criteria is the second of three (3)
 	// mandatory Enhanced Guide components.
 	cp := newCriteriaParser(raws[1])
-	if guide.Criteria = cp.tokenizeCriteria(); guide.Criteria == nil {
+	if guide.Criteria = cp.tokenizeCriteria(); guide.Criteria.IsZero() {
 		err = errorTxt("Invalid Criteria for Enhanced Guide: " + raws[1])
 		return
 	}
@@ -90,8 +90,8 @@ String returns the string representation of the receiver instance.
 */
 func (r EnhancedGuide) String() (s string) {
 	if &r != nil {
-		s = r.ObjectClass + `#(` +
-			r.Criteria.String() + `)#` +
+		s = r.ObjectClass + `#` +
+			r.Criteria.String() + `#` +
 			intToSubset(r.Subset)
 	}
 
@@ -168,8 +168,6 @@ func (r RFC4517) Guide(x any) (guide Guide, err error) {
 	raws := splitUnescaped(raw, `#`, `\`)
 
 	switch l := len(raws); l {
-	case 0:
-		err = errorBadLength("Guide", 0)
 	case 1:
 		// Assume single value is the criteria
 		cp := newCriteriaParser(raws[0])
@@ -178,20 +176,18 @@ func (r RFC4517) Guide(x any) (guide Guide, err error) {
 		// Assume two (2) components represent the
 		// object-class and criteria respectively.
 		oc := trimS(raws[0])
-		if err = r.OID(oc); err != nil {
-			err = errorTxt("Invalid object-class for Guide: " + oc)
-			break
+		if err = r.OID(oc); err == nil {
+			guide.ObjectClass = oc
+			cp := newCriteriaParser(raws[1])
+			guide.Criteria = cp.tokenizeCriteria()
 		}
-		guide.ObjectClass = oc
-		cp := newCriteriaParser(raws[1])
-		guide.Criteria = cp.tokenizeCriteria()
 	default:
 		err = errorTxt("Unexpected component length for Guide; want 2, got " +
 			fmtInt(int64(l), 10))
 	}
 
 	if err == nil {
-		if guide.Criteria == nil {
+		if guide.Criteria.IsZero() {
 			err = errorTxt("Invalid Criteria for Guide: " + raws[0])
 		}
 	}
@@ -207,7 +203,7 @@ func (r Guide) String() (s string) {
 		if r.ObjectClass != "" {
 			s += r.ObjectClass + `#`
 		}
-		s += `(` + r.Criteria.String() + `)`
+		s += r.Criteria.String()
 	}
 
 	return
@@ -283,11 +279,12 @@ type BoolTerm struct {
 /*
 String returns the string representation of the receiver instance.
 */
-func (b BoolTerm) String() string {
+func (b BoolTerm) String() (t string) {
+	t = `?false`
 	if b.bool {
-		return "?true"
+		t = `?true`
 	}
-	return "?false"
+	return
 }
 
 /*
@@ -308,17 +305,26 @@ Criteria implements the Criteria syntax per [ITU-T Rec. X.520, clause
 
 [ITU-T Rec. X.520, clause 6.5.2]: https://www.itu.int/rec/T-REC-X.520
 */
-type Criteria []AndTerm
+type Criteria struct {
+	Set   []AndTerm
+	Paren bool
+}
 
 /*
 String returns the string representation of the receiver instance.
 */
 func (c Criteria) String() string {
 	var terms []string
-	for _, term := range c {
+	for _, term := range c.Set {
 		terms = append(terms, term.String())
 	}
-	return join(terms, "|")
+
+	s := join(terms, "|")
+	if c.Paren {
+		s = `(` + s + `)`
+	}
+
+	return s
 }
 
 /*
@@ -326,17 +332,26 @@ IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r Criteria) IsZero() bool { return &r == nil }
 
-type AndTerm []Term
+type AndTerm struct {
+	Set   []Term
+	Paren bool
+}
 
 /*
 String returns the string representation of the receiver instance.
 */
 func (a AndTerm) String() string {
 	var terms []string
-	for _, term := range a {
+	for _, term := range a.Set {
 		terms = append(terms, term.String())
 	}
-	return join(terms, "&")
+
+	s := join(terms, "&")
+	if a.Paren {
+		s = `(` + s + `)`
+	}
+
+	return s
 }
 
 /*
@@ -370,21 +385,21 @@ func (t *criteriaParser) peek() byte {
 }
 
 func (t *criteriaParser) tokenizeCriteria() Criteria {
-	var andTerms []AndTerm
-	andTerms = append(andTerms, t.tokenizeAndTerm())
+	var andTerms Criteria
+	andTerms.Set = append(andTerms.Set, t.tokenizeAndTerm())
 	for t.peek() == '|' {
 		t.next()
-		andTerms = append(andTerms, t.tokenizeAndTerm())
+		andTerms.Set = append(andTerms.Set, t.tokenizeAndTerm())
 	}
 	return andTerms
 }
 
 func (t *criteriaParser) tokenizeAndTerm() AndTerm {
-	var terms []Term
-	terms = append(terms, t.tokenizeTerm())
+	var terms AndTerm
+	terms.Set = append(terms.Set, t.tokenizeTerm())
 	for t.peek() == '&' {
 		t.next()
-		terms = append(terms, t.tokenizeTerm())
+		terms.Set = append(terms.Set, t.tokenizeTerm())
 	}
 	return terms
 }
@@ -397,6 +412,7 @@ func (t *criteriaParser) tokenizeTerm() Term {
 	case '(':
 		t.next()
 		criteria := t.tokenizeCriteria()
+		criteria.Paren = true
 		t.next() // Consume ')'
 		return criteria
 	case '?':

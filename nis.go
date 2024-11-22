@@ -7,7 +7,7 @@ this type are produced following a successful execution of the
 
 A zero instance of this type is equal to:
 
-	("","","")
+	("-","-","-")
 
 From [§ 2.4 of RFC 2307]:
 

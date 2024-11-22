@@ -567,6 +567,7 @@ String returns the string representation of the receiver instance.
 func (r ExtensibleMatchFilter) String() (s string) {
 	if !r.IsZero() {
 		if r.MatchValue == nil {
+			// always required here.
 			return
 		}
 
@@ -683,12 +684,12 @@ func (r OrFilter) Len() int { return len(r) }
 Len always returns one (1), as instances of this kind only contain a
 single value.
 */
-func (r NotFilter) Len() int {
+func (r NotFilter) Len() (l int) {
 	if !r.IsZero() {
-		return r.Filter.Len()
+		l = r.Filter.Len()
 	}
 
-	return 0
+	return
 }
 
 /*
@@ -895,8 +896,8 @@ func parseExtensibleMatch(a, b string) (filter Filter, err error) {
 					_filter.MatchingRule = mr
 				} else if len(c[0]) > 0 {
 					_filter.Type = AttributeDescription(c[0])
-				} else if len(c[1]) > 0 {
-					_filter.MatchingRule = c[1]
+					//} else if mr != "" {
+					//_filter.MatchingRule = mr
 				}
 			}
 		}

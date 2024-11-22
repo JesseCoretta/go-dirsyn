@@ -1,7 +1,7 @@
 package dirsyn
 
 /*
-subtree.go implements RFC3672 SubtreeSpecification.
+subtree.go implements the RFC3672 SubtreeSpecification.
 */
 
 import (
@@ -92,23 +92,38 @@ type SubtreeSpecification struct {
 }
 
 /*
-SubtreeSpecification returns an error following an analysis of x in the
-context of a Subtree Specification.
+SubtreeSpecification returns an instance of [SubtreeSpecification]
+alongside an error.
+
+If the input is nil, the default [SubtreeSpecification] (e.g.: "{}")
+is returned.
+
+If the input is a string, an attempt to marshal the value is made. If
+the string is zero, this is equivalent to providing nil.
+
+If the input is a *[ber.Packet] instance, it is unmarshaled into the
+return instance of [SubtreeSpecification].
+
+Any errors found will result in the return of an invalid [Filter] instance.
 */
 func (r RFC3672) SubtreeSpecification(x any) (ss SubtreeSpecification, err error) {
+
 	var raw string
 	switch tv := x.(type) {
+	case nil:
+		return
 	case *ber.Packet:
 		ss, err = unmarshalSubtreeSpecificationBER(tv)
 		return
 	default:
-		if raw, err = assertString(x, 1, "Subtree Specification"); err != nil {
+		if raw, err = assertString(x, 0, "Subtree Specification"); err != nil {
 			return
+		} else if raw == "" {
+			return // no error
 		}
 	}
 
-	if raw[0] != '{' || raw[len(raw)-1] != '}' {
-		err = errorTxt("SubtreeSpecification {} encapsulation error")
+	if err = checkSubtreeEncaps(raw); err != nil {
 		return
 	}
 	raw = trimS(raw[1 : len(raw)-1])
@@ -157,15 +172,30 @@ func (r RFC3672) SubtreeSpecification(x any) (ss SubtreeSpecification, err error
 		ranges[`maximum`] = []int{begin, end}
 	}
 
-	if begin := stridx(raw, `specificationFilter `); begin != -1 {
-		begin += 20
-		if ss.SpecificationFilter, err = subtreeRefinement(raw, begin); err != nil {
-			return
-		}
-		end := begin + len(raw) - begin
+	if begin, end := ss.processSpecFilter(raw); begin > -1 {
 		ranges[`specificationFilter`] = []int{begin, end}
 	}
 
+	return
+}
+
+func (r *SubtreeSpecification) processSpecFilter(raw string) (begin, end int) {
+	end = -1
+	if begin = stridx(raw, `specificationFilter `); begin != -1 {
+		begin += 20
+		var err error
+		if r.SpecificationFilter, err = subtreeRefinement(raw, begin); err == nil {
+			end = begin + len(raw) - begin
+		}
+	}
+
+	return
+}
+
+func checkSubtreeEncaps(raw string) (err error) {
+	if raw[0] != '{' || raw[len(raw)-1] != '}' {
+		err = errorTxt("SubtreeSpecification {} encapsulation error")
+	}
 	return
 }
 
