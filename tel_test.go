@@ -57,8 +57,6 @@ func TestFacsimileTelephoneNumber(t *testing.T) {
 
 	var tel FacsimileTelephoneNumber
 	_ = tel.String()
-	tel.Encode()
-	tel.Decode([]byte{})
 
 	tel, _ = r.FacsimileTelephoneNumber(``)
 	_ = tel.String()
@@ -70,7 +68,6 @@ func TestFacsimileTelephoneNumber(t *testing.T) {
 	_ = tel.String()
 	tel.set(uint(2))
 	tel.set(uint(32))
-	tel.Decode([]byte{0x31, 0x0, 0x02})
 }
 
 func TestTelephoneNumber(t *testing.T) {

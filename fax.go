@@ -121,16 +121,3 @@ func (r RFC4517) Fax(x any) (fax Fax, err error) {
 
 	return
 }
-
-/*
-Encode returns the encoded ASN.1 bytes of the receiver instance.
-*/
-func (r Fax) Encode() (b []byte, err error) {
-	var x []byte
-	if x, err = asn1m(r.G3Facsimile); err == nil {
-		b = make([]byte, hexlen(len(x)))
-		_ = hexenc(b, x)
-	}
-
-	return
-}

@@ -2,7 +2,10 @@ package dirsyn
 
 import "encoding/asn1"
 
-var ftnPRM map[string]uint
+var (
+	ftnPRM map[string]uint
+	ttxs   map[string]uint8
+)
 
 const (
 	UBTelephoneNumber   int = 32   // X.520: ub-telephone-number INTEGER ::= 32
@@ -81,7 +84,7 @@ func (r FacsimileTelephoneNumber) isSet(bit uint) bool {
 }
 
 func (r *FacsimileTelephoneNumber) set(bit uint) {
-	if bit > 31 {
+	if bit > 31 || r == nil {
 		return
 	}
 
@@ -91,8 +94,8 @@ func (r *FacsimileTelephoneNumber) set(bit uint) {
 }
 
 /*
-FacsimileTelephoneNumber returns an error following an analysis of x in
-the context of a Facsimile Telephone Number.
+FacsimileTelephoneNumber returns an instance of [FacsimileTelephoneNumber]
+alongside an error.
 
 From [§ 3.3.11 of RFC 4517]:
 
@@ -146,28 +149,6 @@ func (r RFC4517) FacsimileTelephoneNumber(x any) (ftn FacsimileTelephoneNumber, 
 			break
 		}
 		ftn.set(bit)
-	}
-
-	return
-}
-
-/*
-Encode returns the ASN.1 encoding of the receiver instance alongside an error.
-*/
-func (r FacsimileTelephoneNumber) Encode() (b []byte, err error) {
-	b, err = asn1m(r)
-	return
-}
-
-/*
-Decode returns an error following an attempt to decode ASN.1 encoded bytes b into
-the receiver instance. This results in the receiver being overwritten with new data.
-*/
-func (r *FacsimileTelephoneNumber) Decode(b []byte) (err error) {
-	var rest []byte
-	rest, err = asn1um(b, r)
-	if err == nil && len(rest) > 0 {
-		err = errorTxt("Extra left-over content found during ASN.1 unmarshal: '" + string(rest) + "'")
 	}
 
 	return
@@ -274,11 +255,10 @@ func (r RFC4517) TelexNumber(x any) (tn TelexNumber, err error) {
 	var _tn []string
 	var ct int
 	for _, slice := range raws {
-		if _, err = r.PrintableString(slice); err != nil {
-			return
+		if _, err = r.PrintableString(slice); err == nil {
+			_tn = append(_tn, slice)
+			ct++
 		}
-		_tn = append(_tn, slice)
-		ct++
 	}
 
 	if ct != 3 {
@@ -361,11 +341,12 @@ type TeletexNonBasicParameters struct {
 	PrivateUse               OctetString   `asn1:"tag:4,optional"` // OCTET STRING OPTIONAL
 }
 
-func (r TeletexTerminalIdentifier) String() string {
+func (r TeletexTerminalIdentifier) String() (s string) {
+	s = r.TeletexTerminal
 	if r.Parameters.string() != "" {
-		return r.TeletexTerminal + `$` + r.Parameters.string()
+		s += `$` + r.Parameters.string()
 	}
-	return r.TeletexTerminal
+	return
 }
 
 func (r TeletexNonBasicParameters) string() string {
@@ -417,14 +398,6 @@ func (r RFC4517) TeletexTerminalIdentifier(x any) (tti TeletexTerminalIdentifier
 	}
 
 	tti.TeletexTerminal = _raws[0]
-
-	ttxs := map[string]uint8{
-		`graphic`: uint8(1),
-		`control`: uint8(2),
-		`page`:    uint8(4),
-		`misc`:    uint8(8),
-		`private`: uint8(16),
-	}
 
 	var ct uint8
 	for idx, slice := range raws {
@@ -510,6 +483,14 @@ func teletexSuffixValue(x string) (err error) {
 }
 
 func init() {
+	ttxs = map[string]uint8{
+		`graphic`: uint8(1),
+		`control`: uint8(2),
+		`page`:    uint8(4),
+		`misc`:    uint8(8),
+		`private`: uint8(16),
+	}
+
 	ftnPRM = map[string]uint{
 		`twoDimensional`:  uint(8),
 		`fineResolution`:  uint(9),

@@ -13,13 +13,27 @@ func TestInteger(t *testing.T) {
 		0,
 		-38458953,
 		`4839058392687026702779083590780972360798625907867923470670934207967924076924`,
+		-48398472378783,
 		`-4839058392687026702779083590780972360798625907867923470670934207967924076924`,
 	} {
-		if _, err := r.Integer(strint); err != nil {
+		if i, err := r.Integer(strint); err != nil {
 			t.Errorf("%s failed: %v", t.Name(), err)
 			return
+		} else {
+			var i2 Integer
+			i2.SetBytes(i.Bytes())
+
+			want := i.String()
+			if got := i2.String(); got != want {
+				t.Errorf("%s failed:\nwant: %s\ngot:  %s", t.Name(), want, got)
+				return
+			}
 		}
 	}
+}
+
+func TestInteger_codecov(t *testing.T) {
+	var r RFC4517
 
 	assertNumber(6)
 	assertNumber(int8(6))

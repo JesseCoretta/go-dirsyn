@@ -1,8 +1,8 @@
 package dirsyn
 
 /*
-time.go implements all temporal syntaxes -- namely Generalized Time and
-the (deprecated) UTC Time.
+time.go implements all temporal syntaxes and matching rules -- namely
+those for Generalized Time and the (deprecated) UTC Time.
 */
 
 import "time"
@@ -40,15 +40,7 @@ of RFC 4517]:
 type GeneralizedTime time.Time
 
 /*
-String returns the string representation of the receiver instance.
-*/
-func (r GeneralizedTime) String() string {
-	return time.Time(r).Format(`20060102150405`) + `Z`
-}
-
-/*
-GeneralizedTime returns an error following an analysis of x in the context
-of a Generalized Time value.
+GeneralizedTime returns an instance of [GeneralizedTime] alongside an error.
 */
 func (r RFC4517) GeneralizedTime(x any) (gt GeneralizedTime, err error) {
 	var (
@@ -114,6 +106,63 @@ func genTimeFracDiffFormat(raw, base, diff, format string) (string, error) {
 }
 
 /*
+String returns the string representation of the receiver instance.
+*/
+func (r GeneralizedTime) String() string {
+	return time.Time(r).Format(`20060102150405`) + `Z`
+}
+
+/*
+Eq returns a Boolean value indicative of an equality matching rule
+assertion between receiver r and input x.
+*/
+func (r GeneralizedTime) Eq(x any) bool {
+	return timeEqualityMatch(r, x, 0)
+}
+
+/*
+Ne returns a Boolean value indicative of a negated equality matching
+rule assertion between receiver r and input x.
+*/
+func (r GeneralizedTime) Ne(x any) bool {
+	return timeEqualityMatch(r, x, -1)
+}
+
+/*
+Ge returns a Boolean value indicative of a greaterOrEqual matching rule
+assertion between receiver r and input x.
+*/
+func (r GeneralizedTime) Ge(x any) bool {
+	return timeEqualityMatch(r, x, 1)
+}
+
+/*
+Gt returns a Boolean value indicative of a greaterThan matching rule
+assertion between receiver r and input x.  Strictly speaking, this
+is not an official component, but is present for convenience.
+*/
+func (r GeneralizedTime) Gt(x any) bool {
+	return timeEqualityMatch(r, x, 3)
+}
+
+/*
+Le returns a Boolean value indicative of a lessOrEqual matching rule
+assertion between receiver r and input x.
+*/
+func (r GeneralizedTime) Le(x any) bool {
+	return timeEqualityMatch(r, x, 2)
+}
+
+/*
+Lt returns a Boolean value indicative of a lessThan matching rule
+assertion between receiver r and input x.  Strictly speaking, this
+is not an official component, but is present for convenience.
+*/
+func (r GeneralizedTime) Lt(x any) bool {
+	return timeEqualityMatch(r, x, 4)
+}
+
+/*
 Deprecated: UTCTime implements [§ 3.3.34 of RFC 4517].
 
 	UTCTime         = year month day hour minute [ second ] [ u-time-zone ]
@@ -132,6 +181,56 @@ String returns the string representation of the receiver instance.
 */
 func (r UTCTime) String() string {
 	return time.Time(r).Format(`0601021504`) + `Z`
+}
+
+/*
+Eq returns a Boolean value indicative of an equality matching rule
+assertion between receiver r and input x.
+*/
+func (r UTCTime) Eq(x any) bool {
+	return timeEqualityMatch(r, x, 0)
+}
+
+/*
+Ne returns a Boolean value indicative of a negated equality matching
+rule assertion between receiver r and input x.
+*/
+func (r UTCTime) Ne(x any) bool {
+	return timeEqualityMatch(r, x, -1)
+}
+
+/*
+Ge returns a Boolean value indicative of a greaterOrEqual matching rule
+assertion between receiver r and input x.
+*/
+func (r UTCTime) Ge(x any) bool {
+	return timeEqualityMatch(r, x, 1)
+}
+
+/*
+Gt returns a Boolean value indicative of a greaterThan matching rule
+assertion between receiver r and input x.  Strictly speaking, this
+is not an official component, but is present for convenience.
+*/
+func (r UTCTime) Gt(x any) bool {
+	return timeEqualityMatch(r, x, 3)
+}
+
+/*
+Le returns a Boolean value indicative of a lessOrEqual matching rule
+assertion between receiver r and input x.
+*/
+func (r UTCTime) Le(x any) bool {
+	return timeEqualityMatch(r, x, 2)
+}
+
+/*
+Lt returns a Boolean value indicative of a lessThan matching rule
+assertion between receiver r and input x.  Strictly speaking, this
+is not an official component, but is present for convenience.
+*/
+func (r UTCTime) Lt(x any) bool {
+	return timeEqualityMatch(r, x, 4)
 }
 
 /*
@@ -202,6 +301,74 @@ func uTCHandler(raw, sec, diff, format string) (utc UTCTime, err error) {
 
 	if _utc, err = time.Parse(format, raw); err == nil {
 		utc = UTCTime(_utc)
+	}
+
+	return
+}
+
+func timeEqualityMatch(rcv, assert any, typ int) (result bool) {
+	var c time.Time
+	var utc bool
+
+	switch tv := rcv.(type) {
+	case GeneralizedTime:
+		c = time.Time(tv)
+	case UTCTime:
+		c = time.Time(tv)
+		utc = true
+	}
+
+	var funk func(time.Time) bool
+	switch typ {
+	case -1:
+		funk = func(thyme time.Time) bool {
+			return !c.Equal(thyme)
+		}
+	case 0:
+		funk = func(thyme time.Time) bool {
+			return c.Equal(thyme)
+		}
+	case 1:
+		funk = func(thyme time.Time) bool {
+			return c.After(thyme)
+		}
+	case 2:
+		funk = func(thyme time.Time) bool {
+			return c.Before(thyme)
+		}
+	case 3:
+		funk = func(thyme time.Time) bool {
+			return c.Equal(thyme) || c.After(thyme)
+		}
+	case 4:
+		funk = func(thyme time.Time) bool {
+			return c.Equal(thyme) || c.Before(thyme)
+		}
+	}
+
+	result = compareTimes(assert, utc, funk)
+
+	return
+}
+
+func compareTimes(assert any, utc bool, funk func(time.Time) bool) (result bool) {
+	var s RFC4517
+
+	switch tv := assert.(type) {
+	case GeneralizedTime:
+		result = funk(time.Time(tv))
+	case UTCTime:
+		result = funk(time.Time(tv))
+	case time.Time:
+		result = funk(tv)
+	default:
+		if utc {
+			d, err := s.UTCTime(tv)
+			result = funk(time.Time(d)) && err == nil
+		} else {
+			d, err := s.GeneralizedTime(tv)
+			result = funk(time.Time(d)) && err == nil
+		}
 	}
 
 	return

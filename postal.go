@@ -109,12 +109,12 @@ PostalAddress returns an error following an analysis of x in the context
 of a [PostalAddress].
 */
 func (r RFC4517) PostalAddress(x any) (pa PostalAddress, err error) {
-	var lc []string
+	var lcs []string
 
 	var raw string
 	if raw, err = assertString(x, 1, "line-char"); err == nil {
-		if lc, err = lineChar(raw); err == nil {
-			pa = PostalAddress(lc)
+		if lcs, err = lineChar(raw); err == nil {
+			pa = PostalAddress(lcs)
 		}
 	}
 

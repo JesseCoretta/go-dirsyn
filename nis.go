@@ -186,22 +186,29 @@ From [§ 3.2 of RFC 4517]:
 [§ 1.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-1.4
 [§ 3.2 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.2
 */
-type BootParameter [3]string
+type BootParameter struct {
+	Key    IA5String
+	Server IA5String
+	Path   IA5String
+}
 
 /*
 String returns the string representation of the receiver instance.
 */
 func (r BootParameter) String() (bp string) {
-	var boots []string
-	for _, keystr := range r {
-		if len(keystr) > 0 {
-			boots = append(boots, keystr)
+	var boots []string = []string{
+		r.Key.String(),
+		r.Server.String(),
+		r.Path.String(),
+	}
+
+	for i := 0; i < len(boots); i++ {
+		if len(boots[i]) == 0 {
+			return
 		}
 	}
 
-	if len(boots) == 3 {
-		bp = boots[0] + `=` + boots[1] + `:` + boots[2]
-	}
+	bp = boots[0] + `=` + boots[1] + `:` + boots[2]
 
 	return
 }
@@ -237,7 +244,7 @@ func (r RFC2307) BootParameter(x any) (bp BootParameter, err error) {
 		return
 	}
 
-	var bps BootParameter
+	var bps [3]string
 	var id RFC4517
 
 	for iidx, slice := range []string{
@@ -252,7 +259,9 @@ func (r RFC2307) BootParameter(x any) (bp BootParameter, err error) {
 	}
 
 	if err == nil {
-		bp = bps
+		bp.Key = IA5String(bps[0])
+		bp.Server = IA5String(bps[1])
+		bp.Path = IA5String(bps[2])
 	}
 
 	return

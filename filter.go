@@ -1262,8 +1262,8 @@ func unmarshalApproxFilterBER(packet *ber.Packet) (item Filter, err error) {
 
 func unmarshalExtensibleFilterBER(packet *ber.Packet) (item Filter, err error) {
 	item = invalidFilter{}
-	lc := len(packet.Children)
-	if !(1 <= lc && lc < 5) {
+	lct := len(packet.Children)
+	if !(1 <= lct && lct < 5) {
 		err = errorTxt("Unexpected number of Extensible seq fields (want:1-4); cannot unmarshal")
 		return
 	}
@@ -1271,7 +1271,7 @@ func unmarshalExtensibleFilterBER(packet *ber.Packet) (item Filter, err error) {
 	_item := ExtensibleMatchFilter{}
 
 	var val bool
-	for i := 0; i < lc && _item.Choice() != "invalid"; i++ {
+	for i := 0; i < lct && _item.Choice() != "invalid"; i++ {
 		child := packet.Children[i]
 		var ok bool
 		switch uint64(child.Tag) {
@@ -1334,8 +1334,8 @@ func unmarshalSubstringsFilterBER(packet *ber.Packet) (item Filter, err error) {
 	at := packet.Children[0]
 	ss := packet.Children[1]
 
-	lc := len(ss.Children)
-	if !(1 <= lc && lc < 4) {
+	lct := len(ss.Children)
+	if !(1 <= lct && lct < 4) {
 		err = errorTxt("Unexpected number of AssertionValue instances (want 1-3); cannot unmarshal")
 		return
 	}
@@ -1346,7 +1346,7 @@ func unmarshalSubstringsFilterBER(packet *ber.Packet) (item Filter, err error) {
 	}
 
 	var Any bool
-	for i := 0; i < lc; i++ {
+	for i := 0; i < lct; i++ {
 		child := ss.Children[i]
 		switch uint64(child.Tag) {
 		case 0:
@@ -1536,18 +1536,18 @@ func unmarshalItemFilterBER(packet *ber.Packet) (item Filter, err error) {
 }
 
 func unmarshalSetFilterBER(packet *ber.Packet) (filter Filter, err error) {
-	lc := len(packet.Children)
+	lct := len(packet.Children)
 	filter = invalidFilter{}
 
 	var filters []Filter
 	and := packet.Description == "and"
 
-	if lc == 0 || packet.Description == "invalid" || !(and || packet.Description == "or") {
+	if lct == 0 || packet.Description == "invalid" || !(and || packet.Description == "or") {
 		err = errorTxt("No Filter qualifiers present within set packet; cannot unmarshal")
 		return
 	}
 
-	for i := 0; i < lc && err == nil; i++ {
+	for i := 0; i < lct && err == nil; i++ {
 		child := packet.Children[i]
 		var subfilter Filter
 		if subfilter, err = unmarshalFilterBER(child); err == nil {

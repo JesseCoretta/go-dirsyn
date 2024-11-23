@@ -32,6 +32,53 @@ func (r Integer) cast() *big.Int {
 }
 
 /*
+Bytes wraps [big.Int.Bytes].
+
+Note that the return value is a big endian byte sequence.
+
+Also note that the return value will bear a leading 0x0 if the number is
+zero (0) or more, or a leading 0x1 if the number is negative.
+*/
+func (r Integer) Bytes() (bts []byte) {
+	if !r.IsZero() {
+		bts = []byte{0x00}
+		if r.cast().Sign() < 0 {
+			bts[0] = byte(0x01)
+		}
+		bts = append(bts, r.cast().Bytes()...)
+	}
+	return
+}
+
+/*
+SetBytes wraps [big.Int.SetBytes].
+
+Note that input value "bts" must be a a big endian byte sequence.
+
+Also note that if encoding bytes manually for submission to this method,
+a leading 0x1 signifies the number is negative. A leading 0x0 indicates
+the number is unsigned (zero (0) or more) and is optional.
+*/
+func (r *Integer) SetBytes(bts []byte) {
+	if len(bts) > 0 {
+		_r := big.NewInt(0)
+		var neg bool
+		if bts[0] == 0x01 {
+			bts = bts[1:]
+			neg = true
+		} else if bts[0] == 0x00 {
+			bts = bts[1:]
+		}
+
+		_r.SetBytes(bts)
+		if neg {
+			_r.Neg(_r)
+		}
+		*r = Integer(*_r)
+	}
+}
+
+/*
 IsZero returns a Boolean value indicative of a nil, or unset, receiver.
 */
 func (r Integer) IsZero() bool {
@@ -55,7 +102,7 @@ func (r Integer) String() (s string) {
 Eq returns a Boolean value indicative of whether the receiver is equal to
 the value provided.
 
-Valid input types are string, uint64, int, uint, *[math/big.Int] and [Integer].
+Valid input types are string, int64, uint64, int, uint, *[math/big.Int] and [Integer].
 
 Any input that represents an unspecified number guarantees a false return.
 
@@ -76,9 +123,7 @@ func (r Integer) Eq(n any) (is bool) {
 	case uint:
 		is = r.cast().Uint64() == uint64(tv)
 	case int:
-		if 0 <= tv {
-			is = r.cast().Uint64() == uint64(tv)
-		}
+		is = r.cast().Int64() == int64(tv)
 	}
 
 	return
@@ -97,7 +142,7 @@ func (r Integer) Ne(n any) bool { return !r.Eq(n) }
 Gt returns a boolean value indicative of whether the receiver is greater than
 the value provided.
 
-Valid input types are string, uint64, int, uint, *[math/big.Int] and [Integer].
+Valid input types are string, int64, uint64, int, uint, *[math/big.Int] and [Integer].
 
 Any input that represents an unspecified number guarantees a false return.
 */
@@ -116,9 +161,7 @@ func (r Integer) Gt(n any) (is bool) {
 	case uint:
 		is = r.cast().Uint64() > uint64(tv)
 	case int:
-		if 0 <= tv {
-			is = r.cast().Uint64() > uint64(tv)
-		}
+		is = r.cast().Int64() > int64(tv)
 	}
 	return
 }
@@ -130,7 +173,7 @@ or equal to the value provided.
 This method is merely a convenient wrapper to an ORed call of the [Integer.Gt]
 and [Integer.Eq] methods.
 
-Valid input types are string, uint64, int, uint, *[math/big.Int] and [Integer].
+Valid input types are string, int64, uint64, int, uint, *[math/big.Int] and [Integer].
 
 Any input that represents an unspecified number guarantees a false return.
 */
@@ -142,7 +185,7 @@ func (r Integer) Ge(n any) (is bool) {
 Lt returns a boolean value indicative of whether the receiver is less than
 the value provided.
 
-Valid input types are string, uint64, int, uint, *[math/big.Int] and [Integer].
+Valid input types are string, int64, uint64, int, uint, *[math/big.Int] and [Integer].
 
 Any input that represents an unspecified number guarantees a false return.
 */
@@ -161,9 +204,7 @@ func (r Integer) Lt(n any) (is bool) {
 	case uint:
 		is = r.cast().Uint64() < uint64(tv)
 	case int:
-		if 0 <= tv {
-			is = r.cast().Uint64() < uint64(tv)
-		}
+		is = r.cast().Int64() < int64(tv)
 	}
 	return
 }
@@ -175,7 +216,7 @@ equal to the value provided.
 This method is merely a convenient wrapper to an ORed call of the [Integer.Lt]
 and [Integer.Eq] methods.
 
-Valid input types are string, uint64, int, uint, *[math/big.Int] and [Integer].
+Valid input types are string, int64, uint64, int, uint, *[math/big.Int] and [Integer].
 
 Any input that represents an unspecified number guarantees a false return.
 */
@@ -186,15 +227,15 @@ func (r Integer) Le(n any) (is bool) {
 func assertInt(x any) (i *big.Int, err error) {
 	switch tv := x.(type) {
 	case int:
-		i = big.NewInt(int64(tv))
+		i = big.NewInt(0).SetInt64(int64(tv))
 	case int8:
-		i = big.NewInt(int64(tv))
+		i = big.NewInt(0).SetInt64(int64(tv))
 	case int16:
-		i = big.NewInt(int64(tv))
+		i = big.NewInt(0).SetInt64(int64(tv))
 	case int32:
-		i = big.NewInt(int64(tv))
+		i = big.NewInt(0).SetInt64(int64(tv))
 	case int64:
-		i = big.NewInt(tv)
+		i = big.NewInt(0).SetInt64(tv)
 	default:
 		err = errorBadType("Incompatible int")
 	}
@@ -227,16 +268,18 @@ func assertNumber(x any) (i *big.Int, err error) {
 		i, err = assertInt(tv)
 	case uint, uint8, uint16, uint32, uint64:
 		i, err = assertUint(tv)
-		return
 	case string:
 		if len(tv) == 0 {
 			err = errorBadLength("Integer", 0)
 			return
 		}
+
 		var ok bool
 		i, ok = big.NewInt(0).SetString(tv, 10)
 		if !ok {
 			err = errorTxt("Unable to convert string '" + tv + "' to Integer")
+		} else if hasPfx(tv, `-`) {
+			i.Neg(i)
 		}
 	default:
 		err = errorBadType("Integer")

@@ -1181,9 +1181,9 @@ func unmarshalSubtreeSpecificationBER(packet *ber.Packet) (ss SubtreeSpecificati
 		err = errorTxt("Nil SubtreeSpecification BER packet; cannot unmarshal")
 		return
 	}
-	lc := len(packet.Children)
+	lct := len(packet.Children)
 
-	for i := 0; i < lc && err == nil; i++ {
+	for i := 0; i < lct && err == nil; i++ {
 		child := packet.Children[i]
 		switch uint64(child.Tag) {
 		case 0:
@@ -1269,18 +1269,18 @@ func unmarshalItemRefinementBER(packet *ber.Packet) (item Refinement, err error)
 }
 
 func unmarshalSetRefinementBER(packet *ber.Packet) (refinement Refinement, err error) {
-	lc := len(packet.Children)
+	lct := len(packet.Children)
 	refinement = invalidRefinement{}
 
 	var refs []Refinement
 	and := packet.Description == "and"
 
-	if lc == 0 || packet.Description == "invalid" || !(and || packet.Description == "or") {
+	if lct == 0 || packet.Description == "invalid" || !(and || packet.Description == "or") {
 		err = errorTxt("No Refinement qualifiers present within set packet; cannot unmarshal")
 		return
 	}
 
-	for i := 0; i < lc && err == nil; i++ {
+	for i := 0; i < lct && err == nil; i++ {
 		child := packet.Children[i]
 		var subref Refinement
 		if subref, err = unmarshalRefinementBER(child); err == nil {
@@ -1298,13 +1298,13 @@ func unmarshalSetRefinementBER(packet *ber.Packet) (refinement Refinement, err e
 }
 
 func unmarshalChopSpecificationBER(packet *ber.Packet) (chop ChopSpecification, err error) {
-	lc := len(packet.Children)
-	if !(1 <= lc && lc < 4) {
+	lct := len(packet.Children)
+	if !(1 <= lct && lct < 4) {
 		err = errorTxt("Unexpected number of ChopSpecification fields (want:1-3); cannot unmarshal")
 		return
 	}
 
-	for i := 0; i < lc && err == nil; i++ {
+	for i := 0; i < lct && err == nil; i++ {
 		child := packet.Children[i]
 		switch uint64(child.Tag) {
 		case 1:
@@ -1333,10 +1333,10 @@ func unmarshalChopSpecificationBER(packet *ber.Packet) (chop ChopSpecification, 
 }
 
 func unmarshalExclusionsBER(packet *ber.Packet) (ses SpecificExclusions, err error) {
-	lc := len(packet.Children)
+	lct := len(packet.Children)
 
 	var _ses SpecificExclusions
-	for i := 0; i < lc && err == nil; i++ {
+	for i := 0; i < lct && err == nil; i++ {
 		child := packet.Children[i]
 		var se SpecificExclusion
 		if se, err = unmarshalExclusionBER(child); err == nil {
