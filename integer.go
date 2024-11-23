@@ -26,9 +26,33 @@ func (r RFC4517) Integer(x any) (i Integer, err error) {
 	return
 }
 
-func (r Integer) cast() *big.Int {
+/*
+Cast unwraps and returns the underlying instance of *[big.Int].
+*/
+func (r Integer) Cast() *big.Int {
 	a := big.Int(r)
 	return &a
+}
+
+/*
+UUID returns the [UUID] representation of the receiver instance.
+*/
+func (r Integer) UUID() (u UUID) {
+	if !r.IsZero() {
+		bts := r.Bytes()
+		if bts[0] == 0x00 || bts[0] == 0x01 {
+			bts = bts[1:]
+		}
+
+		var u [16]byte
+		copy(u[16-len(bts):], bts)
+
+		if ret, err := uuidFromBytes(u[:]); err == nil {
+			u = UUID(ret)
+		}
+	}
+
+	return
 }
 
 /*
@@ -42,10 +66,10 @@ zero (0) or more, or a leading 0x1 if the number is negative.
 func (r Integer) Bytes() (bts []byte) {
 	if !r.IsZero() {
 		bts = []byte{0x00}
-		if r.cast().Sign() < 0 {
+		if r.Cast().Sign() < 0 {
 			bts[0] = byte(0x01)
 		}
-		bts = append(bts, r.cast().Bytes()...)
+		bts = append(bts, r.Cast().Bytes()...)
 	}
 	return
 }
@@ -82,7 +106,7 @@ func (r *Integer) SetBytes(bts []byte) {
 IsZero returns a Boolean value indicative of a nil, or unset, receiver.
 */
 func (r Integer) IsZero() bool {
-	return len(r.cast().Bytes()) == 0
+	return len(r.Cast().Bytes()) == 0
 }
 
 /*
@@ -92,7 +116,7 @@ receiver is unset, `0` is returned.
 func (r Integer) String() (s string) {
 	s = `0`
 	if !r.IsZero() {
-		s = r.cast().String()
+		s = r.Cast().String()
 	}
 
 	return
@@ -111,19 +135,19 @@ See also [Integer.Ne].
 func (r Integer) Eq(n any) (is bool) {
 	switch tv := n.(type) {
 	case *big.Int:
-		is = r.cast().Cmp(tv) == 0
+		is = r.Cast().Cmp(tv) == 0
 	case Integer:
-		is = r.cast().Cmp(tv.cast()) == 0
+		is = r.Cast().Cmp(tv.Cast()) == 0
 	case string:
 		if nf, ok := big.NewInt(0).SetString(tv, 10); ok {
-			is = r.cast().Cmp(nf) == 0
+			is = r.Cast().Cmp(nf) == 0
 		}
 	case uint64:
-		is = r.cast().Uint64() == tv
+		is = r.Cast().Uint64() == tv
 	case uint:
-		is = r.cast().Uint64() == uint64(tv)
+		is = r.Cast().Uint64() == uint64(tv)
 	case int:
-		is = r.cast().Int64() == int64(tv)
+		is = r.Cast().Int64() == int64(tv)
 	}
 
 	return
@@ -149,19 +173,19 @@ Any input that represents an unspecified number guarantees a false return.
 func (r Integer) Gt(n any) (is bool) {
 	switch tv := n.(type) {
 	case *big.Int:
-		is = r.cast().Cmp(tv) == 1
+		is = r.Cast().Cmp(tv) == 1
 	case Integer:
-		is = r.cast().Cmp(tv.cast()) == 1
+		is = r.Cast().Cmp(tv.Cast()) == 1
 	case string:
 		if nf, ok := big.NewInt(0).SetString(tv, 10); ok {
-			is = r.cast().Cmp(nf) == 1
+			is = r.Cast().Cmp(nf) == 1
 		}
 	case uint64:
-		is = r.cast().Uint64() > tv
+		is = r.Cast().Uint64() > tv
 	case uint:
-		is = r.cast().Uint64() > uint64(tv)
+		is = r.Cast().Uint64() > uint64(tv)
 	case int:
-		is = r.cast().Int64() > int64(tv)
+		is = r.Cast().Int64() > int64(tv)
 	}
 	return
 }
@@ -192,19 +216,19 @@ Any input that represents an unspecified number guarantees a false return.
 func (r Integer) Lt(n any) (is bool) {
 	switch tv := n.(type) {
 	case *big.Int:
-		is = r.cast().Cmp(tv) == -1
+		is = r.Cast().Cmp(tv) == -1
 	case Integer:
-		is = r.cast().Cmp(tv.cast()) == -1
+		is = r.Cast().Cmp(tv.Cast()) == -1
 	case string:
 		if nf, ok := big.NewInt(0).SetString(tv, 10); ok {
-			is = r.cast().Cmp(nf) == -1
+			is = r.Cast().Cmp(nf) == -1
 		}
 	case uint64:
-		is = r.cast().Uint64() < tv
+		is = r.Cast().Uint64() < tv
 	case uint:
-		is = r.cast().Uint64() < uint64(tv)
+		is = r.Cast().Uint64() < uint64(tv)
 	case int:
-		is = r.cast().Int64() < int64(tv)
+		is = r.Cast().Int64() < int64(tv)
 	}
 	return
 }

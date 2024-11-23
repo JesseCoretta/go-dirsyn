@@ -1,9 +1,5 @@
 package dirsyn
 
-import (
-	"github.com/google/uuid"
-)
-
 /*
 X501 serves as the receiver type for handling definitions sourced from
 [ITU-T Rec. X.501].
@@ -307,51 +303,6 @@ func (r RFC4517) Boolean(x any) (b bool, err error) {
 	default:
 		err = errorBadType("Boolean")
 	}
-
-	return
-}
-
-/*
-UUID returns an error following an analysis of x in the context of a UUID.
-
-Note: this function utilizes Google's [uuid.Parse] method under the hood.
-
-From [§ 3 of RFC 4122]:
-
-	UUID                   = time-low "-" time-mid "-"
-	                         time-high-and-version "-"
-	                         clock-seq-and-reserved
-	                         clock-seq-low "-" node
-	time-low               = 4hexOctet
-	time-mid               = 2hexOctet
-	time-high-and-version  = 2hexOctet
-	clock-seq-and-reserved = hexOctet
-	clock-seq-low          = hexOctet
-	node                   = 6hexOctet
-	hexOctet               = hexDigit hexDigit
-	hexDigit =
-	      "0" / "1" / "2" / "3" / "4" / "5" / "6" / "7" / "8" / "9" /
-	      "a" / "b" / "c" / "d" / "e" / "f" /
-	      "A" / "B" / "C" / "D" / "E" / "F"
-
-[§ 3 of RFC 4122]: https://datatracker.ietf.org/doc/html/rfc4122#section-3
-*/
-func (r RFC4530) UUID(x any) (u uuid.UUID, err error) {
-	var raw string
-
-	switch tv := x.(type) {
-	case string:
-		if l := len(tv); l != 36 {
-			err = errorBadLength("UUID", len(tv))
-			return
-		}
-		raw = tv
-	default:
-		err = errorBadType("UUID")
-		return
-	}
-
-	u, err = uuid.Parse(raw)
 
 	return
 }

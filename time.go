@@ -113,6 +113,13 @@ func (r GeneralizedTime) String() string {
 }
 
 /*
+Cast unwraps and returns the underlying instance of [time.Time].
+*/
+func (r GeneralizedTime) Cast() time.Time {
+	return time.Time(r)
+}
+
+/*
 Eq returns a Boolean value indicative of an equality matching rule
 assertion between receiver r and input x.
 */
@@ -181,6 +188,13 @@ String returns the string representation of the receiver instance.
 */
 func (r UTCTime) String() string {
 	return time.Time(r).Format(`0601021504`) + `Z`
+}
+
+/*
+Cast unwraps and returns the underlying instance of [time.Time].
+*/
+func (r UTCTime) Cast() time.Time {
+	return time.Time(r)
 }
 
 /*
@@ -312,9 +326,9 @@ func timeEqualityMatch(rcv, assert any, typ int) (result bool) {
 
 	switch tv := rcv.(type) {
 	case GeneralizedTime:
-		c = time.Time(tv)
+		c = tv.Cast()
 	case UTCTime:
-		c = time.Time(tv)
+		c = tv.Cast()
 		utc = true
 	}
 
@@ -356,18 +370,18 @@ func compareTimes(assert any, utc bool, funk func(time.Time) bool) (result bool)
 
 	switch tv := assert.(type) {
 	case GeneralizedTime:
-		result = funk(time.Time(tv))
+		result = funk(tv.Cast())
 	case UTCTime:
-		result = funk(time.Time(tv))
+		result = funk(tv.Cast())
 	case time.Time:
 		result = funk(tv)
 	default:
 		if utc {
 			d, err := s.UTCTime(tv)
-			result = funk(time.Time(d)) && err == nil
+			result = funk(d.Cast()) && err == nil
 		} else {
 			d, err := s.GeneralizedTime(tv)
-			result = funk(time.Time(d)) && err == nil
+			result = funk(d.Cast()) && err == nil
 		}
 	}
 
