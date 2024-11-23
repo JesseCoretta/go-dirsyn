@@ -2,7 +2,6 @@ package dirsyn
 
 import (
 	"encoding/asn1"
-	"encoding/hex"
 )
 
 /*
@@ -73,9 +72,11 @@ type G3FacsimileNonBasicParameters asn1.BitString
 Shift bit-shifts the input value bitPos into the receiver instance.
 */
 func (r *G3FacsimileNonBasicParameters) Shift(bitPos int) {
-	idx := bitPos / 8
-	off := bitPos % 8
-	r.Bytes[idx] |= 1 << (7 - off)
+	if len(r.Bytes) > 0 {
+		idx := bitPos / 8
+		off := bitPos % 8
+		r.Bytes[idx] |= 1 << (7 - off)
+	}
 }
 
 /*
@@ -96,7 +97,7 @@ func (r RFC4517) Fax(x any) (fax Fax, err error) {
 	var b []byte
 	switch tv := x.(type) {
 	case string:
-		if b, err = hex.DecodeString(tv); err != nil {
+		if b, err = hexdec(tv); err != nil {
 			return
 		}
 	case []byte:
@@ -127,8 +128,8 @@ Encode returns the encoded ASN.1 bytes of the receiver instance.
 func (r Fax) Encode() (b []byte, err error) {
 	var x []byte
 	if x, err = asn1m(r.G3Facsimile); err == nil {
-		b = make([]byte, hex.EncodedLen(len(x)))
-		_ = hex.Encode(b, x)
+		b = make([]byte, hexlen(len(x)))
+		_ = hexenc(b, x)
 	}
 
 	return

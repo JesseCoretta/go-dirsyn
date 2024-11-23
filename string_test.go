@@ -1,8 +1,27 @@
 package dirsyn
 
 import (
+	"fmt"
 	"testing"
 )
+
+func ExampleBMPString_IsZero() {
+	var bmp BMPString
+	fmt.Println(bmp.IsZero())
+	// Output: true
+}
+
+func ExampleOctetString_IsZero() {
+	var oct OctetString
+	fmt.Println(oct.IsZero())
+	// Output: true
+}
+
+func ExampleTeletexString_IsZero() {
+	var tel TeletexString
+	fmt.Println(tel.IsZero())
+	// Output: true
+}
 
 func TestNumericString(t *testing.T) {
 	var r RFC4517
@@ -149,6 +168,8 @@ func TestPrintableString(t *testing.T) {
 
 func TestDirectoryString(t *testing.T) {
 	var r RFC4517
+	var s RFC4512
+	var x X680
 
 	for idx, raw := range []any{
 		`This is a Directory String.`,
@@ -190,12 +211,88 @@ func TestDirectoryString(t *testing.T) {
 		TeletexString("Teletex123!"),
 	} {
 		even := idx%2 == 0
-		_, err := r.DirectoryString(raw)
+		ds, err := r.DirectoryString(raw)
 		ok := err == nil
 		if !ok && even {
 			t.Errorf("%s[%d] %T failed: %v", t.Name(), idx, raw, err)
 		} else if ok && !even {
 			t.Errorf("%s[%d] %T succeeded but should have failed", t.Name(), idx, raw)
 		}
+		_ = ds.String()
+		ds.IsZero()
+		ds.Bytes()
+
+		_, _ = s.UTF8String(raw)
+		_, _ = s.UTF8String([]byte(ds.String()))
+		_, _ = x.BMPString([]byte(ds.String()))
 	}
+}
+
+func TestString_codecov(t *testing.T) {
+	var r RFC4517
+	var s RFC4512
+	var x X680
+
+	_, _ = r.assertBitString([]byte{})
+	_, _ = r.assertBitString(nil)
+	_, _ = verifyBitStringContents([]byte(`'01001011`))
+	_, _ = verifyBitStringContents([]byte(`''B`))
+	_, _ = verifyBitStringContents([]byte(`01001011'B`))
+	_, _ = verifyBitStringContents([]byte(`'0100F011'B`))
+	var cs CountryString
+	cs.IsZero()
+	_ = cs.String()
+
+	r.CountryString(``)
+	r.CountryString(`#@`)
+
+	r.DirectoryString('\u0071')
+
+	raw := `8392810954`
+
+	_, _ = r.UniversalString(nil)
+	_, _ = r.IA5String(nil)
+	_, _ = s.UTF8String(raw)
+	_, _ = s.UTF8String(nil)
+	_, _ = r.UniversalString(raw)
+	_, _ = x.BMPString(raw)
+	_, _ = x.BMPString(`12`)
+	_, _ = x.BMPString(nil)
+	_, _ = r.UniversalString(``)
+	_, _ = r.UniversalString(UniversalString(`XYZ`))
+	_, _ = r.UniversalString([]byte{})
+	_, _ = r.OctetString([]byte{})
+	_, _ = r.OctetString(``)
+	_, _ = r.OctetString(nil)
+	_, _ = r.TeletexString(``)
+	_, _ = r.PrintableString(``)
+	_, _ = r.TeletexString(`A`)
+	_, _ = r.PrintableString(struct{}{})
+	_, _ = r.PrintableString(`A`)
+	_, _ = r.TeletexString([]byte(`A`))
+	_, _ = r.TeletexString(nil)
+	_, _ = r.PrintableString([]byte(`A`))
+
+	var tel TeletexString
+	_ = tel.String()
+	tel.IsZero()
+
+	var prs PrintableString
+	prs.IsZero()
+	_ = prs.String()
+
+	_, _ = assertNumericString(`X`)
+	_, _ = assertNumericString(``)
+	_, _ = assertNumericString(nil)
+	_, _ = assertNumericString(uint(0))
+	_, _ = assertNumericString(int32(-1))
+	_, _ = assertNumericString(uint16(0))
+
+	var ns NumericString
+	_ = ns.String()
+	ns.IsZero()
+
+	var us UniversalString
+	_ = us.String()
+	us.IsZero()
 }

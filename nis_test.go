@@ -7,6 +7,7 @@ func TestNetgroupTriple(t *testing.T) {
 	for idx, raw := range []string{
 		`(console,jc,example.com)`,
 		`(-,-,-)`,
+		`("","","")`,
 		`(-,jc,-)`,
 	} {
 		if trip, err := r.NetgroupTriple(raw); err != nil {
@@ -16,6 +17,15 @@ func TestNetgroupTriple(t *testing.T) {
 				t.Name(), idx, raw, got)
 		}
 	}
+
+	ngt := NetgroupTriple{}
+	_ = ngt.String()
+	ngt.setNetgroupTripleFieldByIndex(0, nil)
+	ngt.setNetgroupTripleFieldByIndex(0, ``)
+	ngt.setNetgroupTripleFieldByIndex(0, `this`)
+	ngt.setNetgroupTripleFieldByIndex(1, IA5String(`isOnly`))
+	ngt.setNetgroupTripleFieldByIndex(2, IA5String(`aTest`))
+	_ = ngt.String()
 
 	r.NetgroupTriple(`(?,?,?,?)`)
 	r.NetgroupTriple(`??`)

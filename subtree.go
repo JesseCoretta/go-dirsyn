@@ -296,7 +296,9 @@ type ChopSpecification struct {
 }
 
 func (r ChopSpecification) IsZero() bool {
-	return &r == nil
+	return len(r.Exclusions) == 0 &&
+		r.Minimum == 0 &&
+		r.Maximum == 0
 }
 
 func (r ChopSpecification) BER() (*ber.Packet, error) {
@@ -371,7 +373,7 @@ func (r LocalName) IsZero() bool {
 }
 
 func (r SpecificExclusions) IsZero() bool {
-	return &r == nil
+	return len(r) == 0
 }
 
 /*
@@ -391,7 +393,7 @@ func (r SpecificExclusions) String() string {
 }
 
 func (r SpecificExclusions) BER() (*ber.Packet, error) {
-	if r.Len() == 0 {
+	if r.IsZero() {
 		return nil, errorTxt("Nil Exclusions; cannot BER encode")
 	}
 
@@ -579,8 +581,10 @@ func subtreeMinMax(raw string, begin int) (minmax BaseDistance, end int, err err
 /*
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
-func (r *SubtreeSpecification) IsZero() bool {
-	return r == nil
+func (r SubtreeSpecification) IsZero() bool {
+	return r.Base == "" &&
+		r.ChopSpecification.IsZero() &&
+		r.SpecificationFilter == nil
 }
 
 /*
@@ -718,29 +722,29 @@ func (r OrRefinement) IsZero() bool {
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r NotRefinement) IsZero() bool {
-	return &(r.Refinement) == nil
+	return r.Refinement == nil
 }
 
 /*
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r ItemRefinement) IsZero() bool {
-	return &r == nil
+	return string(r) == ""
 }
 
 /*
 String returns the string representation of the receiver instance.
 */
-func (r AndRefinement) String() string {
-	if r.IsZero() {
-		return ``
+func (r AndRefinement) String() (s string) {
+	if !r.IsZero() {
+		var parts []string
+		for _, ref := range r {
+			parts = append(parts, ref.String())
+		}
+		s = "and:{" + join(parts, ",") + "}"
 	}
 
-	var parts []string
-	for _, ref := range r {
-		parts = append(parts, ref.String())
-	}
-	return "and:{" + join(parts, ",") + "}"
+	return
 }
 
 /*
@@ -781,16 +785,16 @@ type OrRefinement []Refinement
 /*
 String returns the string representation of the receiver instance.
 */
-func (r OrRefinement) String() string {
-	if r.IsZero() {
-		return ``
+func (r OrRefinement) String() (s string) {
+	if !r.IsZero() {
+		var parts []string
+		for _, ref := range r {
+			parts = append(parts, ref.String())
+		}
+		s = "or:{" + join(parts, ",") + "}"
 	}
 
-	var parts []string
-	for _, ref := range r {
-		parts = append(parts, ref.String())
-	}
-	return "or:{" + join(parts, ",") + "}"
+	return
 }
 
 /*
@@ -853,8 +857,12 @@ func (r NotRefinement) Choice() string {
 /*
 Len returns the integer length of the receiver instance.
 */
-func (r NotRefinement) Len() int {
-	return r.Refinement.Len()
+func (r NotRefinement) Len() (l int) {
+	if !r.IsZero() {
+		l = r.Refinement.Len()
+	}
+
+	return
 }
 
 /*
@@ -903,12 +911,12 @@ type ItemRefinement string
 /*
 String returns the string representation of the receiver instance.
 */
-func (r ItemRefinement) String() string {
-	if r.IsZero() {
-		return ``
+func (r ItemRefinement) String() (s string) {
+	if !r.IsZero() {
+		s = `item:` + string(r)
 	}
 
-	return `item:` + string(r)
+	return
 }
 
 /*
@@ -1066,7 +1074,7 @@ func splitRefinementParts(input string) []string {
 BER returns the BER encoding of the receiver instance.
 */
 func (r ItemRefinement) BER() (packet *ber.Packet, err error) {
-	if len(r) == 0 {
+	if r.IsZero() {
 		err = errorTxt("Nil Refinement; cannot BER encode")
 		return
 	}
@@ -1160,14 +1168,12 @@ func (r NotRefinement) BER() (packet *ber.Packet, err error) {
 		r.Choice())
 
 	not, err := r.Refinement.BER()
-	if err != nil {
-		return nil, err
+	if err == nil {
+		inner.AppendChild(not)
+		packet.AppendChild(inner)
 	}
 
-	inner.AppendChild(not)
-	packet.AppendChild(inner)
-
-	return packet, nil
+	return packet, err
 }
 
 func unmarshalSubtreeSpecificationBER(packet *ber.Packet) (ss SubtreeSpecification, err error) {
@@ -1192,18 +1198,16 @@ func unmarshalSubtreeSpecificationBER(packet *ber.Packet) (ss SubtreeSpecificati
 		case 4:
 			// Refinement
 			var ref Refinement
-			if ref, err = unmarshalRefinementBER(child); err != nil {
-				break
+			if ref, err = unmarshalRefinementBER(child); err == nil {
+				ss.SpecificationFilter = ref
 			}
-			ss.SpecificationFilter = ref
 		default:
 			// ChopSpecification ... maybe
 			if child.Description == "ChopSpecification" {
 				var chop ChopSpecification
-				if chop, err = unmarshalChopSpecificationBER(child); err != nil {
-					break
+				if chop, err = unmarshalChopSpecificationBER(child); err == nil {
+					ss.ChopSpecification = chop
 				}
-				ss.ChopSpecification = chop
 			} else {
 				err = errorTxt("Unknown child packet (want:ChopSpecification); cannot unmarshal")
 			}
@@ -1284,9 +1288,7 @@ func unmarshalSetRefinementBER(packet *ber.Packet) (refinement Refinement, err e
 		}
 	}
 
-	if err != nil {
-		refinement = invalidRefinement{}
-	} else if and {
+	if and {
 		refinement = AndRefinement(refs)
 	} else {
 		refinement = OrRefinement(refs)

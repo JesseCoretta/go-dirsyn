@@ -33,7 +33,9 @@ var (
 	puint    func(string, int, int) (uint64, error)    = strconv.ParseUint
 	fuint    func(uint64, int) string                  = strconv.FormatUint
 	hexdec   func(string) ([]byte, error)              = hex.DecodeString
-	enchex   func([]byte) string                       = hex.EncodeToString
+	hexencs  func([]byte) string                       = hex.EncodeToString
+	hexlen   func(int) int                             = hex.EncodedLen
+	hexenc   func([]byte, []byte) int                  = hex.Encode
 	asn1m    func(any) ([]byte, error)                 = asn1.Marshal
 	asn1mp   func(any, string) ([]byte, error)         = asn1.MarshalWithParams
 	asn1um   func([]byte, any) ([]byte, error)         = asn1.Unmarshal
@@ -109,9 +111,7 @@ func hexDecode(x any) string {
 	for i := 0; i < length; i++ {
 		if r[i] == '\\' && i+3 <= length {
 			b, err := hexdec(r[i+1 : i+3])
-			if err != nil {
-				return ``
-			} else if !isHex(rune(r[i+1])) || !isHex(rune(r[i+2])) {
+			if err != nil || !(isHex(rune(r[i+1])) || isHex(rune(r[i+2]))) {
 				return ``
 			}
 			d.Write(b)

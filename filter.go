@@ -91,6 +91,10 @@ type Filter interface {
 	// an AndFilter or OrFilter Filter qualifier type
 	// instance.
 	Len() int
+
+	// Differentiate Filter qualifiers from other
+	// unrelated interfaces.
+	isFilter()
 }
 
 type invalidFilter struct{}
@@ -197,6 +201,18 @@ type SubstringsFilter struct {
 	Type       AttributeDescription
 	Substrings SubstringAssertion
 }
+
+func (r invalidFilter) isFilter()          {}
+func (r AndFilter) isFilter()              {}
+func (r NotFilter) isFilter()              {}
+func (r OrFilter) isFilter()               {}
+func (r EqualityMatchFilter) isFilter()    {}
+func (r PresentFilter) isFilter()          {}
+func (r SubstringsFilter) isFilter()       {}
+func (r ExtensibleMatchFilter) isFilter()  {}
+func (r ApproximateMatchFilter) isFilter() {}
+func (r GreaterOrEqualFilter) isFilter()   {}
+func (r LessOrEqualFilter) isFilter()      {}
 
 func (r invalidFilter) IsZero() bool { return true }
 
@@ -656,6 +672,7 @@ Choice returns the string literal CHOICE "extensibleMatch".
 */
 func (r ExtensibleMatchFilter) Choice() string { return "extensibleMatch" }
 
+// tag values are used for BER packet labeling
 func (r invalidFilter) tag() uint64          { return 0 }
 func (r AndFilter) tag() uint64              { return 1 }
 func (r OrFilter) tag() uint64               { return 2 }
@@ -1344,7 +1361,6 @@ func unmarshalSubstringsFilterBER(packet *ber.Packet) (item Filter, err error) {
 
 	if !Any {
 		err = errorTxt("Missing Substrings.Any assertion value; cannot unmarshal")
-		item = invalidFilter{}
 	} else {
 		item = _item
 	}

@@ -51,8 +51,24 @@ func TestMisc_codecov(t *testing.T) {
 	dnAttrSplit(`A:dn:Z`)
 	dnAttrSplit(`A:DN:Z`)
 
+	hexEncode(``)
+	hexEncode(nil)
+	hexEncode([]byte{})
+	hexEncode(`ABC`)
+	hexEncode(`##`)
+
+	hexDecode(``)
+	hexDecode(nil)
+	hexDecode([]byte{})
+	hexDecode(`ABC`)
+	hexDecode(`\u00XH`)
+	hexDecode(`\zz`)
+	hexDecode(`##`)
+
+	isKeystring(`c--l`)
 	isKeystring(`-`)
 	isKeystring(``)
+	isKeystring(`c界j`)
 	isKeystring(`A`)
 	isKeystring(`abc`)
 
@@ -85,6 +101,8 @@ func TestMisc_codecov(t *testing.T) {
 		isSafeUTF8(nil)
 	}
 
+	_ = assertionValueRunes([]rune{}, false)
+
 	var r0 X680
 	var r1 X501
 	var r2 X520
@@ -106,6 +124,7 @@ func TestMisc_codecov(t *testing.T) {
 	r8.Boolean(nil)
 	r8.Boolean(struct{}{})
 
+	r8.JPEG([]uint8(`dGVzdGluZzEyMzR0ZXN0aW5nNTY3OA==`)) // "testing1234testing5678"
 	r8.JPEG(``)
 	r8.JPEG([]uint8{0x0})
 	r8.JPEG(nil)
@@ -149,6 +168,31 @@ func TestMisc_codecov(t *testing.T) {
 	castInt64(int32(33))
 	castInt64(int64(9))
 	castInt64(struct{}{})
+}
+
+func TestUnicode_codecov(t *testing.T) {
+	utf4Fallback('\U00000061', '\U00100061', '\U000000A9', '\U0000003F')
+	utf4Fallback('\U0010FFFD', '\U0010FFFA', '\U0010FFFB', '\U0010FFFC')
+	isUTF2(rune(10000))
+	isUTF3('\u7FFF')
+	isUTF2('í')
+	isUTF2('°')
+	isUTF2('\u00a0')
+	isUTF2('ð')
+	isUTF2('à')
+	isUTF3('\U0010AAAA')
+	isUTF3('\U0010AFFA')
+	isUTF3('\U0010FFFA')
+	isUTF3('\U0010FFFB')
+	isUTF3('\U0010FFFD')
+	isUTF3('\U0010FFFF')
+	isUTF3('\U0010FF3B')
+	isUTF4('\U0010FFFA')
+	isUTF4('\U0010FFFB')
+	isUTF4('\U0010FFFD')
+	isUTF4('\U0010FFFF')
+	isUTF4('\U0010FF3B')
+	isUTF4(rune(90000))
 }
 
 /*

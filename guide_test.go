@@ -43,11 +43,19 @@ func TestGuide_codecov(t *testing.T) {
 	bt.IsZero()
 	_ = bt.String()
 
+	var crit Criteria
+	crit.IsZero()
+	_ = crit.String()
+	_ = crit.Index(7)
+	crit.Len()
+
 	var at AndTerm
 	at.IsZero()
 	_ = at.String()
+	_ = at.Index(7)
 	at.Paren = true
 	_ = at.String()
+	at.Len()
 
 	var r RFC4517
 	for _, bogus := range []any{

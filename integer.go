@@ -19,10 +19,9 @@ analysis of x in the context of an ASN.1 Integer.
 */
 func (r RFC4517) Integer(x any) (i Integer, err error) {
 	var _i *big.Int
-	if _i, err = assertNumber(x); err != nil {
-		return
+	if _i, err = assertNumber(x); err == nil {
+		i = Integer(*_i)
 	}
-	i = Integer(*_i)
 
 	return
 }
@@ -69,12 +68,9 @@ func (r Integer) Eq(n any) (is bool) {
 	case Integer:
 		is = r.cast().Cmp(tv.cast()) == 0
 	case string:
-		nf, ok := big.NewInt(0).SetString(tv, 10)
-		if !ok {
-			is = ok
-			break
+		if nf, ok := big.NewInt(0).SetString(tv, 10); ok {
+			is = r.cast().Cmp(nf) == 0
 		}
-		is = r.cast().Cmp(nf) == 0
 	case uint64:
 		is = r.cast().Uint64() == tv
 	case uint:
@@ -112,12 +108,9 @@ func (r Integer) Gt(n any) (is bool) {
 	case Integer:
 		is = r.cast().Cmp(tv.cast()) == 1
 	case string:
-		nf, ok := big.NewInt(0).SetString(tv, 10)
-		if !ok {
-			is = ok
-			break
+		if nf, ok := big.NewInt(0).SetString(tv, 10); ok {
+			is = r.cast().Cmp(nf) == 1
 		}
-		is = r.cast().Cmp(nf) == 1
 	case uint64:
 		is = r.cast().Uint64() > tv
 	case uint:
@@ -160,12 +153,9 @@ func (r Integer) Lt(n any) (is bool) {
 	case Integer:
 		is = r.cast().Cmp(tv.cast()) == -1
 	case string:
-		nf, ok := big.NewInt(0).SetString(tv, 10)
-		if !ok {
-			is = ok
-			break
+		if nf, ok := big.NewInt(0).SetString(tv, 10); ok {
+			is = r.cast().Cmp(nf) == -1
 		}
-		is = r.cast().Cmp(nf) == -1
 	case uint64:
 		is = r.cast().Uint64() < tv
 	case uint:

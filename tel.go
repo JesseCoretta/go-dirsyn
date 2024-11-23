@@ -166,10 +166,8 @@ the receiver instance. This results in the receiver being overwritten with new d
 func (r *FacsimileTelephoneNumber) Decode(b []byte) (err error) {
 	var rest []byte
 	rest, err = asn1um(b, r)
-	if err == nil {
-		if len(rest) > 0 {
-			err = errorTxt("Extra left-over content found during ASN.1 unmarshal: '" + string(rest) + "'")
-		}
+	if err == nil && len(rest) > 0 {
+		err = errorTxt("Extra left-over content found during ASN.1 unmarshal: '" + string(rest) + "'")
 	}
 
 	return

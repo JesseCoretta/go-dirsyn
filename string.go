@@ -26,20 +26,23 @@ type BitString asn1.BitString
 String returns the string representation of the receiver instance.
 */
 func (r BitString) String() (bs string) {
-	if len(r.Bytes)*8 != r.BitLength {
-		return
-	}
+	if len(r.Bytes)*8 == r.BitLength {
+		for _, b := range r.Bytes {
+			bs += strconv.FormatUint(uint64(b), 2)
+		}
 
-	for _, b := range r.Bytes {
-		bs += strconv.FormatUint(uint64(b), 2)
+		bs = string(rune('\'')) + bs +
+			string(rune('\'')) +
+			string(rune('B'))
 	}
-
-	bs = string(rune('\'')) + bs +
-		string(rune('\'')) +
-		string(rune('B'))
 
 	return
 }
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r BitString) IsZero() bool { return &r == nil }
 
 /*
 BitString returns an error following an analysis of x in the context of
@@ -47,32 +50,29 @@ an ASN.1 BIT STRING.
 */
 func (r RFC4517) BitString(x any) (bs BitString, err error) {
 	var raw []byte
-	if raw, err = r.assertBitString(x); err != nil {
-		return
-	}
+	if raw, err = r.assertBitString(x); err == nil {
+		// Make sure there are enough remaining
+		// characters to actually do something.
+		if raw, err = verifyBitStringContents(raw); err == nil {
+			var tx string
+			var bss asn1.BitString
 
-	// Make sure there are enough remaining
-	// characters to actually do something.
-	if raw, err = verifyBitStringContents(raw); err == nil {
-		var tx string
-		var bss asn1.BitString
-
-		for i := len(raw); i > 0 && err == nil; i -= 8 {
-			if i-8 < 0 {
+			for i := len(raw); i > 0 && err == nil; i -= 8 {
 				tx = string(raw[:i])
-			} else {
-				tx = string(raw[i-8 : i])
+				if i-8 >= 0 {
+					tx = string(raw[i-8 : i])
+				}
+
+				var bd uint64
+				bd, err = puint(tx, 2, 8)
+				bss.Bytes = append(bss.Bytes, []byte{byte(bd)}...)
 			}
 
-			var bd uint64
-			bd, err = puint(tx, 2, 8)
-			bss.Bytes = append(bss.Bytes, []byte{byte(bd)}...)
-		}
-
-		if err == nil {
-			if _, err = asn1m(bss); err == nil {
-				bss.BitLength = len(bss.Bytes) * 8
-				bs = BitString(bss)
+			if err == nil {
+				if _, err = asn1m(bss); err == nil {
+					bss.BitLength = len(bss.Bytes) * 8
+					bs = BitString(bss)
+				}
 			}
 		}
 	}
@@ -158,6 +158,11 @@ String returns the string representation of the receiver instance.
 func (r CountryString) String() string {
 	return string(r)
 }
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r CountryString) IsZero() bool { return len(r) == 0 }
 
 /*
 CountryString returns an error following an analysis of x in the context of
@@ -349,6 +354,11 @@ func (ds DirectoryString) String() (s string) {
 }
 
 /*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r DirectoryString) IsZero() bool { return &r == nil }
+
+/*
 UTF8String implements the UTF8 String syntax and abstraction.
 
 From [§ 1.4 of RFC 4512]:
@@ -437,6 +447,11 @@ func (r PrintableString) String() string {
 }
 
 /*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r PrintableString) IsZero() bool { return len(r) == 0 }
+
+/*
 PrintableString returns an error following an analysis of x in the context
 of a [PrintableString].
 */
@@ -475,26 +490,26 @@ func (r RFC4517) PrintableString(x any) (ps PrintableString, err error) {
 /*
 Encode returns the ASN.1 encoding of the receiver instance alongside an error.
 */
-func (r PrintableString) Encode() (b []byte, err error) {
-	b, err = asn1m(r)
-	return
-}
+//func (r PrintableString) Encode() (b []byte, err error) {
+//	b, err = asn1m(r)
+//	return
+//}
 
 /*
 Decode returns an error following an attempt to decode ASN.1 encoded bytes b into
 the receiver instance. This results in the receiver being overwritten with new data.
 */
-func (r *PrintableString) Decode(b []byte) (err error) {
-	var rest []byte
-	rest, err = asn1um(b, r)
-	if err == nil {
-		if len(rest) > 0 {
-			err = errorTxt("Extra left-over content found during ASN.1 unmarshal: '" + string(rest) + "'")
-		}
-	}
-
-	return
-}
+//func (r *PrintableString) Decode(b []byte) (err error) {
+//	var rest []byte
+//	rest, err = asn1um(b, r)
+//	if err == nil {
+//		if len(rest) > 0 {
+//			err = errorTxt("Extra left-over content found during ASN.1 unmarshal: '" + string(rest) + "'")
+//		}
+//	}
+//
+//	return
+//}
 
 /*
 UniversalString implements the Universal Character Set.
@@ -533,56 +548,16 @@ func (r RFC4517) UniversalString(x any) (us UniversalString, err error) {
 }
 
 /*
-	var raw []byte
-
-	switch tv := x.(type) {
-	case UniversalString:
-		raw = []byte(tv)
-	case []byte:
-		raw = tv
-	case string:
-		raw = []byte(tv)
-	default:
-		err = errorBadType("Universal String")
-		return
-	}
-
-	if len(raw)%4 != 0 {
-		err = errorTxt("invalid UniversalString: length is not a multiple of 4")
-		return
-	}
-
-        get := binary.BigEndian.Uint32
-        if int(raw[len(raw)-1]) < int(raw[0]) {
-                get = binary.LittleEndian.Uint32
-        }
-
-	var result []rune
-	for i := 0; i < len(raw); i += 4 {
-	    char := get(raw[i : i+4])
-	    if !ucIs(uCSRange, rune(char)) {
-		err = errorTxt("invalid character for Universal String: " + itoa(i))
-		break
-	    }
-	    result = append(result, rune(char))
-	}
-
-	if err == nil {
-		us = UniversalString(string(result))
-	}
-
-	return
-}
+String returns the string representation of the receiver instance.
 */
+func (r UniversalString) String() string {
+	return string(r)
+}
 
 /*
-	for i := 0; i < len(raw) && err == nil; i++ {
-		var char rune = rune(raw[i])
-		if !ucIs(uCSRange, char) {
-			err = errorBadType("Invalid character for Universal String: " + string(char))
-		}
-	}
+IsZero returns a Boolean value indicative of a nil receiver state.
 */
+func (r UniversalString) IsZero() bool { return len(r) == 0 }
 
 /*
 IA5String implements [§ 3.2 of RFC 4517]:
@@ -599,6 +574,11 @@ String returns the string representation of the receiver instance.
 func (r IA5String) String() string {
 	return string(r)
 }
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r IA5String) IsZero() bool { return len(r) == 0 }
 
 /*
 IA5String returns an instance of [IA5String] alongside an error following
@@ -655,19 +635,22 @@ func (r NumericString) String() string {
 }
 
 /*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r NumericString) IsZero() bool { return len(r) == 0 }
+
+/*
 NumericString returns an instance of [NumericString] alongside an error
 following an analysis of x in the context of a Numeric String.
 */
 func (r RFC4517) NumericString(x any) (ns NumericString, err error) {
 	var raw string
-	if raw, err = assertNumericString(x); err != nil {
-		return
-	}
-
-	for _, char := range raw {
-		if !(isDigit(rune(char)) || char == ' ') {
-			err = errorTxt("Incompatible character for Numeric String: " + string(char))
-			break
+	if raw, err = assertNumericString(x); err == nil {
+		for _, char := range raw {
+			if !(isDigit(rune(char)) || char == ' ') {
+				err = errorTxt("Incompatible character for Numeric String: " + string(char))
+				break
+			}
 		}
 	}
 
@@ -737,6 +720,11 @@ func (r TeletexString) String() string {
 }
 
 /*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r TeletexString) IsZero() bool { return len(r) == 0 }
+
+/*
 Deprecated: TeletexString returns an instance of [TeletexString] alongside
 an error following an analysis of x in the context of a Teletex String, per
 [ITU-T Rec. T.61].
@@ -783,6 +771,11 @@ OctetString implements [§ 3.3.25 of RFC 4517]:
 [§ 3.3.25 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.25
 */
 type OctetString []byte
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r OctetString) IsZero() bool { return r == nil }
 
 /*
 String returns the string representation of the receiver instance.
@@ -866,6 +859,11 @@ func (r BMPString) String() string {
 
 	return string(result)
 }
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r BMPString) IsZero() bool { return r == nil }
 
 /*
 BMPString marshals x into a BMPString (UTF-16) return value, returning

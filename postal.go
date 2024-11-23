@@ -48,17 +48,15 @@ func (r RFC4517) DeliveryMethod(x any) (dm DeliveryMethod, err error) {
 	}
 
 	var raw string
-	if raw, err = assertString(x, 3, "Delivery Method"); err != nil {
-		return
-	}
-
-	raws := split(repAll(raw, ` `, ``), `$`)
 	var dms DeliveryMethod
-	for i := 0; i < len(raws) && err == nil; i++ {
-		if !strInSlice(raws[i], postalDeliveryMethods) {
-			err = errorTxt("Invalid PDM type for Delivery Method: " + raws[i])
-		} else {
-			dms = append(dms, raws[i])
+	if raw, err = assertString(x, 3, "Delivery Method"); err == nil {
+		raws := split(repAll(raw, ` `, ``), `$`)
+		for i := 0; i < len(raws) && err == nil; i++ {
+			if !strInSlice(raws[i], postalDeliveryMethods) {
+				err = errorTxt("Invalid PDM type for Delivery Method: " + raws[i])
+			} else {
+				dms = append(dms, raws[i])
+			}
 		}
 	}
 
@@ -114,12 +112,10 @@ func (r RFC4517) PostalAddress(x any) (pa PostalAddress, err error) {
 	var lc []string
 
 	var raw string
-	if raw, err = assertString(x, 1, "line-char"); err != nil {
-		return
-	}
-
-	if lc, err = lineChar(raw); err == nil {
-		pa = PostalAddress(lc)
+	if raw, err = assertString(x, 1, "line-char"); err == nil {
+		if lc, err = lineChar(raw); err == nil {
+			pa = PostalAddress(lc)
+		}
 	}
 
 	return
@@ -169,26 +165,21 @@ of an [OtherMailbox].
 */
 func (r RFC4517) OtherMailbox(x any) (om OtherMailbox, err error) {
 	var raw string
-	if raw, err = assertString(x, 1, "Other Mailbox"); err != nil {
-		return
-	}
+	if raw, err = assertString(x, 1, "Other Mailbox"); err == nil {
+		raws := splitUnescaped(raw, `$`, `\`)
 
-	raws := splitUnescaped(raw, `$`, `\`)
+		if len(raws) != 2 {
+			err = errorTxt("Invalid Other Mailbox value")
+			return
+		}
 
-	if len(raws) != 2 {
-		err = errorTxt("Invalid Other Mailbox value")
-		return
+		if _, err = r.PrintableString(raws[0]); err == nil {
+			if _, err = r.IA5String(raws[1]); err == nil {
+				om[0] = raws[0]
+				om[1] = raws[1]
+			}
+		}
 	}
-
-	if _, err = r.PrintableString(raws[0]); err != nil {
-		return
-	}
-	if _, err = r.IA5String(raws[1]); err != nil {
-		return
-	}
-
-	om[0] = raws[0]
-	om[1] = raws[1]
 
 	return
 }

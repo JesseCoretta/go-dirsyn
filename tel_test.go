@@ -98,3 +98,14 @@ func TestTelephoneNumber(t *testing.T) {
 	tel, _ = r.TelephoneNumber(`1`)
 	_ = tel.String()
 }
+
+func TestTelephony_codecov(t *testing.T) {
+	var r RFC4517
+
+	_, _ = r.FacsimileTelephoneNumber(`\$`)
+	_, _ = r.FacsimileTelephoneNumber(` $ `)
+	_, _ = r.FacsimileTelephoneNumber(`twoDimensional$twoDimensional$`)
+
+	_, _ = r.TelephoneNumber(nil)
+	_, _ = r.TelephoneNumber(`naïve§`)
+}

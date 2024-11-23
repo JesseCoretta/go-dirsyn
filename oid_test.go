@@ -52,3 +52,12 @@ func TestDescriptor(t *testing.T) {
 		}
 	}
 }
+
+func TestOID_codecov(t *testing.T) {
+	var x RFC4517
+	x.NumericOID(`2.5.4.3`)
+	x.Descriptor(`cn`)
+	x.Descriptor(`cn#`)
+	x.Descriptor(`c--n`)
+	x.Descriptor(`c@n`)
+}

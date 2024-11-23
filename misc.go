@@ -395,31 +395,28 @@ func (r RFC4517) JPEG(x any) (err error) {
 	switch tv := x.(type) {
 	case string:
 		// Read from file
-		if raw, err = readFile(tv); err != nil {
+		if raw, err = readFile(tv); err == nil {
+			// Self-execute using the byte payload
+			err = r.JPEG(raw)
 			return
 		}
-
-		// Self-execute using the byte payload
-		err = r.JPEG(raw)
-		return
 	case []uint8:
 		if len(tv) <= 12 {
 			err = errorBadLength("JPEG", len(tv))
-			return
-		}
-
-		if isBase64(string(tv)) {
-			var dec []byte
-			if dec, err = b64dec(tv); err != nil {
-				err = errorTxt("Bogus base64 payload")
-				return
-			}
-			raw = dec
 		} else {
-			raw = tv
+			if isBase64(string(tv)) {
+				var dec []byte
+				dec, err = b64dec(tv)
+				raw = dec
+			} else {
+				raw = tv
+			}
 		}
 	default:
 		err = errorBadType("JPEG")
+	}
+
+	if err != nil {
 		return
 	}
 
@@ -448,10 +445,9 @@ func (r RFC4517) JPEG(x any) (err error) {
 		'\u00D9', // len-1
 	}
 
-	if rune(raw[len(raw)-2]) != footer[0] {
-		err = errorTxt("Incompatible character for JPEG footer: " + string(raw[len(raw)-2]))
-	} else if rune(raw[len(raw)-1]) != footer[1] {
-		err = errorTxt("Incompatible character for JPEG footer: " + string(raw[len(raw)-1]))
+	if rune(raw[len(raw)-2]) != footer[0] ||
+		rune(raw[len(raw)-1]) != footer[1] {
+		err = errorTxt("Incompatible character for JPEG footer: " + string(raw[len(raw)-2:]))
 	}
 
 	return
@@ -552,7 +548,8 @@ func isSafeUTF2(x string) (err error) {
 	z := []byte(string(x))
 	ch1 := rune(z[0])
 	ch2 := rune(z[1])
-	if !(ucIs(utf2aSafeRange, ch1) && ucIs(utf2bSafeRange, ch2)) {
+	if !(ucIs(utf2aSafeRange, ch1) &&
+		ucIs(utf2bSafeRange, ch2)) {
 		err = errorTxt("Incompatible chars for UTF2 (in UTF2 Safe Range): " + x)
 	}
 
@@ -564,7 +561,9 @@ func isSafeUTF3(x string) (err error) {
 	ch1 := rune(z[0])
 	ch2 := rune(z[1])
 	ch3 := rune(z[2])
-	if !(ucIs(utf3SafeRange, ch1) && ucIs(utf2bSafeRange, ch2) && ucIs(utf2bSafeRange, ch3)) {
+	if !(ucIs(utf3SafeRange, ch1) &&
+		ucIs(utf2bSafeRange, ch2) &&
+		ucIs(utf2bSafeRange, ch3)) {
 		err = errorTxt("Incompatible chars for UTF3 (in UTF3 Safe Range): " + x)
 	}
 
@@ -577,7 +576,10 @@ func isSafeUTF4(x string) (err error) {
 	ch2 := rune(z[1])
 	ch3 := rune(z[2])
 	ch4 := rune(z[3])
-	if !(ucIs(utf4SafeRange, ch1) && ucIs(utf2bSafeRange, ch2) && ucIs(utf2bSafeRange, ch3) && ucIs(utf2bSafeRange, ch4)) {
+	if !(ucIs(utf4SafeRange, ch1) &&
+		ucIs(utf2bSafeRange, ch2) &&
+		ucIs(utf2bSafeRange, ch3) &&
+		ucIs(utf2bSafeRange, ch4)) {
 		err = errorTxt("Incompatible chars for UTF4 (in UTF4 Safe Range): " + x)
 	}
 
@@ -608,11 +610,9 @@ func uTF8(x any, zok ...bool) (u UTF8String, err error) {
 		return
 	}
 
-	for i := 0; i < len(raw); i++ {
-		if ucIs(utf1Range, rune(raw[i])) {
-			continue
-		} else if err = uTFMB(rune(raw[i])); err != nil {
-			break
+	for i := 0; i < len(raw) && err == nil; i++ {
+		if !ucIs(utf1Range, rune(raw[i])) {
+			err = uTFMB(rune(raw[i]))
 		}
 	}
 
@@ -655,27 +655,21 @@ func assertionValueRunes(x any, zok ...bool) (err error) {
 	}
 
 	_err := errorTxt("Invalid assertionvalue characters")
-	for i := 0; i < len(raw); i++ {
+	for i := 0; i < len(raw) && err == nil; i++ {
 		if raw[i] == '\\' {
 			// Check if there are at least
 			// two more characters
 			if i+3 > len(raw) {
 				err = _err
-				break
-			}
-			// Check if the next two characters
-			// are valid hexadecimals.
-			if !isHex(rune(raw[i+1])) || !isHex(rune(raw[i+2])) {
+			} else if !isHex(rune(raw[i+1])) || !isHex(rune(raw[i+2])) {
+				// the next two characters are not hex
 				err = _err
-				break
 			}
 			// Skip the next two characters, as
-			// we've already vetted them.
+			// we've already vetted them
 			i += 2
-		} else if ucIs(uTF8SubsetRange, rune(raw[i])) {
-			continue
-		} else if err = uTFMB(rune(raw[i])); err != nil {
-			break
+		} else if !ucIs(uTF8SubsetRange, rune(raw[i])) {
+			err = uTFMB(rune(raw[i]))
 		}
 	}
 
@@ -709,9 +703,9 @@ func uTFMB(x any) (err error) {
 		r := raw[i]
 		if funk, found := funcs[runeLen(r)]; found {
 			err = funk(r)
-			continue
+			//continue
 		}
-		err = errorTxt("Incompatible rune length for UTFMB")
+		//err = errorTxt("Incompatible rune length for UTFMB")
 	}
 
 	return
@@ -748,16 +742,26 @@ func isUTF3(r rune) (err error) {
 
 	switch z0 {
 	case '\u00e0':
-		if !ucIs(utf3aRange, z1) {
-			err = errorTxt("Incompatible char for UTF3 (in UTFMB):" + string(z1))
-		} else if !ucIs(utf0Range, z2) {
-			err = errorTxt("Incompatible char for UTF3 (in UTFMB):" + string(z2))
+		cm := map[rune]bool{
+			z1: ucIs(utf3aRange, z1),
+			z2: ucIs(utf0Range, z2),
+		}
+		for _, roon := range []rune{z1, z2} {
+			if !cm[roon] {
+				err = errorTxt("Incompatible char for UTF3 (in UTFMB):" + string(roon))
+				break
+			}
 		}
 	case '\u00ed':
-		if !ucIs(utf3cRange, z1) {
-			err = errorTxt("Incompatible char for UTF3 (in UTFMB):" + string(z1))
-		} else if !ucIs(utf0Range, z2) {
-			err = errorTxt("Incompatible char for UTF3 (in UTFMB):" + string(z2))
+		cm := map[rune]bool{
+			z1: ucIs(utf3cRange, z1),
+			z2: ucIs(utf0Range, z2),
+		}
+		for _, roon := range []rune{z1, z2} {
+			if !cm[roon] {
+				err = errorTxt("Incompatible char for UTF3 (in UTFMB):" + string(roon))
+				break
+			}
 		}
 	default:
 		var ok bool
@@ -789,20 +793,29 @@ func isUTF4(r rune) (err error) {
 
 	switch z0 {
 	case '\u00f0':
-		if !ucIs(utf4aRange, z1) {
-			err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z1))
-		} else if !ucIs(utf0Range, z2) {
-			err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z2))
-		} else if !ucIs(utf0Range, z3) {
-			err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z3))
+		cm := map[rune]bool{
+			z1: ucIs(utf4aRange, z1),
+			z2: ucIs(utf0Range, z2),
+			z3: ucIs(utf0Range, z3),
+		}
+		for _, roon := range []rune{z1, z2, z3} {
+			if !cm[roon] {
+				err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(roon))
+				break
+			}
 		}
 	case '\u00f4':
-		if !ucIs(utf4cRange, z1) {
-			err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z1))
-		} else if !ucIs(utf0Range, z2) {
-			err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z2))
-		} else if !ucIs(utf0Range, z3) {
-			err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z3))
+		cm := map[rune]bool{
+			z1: ucIs(utf4cRange, z1),
+			z2: ucIs(utf0Range, z2),
+			z3: ucIs(utf0Range, z3),
+		}
+
+		for _, roon := range []rune{z1, z2, z3} {
+			if !cm[roon] {
+				err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(roon))
+				break
+			}
 		}
 	default:
 		err = utf4Fallback(z0, z1, z2, z3)
@@ -812,14 +825,18 @@ func isUTF4(r rune) (err error) {
 }
 
 func utf4Fallback(z0, z1, z2, z3 rune) (err error) {
-	if !ucIs(utf4bRange, z0) {
-		err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z0))
-	} else if !ucIs(utf0Range, z1) {
-		err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z1))
-	} else if !ucIs(utf0Range, z2) {
-		err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z2))
-	} else if !ucIs(utf0Range, z3) {
-		err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(z3))
+	cm := map[rune]bool{
+		z0: ucIs(utf4bRange, z0),
+		z1: ucIs(utf0Range, z1),
+		z2: ucIs(utf0Range, z2),
+		z3: ucIs(utf0Range, z3),
+	}
+
+	for _, roon := range []rune{z0, z1, z2, z3} {
+		if !cm[roon] {
+			err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(roon))
+			break
+		}
 	}
 
 	return

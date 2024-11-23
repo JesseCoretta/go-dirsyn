@@ -48,4 +48,20 @@ func TestOtherMailbox(t *testing.T) {
 			t.Errorf("%s failed: %v", t.Name(), err)
 		}
 	}
+
+	r.OtherMailbox(`界ac`)
+}
+
+func TestPostal_codecov(t *testing.T) {
+	pSOrIA5s(nil)
+	pSOrIA5s(`\\$`)
+	pSOrIA5s(`\$`)
+	pSOrIA5s(`......\$....!`)
+	pSOrIA5s(`.$.$.$.$.$`)
+	pSOrIA5s(`.$.$@$#$.$`)
+	lineChar(`.#.$.$.$$`)
+	lineChar(`.#.naïve.$.$$`)
+	lineChar(string(rune('\U0010AAAA')) + `ð`)
+	lineChar(`$abc$界$`)
+	lineChar(string([]rune{'\u00e0', '$', '\u00FF'}))
 }

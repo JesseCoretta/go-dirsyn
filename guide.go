@@ -128,8 +128,6 @@ func intToSubset(x int) (s string) {
 Deprecated: Guide is OBSOLETE and is provided for historical support only;
 use [EnhancedGuide] instead.
 
-Guide returns an error following an analysis of x in the context of a Guide.
-
 From [§ 3.3.14 of RFC 4517]:
 
 	Guide = [ object-class SHARP ] criteria
@@ -211,7 +209,7 @@ func (r Guide) String() (s string) {
 
 /*
 Term implements the slice component of an instance of [AndTerm].  Term
-is qualified through instances of [AttributeMatchTerm], [BooleanTerm],
+is qualified through instances of [AttributeMatchTerm], [BoolTerm],
 and [Criteria].
 */
 type Term interface {
@@ -332,10 +330,34 @@ IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r Criteria) IsZero() bool { return &r == nil }
 
+/*
+Len returns the integer length of the receiver instance.
+*/
+func (r Criteria) Len() int { return len(r.Set) }
+
+/*
+Index returns the Nth slice instance of [AndTerm] found within the
+receiver instance.
+*/
+func (r Criteria) Index(idx int) (a AndTerm) {
+	if !r.IsZero() {
+		if 0 <= idx && idx < r.Len() {
+			a = r.Set[idx]
+		}
+	}
+
+	return
+}
+
 type AndTerm struct {
 	Set   []Term
 	Paren bool
 }
+
+/*
+Len returns the integer length of the receiver instance.
+*/
+func (r AndTerm) Len() int { return len(r.Set) }
 
 /*
 String returns the string representation of the receiver instance.
@@ -352,6 +374,20 @@ func (a AndTerm) String() string {
 	}
 
 	return s
+}
+
+/*
+Index returns the Nth slice instance of [Term] found within the
+receiver instance.
+*/
+func (r AndTerm) Index(idx int) (t Term) {
+	if !r.IsZero() {
+		if 0 <= idx && idx < r.Len() {
+			t = r.Set[idx]
+		}
+	}
+
+	return
 }
 
 /*

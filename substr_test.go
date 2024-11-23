@@ -24,3 +24,19 @@ func TestSubstringAssertion(t *testing.T) {
 		}
 	}
 }
+
+func TestSubstringAssertion_codecov(t *testing.T) {
+	substrProcess1(`11*11`)
+	substrProcess1(`aaaa`)
+	substrProcess2(`11*11`)
+	substrProcess2(`aaaa`)
+	substrProcess3(`11*11`)
+	substrProcess3(`aaaa`)
+	substrProcess4(`11*11`)
+	substrProcess4(`aaaa`)
+
+	processSubstringAssertion(nil)
+	processSubstringAssertion(``)
+	processSubstringAssertion([]byte{})
+	processSubstringAssertion(`thisis**bogus`)
+}

@@ -11,10 +11,26 @@ import (
 	"github.com/JesseCoretta/go-objectid"
 )
 
+/*
+Descriptor implements "descr" per [§ 1.4 of RFC 4512]:
+
+	descr = keystring
+	keystring = leadkeychar *keychar
+	leadkeychar = ALPHA
+	keychar = ALPHA / DIGIT / HYPHEN
+
+	ALPHA   = %x41-5A / %x61-7A   ; "A"-"Z" / "a"-"z"
+	DIGIT   = %x30 / LDIGIT       ; "0"-"9"
+	LDIGIT  = %x31-39             ; "1"-"9"
+	HYPHEN  = %x2D                ; hyphen ("-")
+
+[§ 1.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-1.4
+*/
 type Descriptor string
 
 /*
-NumericOID implements [§ 1.4 of RFC 4512]:
+NumericOID embeds *[objectid.DotNotation] to implement "numericoid" per
+[§ 1.4 of RFC 4512]:
 
 	numericoid = number 1*( DOT number )
 	number  = DIGIT / ( LDIGIT 1*DIGIT )
@@ -31,7 +47,7 @@ type NumericOID struct {
 
 /*
 OID returns an error following an analysis of x in the context of either
-a numeric OID or descriptor (descr) value.
+a numeric OID (numericoid) or descriptor (descr) value.
 
 From [§ 1.4 of RFC 4512]:
 
@@ -63,19 +79,8 @@ func (r RFC4517) OID(x any) (err error) {
 }
 
 /*
-NumericOID returns an error following an analysis of x in the context of
-a numeric OID.  See also [RFC4512.OID].
-
-From [§ 1.4 of RFC 4512]:
-
-	numericoid = number 1*( DOT number )
-	number  = DIGIT / ( LDIGIT 1*DIGIT )
-
-	DIGIT   = %x30 / LDIGIT   ; "0"-"9"
-	LDIGIT  = %x31-39         ; "1"-"9"
-	DOT     = %x2E            ; period (".")
-
-[§ 1.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-1.4
+NumericOID returns a instance of [NumericOID] alongside an error. See
+also [RFC4512.OID].
 */
 func (r RFC4512) NumericOID(x any) (noid NumericOID, err error) {
 	var raw string
@@ -110,22 +115,8 @@ func (r RFC4517) Descriptor(x any) (descr Descriptor, err error) {
 }
 
 /*
-Descriptor returns an error following an analysis of x in the context of
-a descr, or descriptor, value.  See also [RFC4512.OID].
-
-From [§ 1.4 of RFC 4512]:
-
-	descr = keystring
-	keystring = leadkeychar *keychar
-	leadkeychar = ALPHA
-	keychar = ALPHA / DIGIT / HYPHEN
-
-	ALPHA   = %x41-5A / %x61-7A   ; "A"-"Z" / "a"-"z"
-	DIGIT   = %x30 / LDIGIT       ; "0"-"9"
-	LDIGIT  = %x31-39             ; "1"-"9"
-	HYPHEN  = %x2D                ; hyphen ("-")
-
-[§ 1.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-1.4
+Descriptor returns an instance of [Descriptor] alongside an error. See
+also [RFC4512.OID].
 */
 func (r RFC4512) Descriptor(x any) (descr Descriptor, err error) {
 	var raw string

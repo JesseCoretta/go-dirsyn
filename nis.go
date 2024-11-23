@@ -43,20 +43,28 @@ From [§ 3.2 of RFC 4517]:
 [§ 3.2 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.2
 [§ 1.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-1.4
 */
-type NetgroupTriple [3]string
+type NetgroupTriple struct {
+	Hostname IA5String `asn1:"tag:0,optional"`
+	Username IA5String `asn1:"tag:1,optional"`
+	Domain   IA5String `asn1:"tag:2,optional"`
+}
 
 /*
 String returns the string representation of the receiver instance.
 */
 func (r NetgroupTriple) String() string {
 	var trips []string
-	for _, keystr := range r {
-		if len(keystr) == 0 {
+	for _, ia5 := range []IA5String{
+		r.Hostname,
+		r.Username,
+		r.Domain,
+	} {
+		if ia5.IsZero() {
 			// Yes, a zero string is also acceptable,
 			// but a hyphen Just Looks Better™.
 			trips = append(trips, `-`)
 		} else {
-			trips = append(trips, keystr)
+			trips = append(trips, ia5.String())
 		}
 	}
 
@@ -64,8 +72,10 @@ func (r NetgroupTriple) String() string {
 }
 
 /*
-NISNetgroupTriple returns an error following an analysis of x in the
-context of a NIS Netgroup Triple.
+NISNetgroupTriple returns an instance of [NetgroupTriple] alongside an error.
+
+The input value type must be a string, such as `("laptop","jesse","example.com")`
+or `("-","-","-")`.
 */
 func (r RFC2307) NetgroupTriple(x any) (trip NetgroupTriple, err error) {
 	var raw string
@@ -88,13 +98,11 @@ func (r RFC2307) NetgroupTriple(x any) (trip NetgroupTriple, err error) {
 	var id RFC4517
 
 	var _trip NetgroupTriple
-	for idx, slice := range ngt {
-		if len(slice) == 0 || slice == `-` {
-			continue
-		} else if _, err = id.IA5String(slice); err != nil {
-			break
-		}
-		_trip[idx] = slice
+
+	for i := 0; i < len(ngt) && err == nil; i++ {
+		var ia5 IA5String
+		ia5, err = id.IA5String(ngt[i])
+		_trip.setNetgroupTripleFieldByIndex(i, ia5)
 	}
 
 	if err == nil {
@@ -107,6 +115,33 @@ func (r RFC2307) NetgroupTriple(x any) (trip NetgroupTriple, err error) {
 func validTripleEncap(raw string) (err error) {
 	if !(raw[0] == '(' && raw[len(raw)-1] == ')') {
 		err = errorTxt("NIS Netgroup Triple encapsulation error")
+	}
+
+	return
+}
+
+func (r *NetgroupTriple) setNetgroupTripleFieldByIndex(idx int, val any) {
+	var ia5 IA5String
+
+	switch tv := val.(type) {
+	case string:
+		if tv == "" {
+			tv = "-"
+		}
+		ia5 = IA5String(tv)
+	case IA5String:
+		ia5 = tv
+	default:
+		return
+	}
+
+	switch idx {
+	case 0:
+		r.Hostname = ia5
+	case 1:
+		r.Username = ia5
+	case 2:
+		r.Domain = ia5
 	}
 
 	return
