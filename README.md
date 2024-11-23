@@ -2,9 +2,9 @@
 
 ![dirsyn_logo_small](https://github.com/user-attachments/assets/ae15a556-1478-406f-beac-4d4b52b1d133)
 
-Package dirsyn implements myriad X.500/LDAP syntax checking functions.
+Package dirsyn implements directory syntax parsing and matching rule components.
 
-This package was mainly developed for the XDAPL Project, but may be freely used by anyone needing value syntax verification capabilities related to directory technologies.
+This package was mainly developed for the XDAPL Project, but may be freely used by anyone needing value abstract syntax checking or matching rule capabilities related to directory technologies.
 
 ## Status
 
