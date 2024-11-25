@@ -111,5 +111,5 @@ The following syntaxes are supported by this package at this time.  More will be
   - UTC Time ([RFC 4517 § 3.3.34](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.34))
   - UUID ([RFC 4530 § 2.1](https://datatracker.ietf.org/doc/html/rfc4530#section-2.1))
 
-To parse Netscape's "aci" syntax, see [`go-antlraci`](https://github.com/JesseCoretta/go-antlraci), or the full-featured [`go-aci`](https://github.com/Jessecoretta/go-aci).
+To parse instances of the Netscape ACIv3 "`aci`" attribute type, see [`go-antlraci`](https://github.com/JesseCoretta/go-antlraci), or the full-featured [`go-aci`](https://github.com/Jessecoretta/go-aci). This functionality may be ported into dirsyn in the future.
 
