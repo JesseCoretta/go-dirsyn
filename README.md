@@ -52,10 +52,23 @@ This package relies upon the following third-party packages:
   - [`asn1-ber`](https://github.com/go-asn1-ber/asn1-ber)
   - [`objectid`](https://github.com/JesseCoretta/go-objectid)
 
+## Supported Matching Rules
+
+The following matching rules are supported by this package at this time.  More will be added in the future:
+
+  - BooleanMatch [RFC 4517 § 4.2.2](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.2)
+  - GeneralizedTimeMatch [RFC 4517 § 4.2.16](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.16)
+  - GeneralizedTimeOrderingMatch [RFC 4517 § 4.2.17](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.17)
+  - IntegerMatch [RFC 4517 § 4.2.19](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.19)
+  - IntegerOrderingMatch [RFC 4517 § 4.2.20](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.20)
+  - OctetStringMatch [RFC 4517 § 4.2.27](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.27)
+  - OctetStringOrderingMatch [RFC 4517 § 4.2.28](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.28)
+
 ## Supported Syntaxes
 
 The following syntaxes are supported by this package at this time.  More will be added in the future:
 
+  - Attribute Type Description ([RFC 4512 § 4.1.2](https://datatracker.ietf.org/doc/html/rfc4512#section-4.1.2) and [RFC 4517 § 3.3.1](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.1))
   - Bit String ([RFC 4517 § 3.3.2](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.2))
   - Boolean ([RFC 4517 § 3.3.3](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.3))
   - Boot Parameter ([RFC 2307 § 2.4](https://datatracker.ietf.org/doc/html/rfc2307#section-2.4))
@@ -67,6 +80,8 @@ The following syntaxes are supported by this package at this time.  More will be
     - BMPString ([ITU-T Rec. X.680](https://www.itu.int/rec/T-REC-X.680))
     - UniversalString ([ITU-T Rec. X.680](https://www.itu.int/rec/T-REC-X.680))
     - UTF8String ([ITU-T Rec. X.680](https://www.itu.int/rec/T-REC-X.680))
+  - DIT Content Rule Description ([RFC 4512 § 4.1.6](https://datatracker.ietf.org/doc/html/rfc4512#section-4.1.6) and [RFC 4517 § 3.3.7](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.7))
+  - DIT Structure Rule Description ([RFC 4512 § 4.1.7.1](https://datatracker.ietf.org/doc/html/rfc4512#section-4.1.6) and [RFC 4517 § 3.3.8](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.8))
   - DN ([RFC 4517 § 3.3.9](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.9))
   - Enhanced Guide ([RFC 4517 § 3.3.10](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.10))
   - Facsimile Telephone Number ([RFC 4517 § 3.3.11](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.11))
@@ -77,9 +92,13 @@ The following syntaxes are supported by this package at this time.  More will be
   - IA5 String ([RFC 4517 § 3.3.15](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.15))
   - Integer ([RFC 4517 § 3.3.16](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.16))
   - JPEG ([RFC 4517 § 3.3.17](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.17))
-  - NIS Netgroup Triple ([RFC 2307 § 2.4](https://datatracker.ietf.org/doc/html/rfc2307#section-2.4))
+  - LDAP Syntax Description ([RFC 4512 § 4.1.5](https://datatracker.ietf.org/doc/html/rfc4512#section-4.1.5) and [RFC 4517 § 3.3.18](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.18))
+  - Matching Rule Description ([RFC 4512 § 4.1.3](https://datatracker.ietf.org/doc/html/rfc4512#section-4.1.3) and [RFC 4517 § 3.3.19](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.19))
   - Name and Optional UID ([RFC 4517 § 3.3.21](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.21))
+  - Name Form Description ([RFC 4512 § 4.1.7.2](https://datatracker.ietf.org/doc/html/rfc4512#section-4.1.7.2) and [RFC 4517 § 3.3.22](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.22))
+  - NIS Netgroup Triple ([RFC 2307 § 2.4](https://datatracker.ietf.org/doc/html/rfc2307#section-2.4))
   - Numeric String ([RFC 4517 § 3.3.23](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.23))
+  - Object Class Description ([RFC 4512 § 4.1.1](https://datatracker.ietf.org/doc/html/rfc4512#section-4.1.1) and [RFC 4517 § 3.3.24](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.24))
   - Octet String ([RFC 4517 § 3.3.25](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.25))
   - OID ([RFC 4517 § 3.3.26](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.26))
   - Other Mailbox ([RFC 4517 § 3.3.27](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.27))
@@ -92,18 +111,5 @@ The following syntaxes are supported by this package at this time.  More will be
   - UTC Time ([RFC 4517 § 3.3.34](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.34))
   - UUID ([RFC 4530 § 2.1](https://datatracker.ietf.org/doc/html/rfc4530#section-2.1))
 
-The following [RFC 4517](https://datatracker.ietf.org/doc/html/rfc4517) syntaxes are currently not supported by this package:
-
-  - Attribute Type Description 
-  - DIT Content Rule Description 
-  - DIT Structure Rule Description 
-  - LDAP Syntax Description 
-  - Matching Rule Description 
-  - Matching Rule Use Description 
-  - Name Form Description 
-  - Object Class Description 
-
-For parsing of the above eight (8) syntaxes, see [`go-antlr4512`](https://github.com/JesseCoretta/go-antlr4512), or the full-featured [`go-schemax`](https://github.com/JesseCoretta/go-schemax).
-
-Additionally, to parse Netscape's "aci" syntax, see [`go-antlraci`](https://github.com/JesseCoretta/go-antlraci), or the full-featured [`go-aci`](https://github.com/Jessecoretta/go-aci).
+To parse Netscape's "aci" syntax, see [`go-antlraci`](https://github.com/JesseCoretta/go-antlraci), or the full-featured [`go-aci`](https://github.com/Jessecoretta/go-aci).
 
