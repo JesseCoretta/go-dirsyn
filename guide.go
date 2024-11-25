@@ -240,15 +240,15 @@ IsZero returns a Boolean value indicative of a nil receiver state.
 func (r NotTerm) IsZero() bool { return r.Term == nil }
 
 /*
-CriteriaItem ::= CHOICE {
+TODO - correct this.
 
-	equality         [0] AttributeType,
-	substrings       [1] AttributeType,
-	greaterOrEqual   [2] AttributeType,
-	lessOrEqual      [3] AttributeType,
-	approximateMatch [4] AttributeType,
-
-... }
+	   CriteriaItem ::= CHOICE {
+		equality         [0] AttributeType,
+		substrings       [1] AttributeType,
+		greaterOrEqual   [2] AttributeType,
+		lessOrEqual      [3] AttributeType,
+		approximateMatch [4] AttributeType,
+	        ... }
 */
 type AttributeMatchTerm struct {
 	AttributeType string

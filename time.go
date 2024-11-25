@@ -124,7 +124,7 @@ Eq returns a Boolean value indicative of an equality matching rule
 assertion between receiver r and input x.
 */
 func (r GeneralizedTime) Eq(x any) bool {
-	return timeEqualityMatch(r, x, 0)
+	return timeMatch(r, x, 0)
 }
 
 /*
@@ -132,7 +132,7 @@ Ne returns a Boolean value indicative of a negated equality matching
 rule assertion between receiver r and input x.
 */
 func (r GeneralizedTime) Ne(x any) bool {
-	return timeEqualityMatch(r, x, -1)
+	return timeMatch(r, x, -1)
 }
 
 /*
@@ -140,7 +140,7 @@ Ge returns a Boolean value indicative of a greaterOrEqual matching rule
 assertion between receiver r and input x.
 */
 func (r GeneralizedTime) Ge(x any) bool {
-	return timeEqualityMatch(r, x, 1)
+	return timeMatch(r, x, 1)
 }
 
 /*
@@ -149,7 +149,7 @@ assertion between receiver r and input x.  Strictly speaking, this
 is not an official component, but is present for convenience.
 */
 func (r GeneralizedTime) Gt(x any) bool {
-	return timeEqualityMatch(r, x, 3)
+	return timeMatch(r, x, 3)
 }
 
 /*
@@ -157,7 +157,7 @@ Le returns a Boolean value indicative of a lessOrEqual matching rule
 assertion between receiver r and input x.
 */
 func (r GeneralizedTime) Le(x any) bool {
-	return timeEqualityMatch(r, x, 2)
+	return timeMatch(r, x, 2)
 }
 
 /*
@@ -166,7 +166,7 @@ assertion between receiver r and input x.  Strictly speaking, this
 is not an official component, but is present for convenience.
 */
 func (r GeneralizedTime) Lt(x any) bool {
-	return timeEqualityMatch(r, x, 4)
+	return timeMatch(r, x, 4)
 }
 
 /*
@@ -202,7 +202,7 @@ Eq returns a Boolean value indicative of an equality matching rule
 assertion between receiver r and input x.
 */
 func (r UTCTime) Eq(x any) bool {
-	return timeEqualityMatch(r, x, 0)
+	return timeMatch(r, x, 0)
 }
 
 /*
@@ -210,7 +210,7 @@ Ne returns a Boolean value indicative of a negated equality matching
 rule assertion between receiver r and input x.
 */
 func (r UTCTime) Ne(x any) bool {
-	return timeEqualityMatch(r, x, -1)
+	return timeMatch(r, x, -1)
 }
 
 /*
@@ -218,7 +218,7 @@ Ge returns a Boolean value indicative of a greaterOrEqual matching rule
 assertion between receiver r and input x.
 */
 func (r UTCTime) Ge(x any) bool {
-	return timeEqualityMatch(r, x, 1)
+	return timeMatch(r, x, 1)
 }
 
 /*
@@ -227,7 +227,7 @@ assertion between receiver r and input x.  Strictly speaking, this
 is not an official component, but is present for convenience.
 */
 func (r UTCTime) Gt(x any) bool {
-	return timeEqualityMatch(r, x, 3)
+	return timeMatch(r, x, 3)
 }
 
 /*
@@ -235,7 +235,7 @@ Le returns a Boolean value indicative of a lessOrEqual matching rule
 assertion between receiver r and input x.
 */
 func (r UTCTime) Le(x any) bool {
-	return timeEqualityMatch(r, x, 2)
+	return timeMatch(r, x, 2)
 }
 
 /*
@@ -244,7 +244,7 @@ assertion between receiver r and input x.  Strictly speaking, this
 is not an official component, but is present for convenience.
 */
 func (r UTCTime) Lt(x any) bool {
-	return timeEqualityMatch(r, x, 4)
+	return timeMatch(r, x, 4)
 }
 
 /*
@@ -320,15 +320,21 @@ func uTCHandler(raw, sec, diff, format string) (utc UTCTime, err error) {
 	return
 }
 
-func timeEqualityMatch(rcv, assert any, typ int) (result bool) {
+/*
+timeMatch implements [§ 4.2.16] and [§ 4.2.17] of RFC4517.
+
+[§ 4.2.16 of RFC 4517]: https://www.rfc-editor.org/rfc/rfc4517#section-4.2.16
+[§ 4.2.17 of RFC 4517]: https://www.rfc-editor.org/rfc/rfc4517#section-4.2.17
+*/
+func timeMatch(rcv, assert any, typ int) (result bool) {
 	var c time.Time
 	var utc bool
 
 	switch tv := rcv.(type) {
 	case GeneralizedTime:
-		c = tv.Cast()
+		c = tv.Cast().UTC()
 	case UTCTime:
-		c = tv.Cast()
+		c = tv.Cast().UTC()
 		utc = true
 	}
 

@@ -54,3 +54,12 @@ func TestBootParameter(t *testing.T) {
 	r.BootParameter(``)
 	r.BootParameter(nil)
 }
+
+func TestNIS_codecov(t *testing.T) {
+	isKeystring(`c--l`)
+	isKeystring(`-`)
+	isKeystring(``)
+	isKeystring(`c界j`)
+	isKeystring(`A`)
+	isKeystring(`abc`)
+}

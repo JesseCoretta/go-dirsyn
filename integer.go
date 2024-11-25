@@ -3,7 +3,8 @@ package dirsyn
 import "math/big"
 
 /*
-Integer aliases [big.Int] to implement an unbounded Integer syntax.
+Integer aliases [big.Int] to implement an unbounded ASN.1 INTEGER syntax
+and matching rule capabilities.
 
 From [§ 3.3.16 of RFC 4517]:
 
@@ -40,15 +41,17 @@ UUID returns the [UUID] representation of the receiver instance.
 func (r Integer) UUID() (u UUID) {
 	if !r.IsZero() {
 		bts := r.Bytes()
-		if bts[0] == 0x00 || bts[0] == 0x01 {
-			bts = bts[1:]
+		if len(bts) == 17 {
+			if bts[0] == 0x00 || bts[0] == 0x01 {
+				bts = bts[1:]
+			}
 		}
 
-		var u [16]byte
-		copy(u[16-len(bts):], bts)
+		var _u [16]uint8
+		copy(_u[16-len(bts):], bts)
 
-		if ret, err := uuidFromBytes(u[:]); err == nil {
-			u = UUID(ret)
+		if ret, err := uuidFromBytes(_u[:]); err == nil {
+			u = UUID([16]uint8(ret))
 		}
 	}
 
@@ -146,6 +149,8 @@ func (r Integer) Eq(n any) (is bool) {
 		is = r.Cast().Uint64() == tv
 	case uint:
 		is = r.Cast().Uint64() == uint64(tv)
+	case int64:
+		is = r.Cast().Int64() == tv
 	case int:
 		is = r.Cast().Int64() == int64(tv)
 	}
@@ -184,6 +189,8 @@ func (r Integer) Gt(n any) (is bool) {
 		is = r.Cast().Uint64() > tv
 	case uint:
 		is = r.Cast().Uint64() > uint64(tv)
+	case int64:
+		is = r.Cast().Int64() > tv
 	case int:
 		is = r.Cast().Int64() > int64(tv)
 	}
@@ -227,6 +234,8 @@ func (r Integer) Lt(n any) (is bool) {
 		is = r.Cast().Uint64() < tv
 	case uint:
 		is = r.Cast().Uint64() < uint64(tv)
+	case int64:
+		is = r.Cast().Int64() < tv
 	case int:
 		is = r.Cast().Int64() < int64(tv)
 	}
@@ -307,6 +316,70 @@ func assertNumber(x any) (i *big.Int, err error) {
 		}
 	default:
 		err = errorBadType("Integer")
+	}
+
+	return
+}
+
+func isIntegerType(x any) (is bool) {
+	switch x.(type) {
+	case int, int8, int16, int32, int64:
+		is = true
+	}
+
+	return
+}
+
+func isNegativeInteger(x any) (is bool) {
+	switch tv := x.(type) {
+	case int:
+		is = tv < 0
+	case int8:
+		is = tv < 0
+	case int16:
+		is = tv < 0
+	case int32:
+		is = tv < 0
+	case int64:
+		is = tv < 0
+	}
+
+	return
+}
+
+func castInt64(x any) (i int64, err error) {
+	switch tv := x.(type) {
+	case int:
+		i = int64(tv)
+	case int8:
+		i = int64(tv)
+	case int16:
+		i = int64(tv)
+	case int32:
+		i = int64(tv)
+	case int64:
+		i = tv
+	default:
+		err = errorBadType("any2int64")
+	}
+
+	return
+}
+
+func castUint64(x any) (i uint64, err error) {
+	switch tv := x.(type) {
+	case uint:
+		i = uint64(tv)
+	case uint8:
+		i = uint64(tv)
+	case uint16:
+		i = uint64(tv)
+	case uint32:
+		i = uint64(tv)
+	case uint64:
+		i = tv
+	default:
+		err = errorBadType("any2uint64")
 	}
 
 	return

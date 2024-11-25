@@ -50,7 +50,9 @@ type SubstringAssertion struct {
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r SubstringAssertion) IsZero() bool {
-	return &r == nil
+	return len(r.Initial) == 0 &&
+		len(r.Any) == 0 &&
+		len(r.Final) == 0
 }
 
 /*
@@ -205,60 +207,4 @@ func substrProcess4(x string) (i, a, f AssertionValue, err error) {
 	}
 
 	return
-}
-
-// TODO - figure out how to expose this properly
-func (r SubstringAssertion) substringsMatch(x any, caseIgnore ...bool) bool {
-	var value string
-	switch tv := x.(type) {
-	case string:
-		value = tv
-	case []byte:
-		value = string(tv)
-	case SubstringAssertion:
-		value = tv.String()
-	default:
-		return false
-	}
-
-	caseHandler := func(val string) string { return val }
-
-	if len(caseIgnore) > 0 {
-		if caseIgnore[0] {
-			caseHandler = lc
-		}
-	}
-
-	value = caseHandler(value)
-	if r.Any == nil {
-		return false
-	}
-
-	if r.Initial != nil {
-		initialStr := caseHandler(string(r.Initial))
-		if !hasPfx(value, initialStr) {
-			return false
-		}
-		value = trimPfx(value, initialStr)
-	}
-
-	anyStr := `*` + trim(caseHandler(string(r.Any)), `*`) + `*`
-	substrings := split(anyStr, "*")
-	for _, substr := range substrings {
-		index := stridx(value, substr)
-		if index == -1 {
-			return false
-		}
-		value = value[index+len(substr):]
-	}
-
-	if r.Final != nil {
-		finalStr := caseHandler(string(r.Final))
-		if !hasSfx(value, finalStr) {
-			return false
-		}
-		value = trimSfx(value, finalStr)
-	}
-
-	return true
 }

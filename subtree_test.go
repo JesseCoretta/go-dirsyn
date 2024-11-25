@@ -52,6 +52,11 @@ func TestSubtreeSpecification(t *testing.T) {
 }
 
 func TestSubtreeSpecification_codecov(t *testing.T) {
+	var r RFC3672
+	r.SubtreeSpecification(nil)
+	r.SubtreeSpecification(``)
+	r.SubtreeSpecification(`X`)
+
 	var spec SubtreeSpecification
 	spec.BER()
 	_ = spec.String()

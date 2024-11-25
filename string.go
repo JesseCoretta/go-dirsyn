@@ -1,140 +1,5 @@
 package dirsyn
 
-import (
-	"encoding/asn1"
-	"strconv"
-	"unicode/utf16"
-)
-
-/*
-BitString is a type alias of [asn1.BitString], which can conform to [§ 3.3.2
-of RFC 4517]:
-
-	BitString    = SQUOTE *binary-digit SQUOTE "B"
-	binary-digit = "0" / "1"
-
-From [§ 1.4 of RFC 4512]:
-
-	SQUOTE  = %x27 ; single quote ("'")
-
-[§ 1.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-1.4
-[§ 3.3.2 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.2
-*/
-type BitString asn1.BitString
-
-/*
-String returns the string representation of the receiver instance.
-*/
-func (r BitString) String() (bs string) {
-	if len(r.Bytes)*8 == r.BitLength {
-		for _, b := range r.Bytes {
-			bs += strconv.FormatUint(uint64(b), 2)
-		}
-
-		bs = string(rune('\'')) + bs +
-			string(rune('\'')) +
-			string(rune('B'))
-	}
-
-	return
-}
-
-/*
-IsZero returns a Boolean value indicative of a nil receiver state.
-*/
-func (r BitString) IsZero() bool { return &r == nil }
-
-/*
-BitString returns an error following an analysis of x in the context of
-an ASN.1 BIT STRING.
-*/
-func (r RFC4517) BitString(x any) (bs BitString, err error) {
-	var raw []byte
-	if raw, err = r.assertBitString(x); err == nil {
-		// Make sure there are enough remaining
-		// characters to actually do something.
-		if raw, err = verifyBitStringContents(raw); err == nil {
-			var tx string
-			var bss asn1.BitString
-
-			for i := len(raw); i > 0 && err == nil; i -= 8 {
-				tx = string(raw[:i])
-				if i-8 >= 0 {
-					tx = string(raw[i-8 : i])
-				}
-
-				var bd uint64
-				bd, err = puint(tx, 2, 8)
-				bss.Bytes = append(bss.Bytes, []byte{byte(bd)}...)
-			}
-
-			if err == nil {
-				if _, err = asn1m(bss); err == nil {
-					bss.BitLength = len(bss.Bytes) * 8
-					bs = BitString(bss)
-				}
-			}
-		}
-	}
-
-	return
-}
-
-func (r RFC4517) assertBitString(x any) (raw []byte, err error) {
-	switch tv := x.(type) {
-	case []byte:
-		if len(tv) == 0 {
-			err = errorBadLength("BitString", 0)
-			break
-		}
-		raw = tv
-	case string:
-		raw, err = r.assertBitString([]byte(tv))
-	default:
-		err = errorBadType("BitString")
-	}
-
-	return
-}
-
-func verifyBitStringContents(raw []byte) ([]byte, error) {
-	var err error
-
-	// Last char MUST be 'B' rune, else die.
-	if term := raw[len(raw)-1]; term != 'B' {
-		err = errorTxt("Incompatible terminating character for BitString: " + string(term))
-		return raw, err
-	}
-
-	// Trim terminating char
-	raw = raw[:len(raw)-1]
-
-	// Make sure there are enough remaining
-	// characters to actually do something.
-	if len(raw) < 3 {
-		err = errorTxt("Incompatible remaining length for BitString: " + fmtInt(int64(len(raw)), 10))
-		return raw, err
-	}
-
-	// Verify (and then remove) single quotes
-	L := raw[0]
-	R := raw[len(raw)-1]
-	if L != '\'' || R != '\'' {
-		err = errorTxt("Incompatible encapsulating characters BitString: " + string(L) + "/" + string(R))
-		return raw, err
-	}
-	raw = raw[1 : len(raw)-1]
-
-	for i := 0; i < len(raw); i++ {
-		if !isBinChar(rune(raw[i])) {
-			err = errorTxt("Incompatible non-binary character for BitString" + string(raw[i]))
-			break
-		}
-	}
-
-	return raw, err
-}
-
 /*
 CountryString implements [§ 3.3.4 of RFC 4517]:
 
@@ -317,15 +182,15 @@ alongside an error.
 func (ds DirectoryString) Bytes() (b []byte, err error) {
 	switch ds.Choice {
 	case "TeletexString":
-		b, err = asn1.Marshal(ds.Value.(TeletexString))
+		b, err = asn1m(ds.Value.(TeletexString))
 	case "PrintableString":
-		b, err = asn1.Marshal(ds.Value.(PrintableString))
+		b, err = asn1m(ds.Value.(PrintableString))
 	case "BMPString":
-		b, err = asn1.Marshal(ds.Value.(BMPString))
+		b, err = asn1m(ds.Value.(BMPString))
 	case "UniversalString":
-		b, err = asn1.Marshal(ds.Value.(UniversalString))
+		b, err = asn1m(ds.Value.(UniversalString))
 	case "UTF8String":
-		b, err = asn1.Marshal(ds.Value.(UTF8String))
+		b, err = asn1m(ds.Value.(UTF8String))
 	default:
 		err = errorTxt("Invalid choice")
 	}
@@ -888,8 +753,10 @@ func (r X680) BMPString(x any) (enc BMPString, err error) {
 			if tv[0] != 0x1E {
 				err = errorTxt("Invalid ASN.1 tag")
 				return
+			} else if int(tv[1]) != len(tv[2:]) {
+				err = errorTxt("input string encoded length does not match length octet")
+				return
 			}
-
 		}
 		e = tv.String()
 	case string:
@@ -908,9 +775,9 @@ func (r X680) BMPString(x any) (enc BMPString, err error) {
 	var result []byte
 	result = append(result, 0x1E) // Add BMPString tag (byte(30))
 
-	encoded := utf16.Encode([]rune(e))
+	encoded := utf16Enc([]rune(e))
 	length := len(encoded)
-	if length > 255 {
+	if uint16(length) > uint16(255) {
 		err = errorTxt("input string too long for BMPString encoding")
 		return
 	}
@@ -923,4 +790,61 @@ func (r X680) BMPString(x any) (enc BMPString, err error) {
 	enc = BMPString(result)
 
 	return
+}
+
+func assertString(x any, min int, name string) (str string, err error) {
+	switch tv := x.(type) {
+	case string:
+		if len(tv) < min && min != 0 {
+			err = errorBadLength(name, 0)
+			break
+		}
+		str = tv
+	default:
+		err = errorBadType(name)
+	}
+
+	return
+}
+
+/*
+orderingMatch compares two OCTET STRINGs and returns true if the
+first string appears earlier in collation order than the second
+string.
+*/
+func (r OctetString) orderingMatch(x any) bool {
+	var value []byte
+	switch tv := x.(type) {
+	case []byte:
+		if len(tv) == 0 {
+			// zero length values are OK
+			return len(r) == 0
+		}
+		value = tv
+	case OctetString:
+		return r.orderingMatch([]byte(tv))
+	case string:
+		value = []byte(tv)
+	default:
+		return false
+	}
+
+	mLen := len(value)
+	if len(r) < mLen {
+		mLen = len(r)
+	}
+
+	// Compare octet strings from the first octet to the last
+	for i := 0; i < mLen; i++ {
+		if value[i] < r[i] {
+			return true
+		} else if value[i] > r[i] {
+			return false
+		}
+	}
+
+	// If the strings are identical up to the length of the
+	// shorter string, the shorter string precedes the longer
+	// string
+	return len(value) < len(r)
 }

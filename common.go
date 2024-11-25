@@ -16,7 +16,7 @@ var (
 	atoi     func(string) (int, error)                 = strconv.Atoi
 	itoa     func(int) string                          = strconv.Itoa
 	cntns    func(string, string) bool                 = strings.Contains
-	newErr   func(string) error                        = errors.New
+	mkerr    func(string) error                        = errors.New
 	fields   func(string) []string                     = strings.Fields
 	trimS    func(string) string                       = strings.TrimSpace
 	trimR    func(string, string) string               = strings.TrimRight
@@ -144,5 +144,34 @@ func isBase64(x any) (is bool) {
 func b64dec(enc []byte) (dec []byte, err error) {
 	dec = make([]byte, base64.StdEncoding.DecodedLen(len(enc)))
 	_, err = base64.StdEncoding.Decode(dec, enc)
+	return
+}
+
+func splitUnescaped(str, sep, esc string) (slice []string) {
+	slice = split(str, sep)
+	for i := len(slice) - 2; i >= 0; i-- {
+		if hasSfx(slice[i], esc) {
+			slice[i] = slice[i][:len(slice[i])-len(esc)] + sep + slice[i+1]
+			slice = append(slice[:i+1], slice[i+2:]...)
+		}
+	}
+
+	return
+}
+
+func strInSlice(r string, slice []string, cEM ...bool) (match bool) {
+	var cem bool
+	if len(cEM) > 0 {
+		cem = cEM[0]
+	}
+
+	for i := 0; i < len(slice) && !match; i++ {
+		if cem {
+			match = r == slice[i]
+		} else {
+			match = eqf(r, slice[i])
+		}
+	}
+
 	return
 }

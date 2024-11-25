@@ -59,6 +59,10 @@ func TestPostal_codecov(t *testing.T) {
 	pSOrIA5s(`......\$....!`)
 	pSOrIA5s(`.$.$.$.$.$`)
 	pSOrIA5s(`.$.$@$#$.$`)
+	pSOrIA5s(`界界界`)
+	pSOrIA5s(`界$界$界`)
+	pSOrIA5s(`$100000 Sweepstakes$10 Million Dollar Avenue$New York$NY`)
+
 	lineChar(`.#.$.$.$$`)
 	lineChar(`.#.naïve.$.$$`)
 	lineChar(string(rune('\U0010AAAA')) + `ð`)

@@ -1,6 +1,7 @@
 package dirsyn
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 )
@@ -30,6 +31,22 @@ func TestInteger(t *testing.T) {
 			}
 		}
 	}
+}
+
+/*
+This example demonstrates the means for converting an [Integer] instance
+to a [UUID] instance.
+*/
+func ExampleInteger_UUID() {
+	var r RFC4517
+	i, err := r.Integer(`987895962269883002155146617097157934`)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	fmt.Println(i.UUID())
+	// Output: 00be4308-0c89-1085-8ea0-0002a5d5fd2e
 }
 
 func TestInteger_codecov(t *testing.T) {
@@ -123,4 +140,27 @@ func TestInteger_codecov(t *testing.T) {
 				t.Name(), idx, true, Bool)
 		}
 	}
+
+	isIntegerType(int32(3))
+	isNegativeInteger(int(-3))
+	isNegativeInteger(int8(-3))
+	isNegativeInteger(int16(-3))
+	isNegativeInteger(int32(-3))
+	isNegativeInteger(int64(-3))
+
+	castUint64(8)
+	castUint64(uint(8))
+	castUint64(uint8(3))
+	castUint64(uint16(3))
+	castUint64(uint32(33))
+	castUint64(uint64(9))
+	castUint64(struct{}{})
+
+	castInt64(3)
+	castInt64(int(8))
+	castInt64(int8(3))
+	castInt64(int16(3))
+	castInt64(int32(33))
+	castInt64(int64(9))
+	castInt64(struct{}{})
 }

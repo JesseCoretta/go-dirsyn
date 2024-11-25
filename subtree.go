@@ -990,7 +990,7 @@ func subtreeRefinement(x any, begin ...int) (ref Refinement, err error) {
 	} else if hasPfx(input, "not:") {
 		ref, err = parseNot(input)
 	} else {
-		err = newErr("invalid refinement: " + input)
+		err = errorTxt("invalid refinement: " + input)
 	}
 
 	return
@@ -999,7 +999,7 @@ func subtreeRefinement(x any, begin ...int) (ref Refinement, err error) {
 func parseItem(input string) (Refinement, error) {
 	parts := splitN(input, ":", 2)
 	if len(parts) != 2 {
-		return nil, newErr("invalid item: " + input)
+		return nil, errorTxt("invalid item: " + input)
 	}
 	return ItemRefinement(parts[1]), nil
 }

@@ -40,27 +40,27 @@ func TestSubstringAssertion_codecov(t *testing.T) {
 	processSubstringAssertion([]byte{})
 	processSubstringAssertion(`thisis**bogus`)
 
-	var r RFC4517
+	//var r RFC4517
 
-	s, _ := r.SubstringAssertion(`this*this*this`)
-	s.substringsMatch(`thisathisethis`, true)
-	s.substringsMatch(`thisathisethis`, false)
+	//s, _ := r.SubstringAssertion(`this*this*this`)
+	//s.substringsMatch(`thisathisethis`, true)
+	//s.substringsMatch(`thisathisethis`, false)
 
-	s = SubstringAssertion{}
-	s.substringsMatch([]byte{})
-	s.substringsMatch(nil)
-	s.substringsMatch(SubstringAssertion{})
-	s.substringsMatch(``)
+	//s = SubstringAssertion{}
+	//s.substringsMatch([]byte{})
+	//s.substringsMatch(nil)
+	//s.substringsMatch(SubstringAssertion{})
+	//s.substringsMatch(``)
 
-	s = SubstringAssertion{Any: []byte(`this i* a substring`)}
-	s.substringsMatch(`this is a substring`, true)
-	s.substringsMatch(`athis is a substring`, false)
-	s = SubstringAssertion{
-		Initial: []byte(`this`),
-		Any:     []byte(`i* a `),
-		Final:   []byte(`substring`),
-	}
-	s.substringsMatch(`athis is a substring`)
-	s.substringsMatch(`this is a substrink`)
-	s.substringsMatch(`this es a substring`)
+	//s = SubstringAssertion{Any: []byte(`this i* a substring`)}
+	//s.substringsMatch(`this is a substring`, true)
+	//s.substringsMatch(`athis is a substring`, false)
+	//s = SubstringAssertion{
+	//	Initial: []byte(`this`),
+	//	Any:     []byte(`i* a `),
+	//	Final:   []byte(`substring`),
+	//}
+	//s.substringsMatch(`athis is a substring`)
+	//s.substringsMatch(`this is a substrink`)
+	//s.substringsMatch(`this es a substring`)
 }

@@ -3,6 +3,8 @@ package dirsyn
 import (
 	"fmt"
 	"testing"
+
+	ber "github.com/go-asn1-ber/asn1-ber"
 )
 
 /*
@@ -46,7 +48,7 @@ within the return instance of [Filter].
 */
 func ExampleAndFilter_Index() {
 	var r RFC4515
-	f, _ := r.Filter(`(&(|(sn=Lučić)(employeeID=123456789))(objectClass=person))`)
+	f, _ := r.Filter(`(&(|(sn;lang-sl=Lučić)(employeeID=123456789))(objectClass=person))`)
 
 	slice := f.Index(0).Index(1)
 	fmt.Printf("%s\n", slice)
@@ -105,7 +107,7 @@ func TestFilter(t *testing.T) {
 		{
 			Input:  `(objectClass=`,
 			Output: ``,
-			Error:  `unexpected end of filter`,
+			Error:  `Unexpected end of filter`,
 			Choice: `invalid`,
 		},
 		{
@@ -205,8 +207,14 @@ func TestFilter(t *testing.T) {
 			Length: 1,
 		},
 		{
-			Input:  `(givenName:dn:=John)`,
-			Output: `(givenName:dn:=John)`,
+			Input:  `(givenName;lang-jp=ジェシー)`, // Jesse :)
+			Output: `(givenName;lang-jp=\e3\82\b8\e3\82\a7\e3\82\b7\e3\83\bc)`,
+			Choice: `equalityMatch`,
+			Length: 1,
+		},
+		{
+			Input:  `(sn;lang-sl:dn:=Lučić)`,
+			Output: `(sn;lang-sl:dn:=Lu\c4\8di\c4\87)`,
 			Choice: `extensibleMatch`,
 			Length: 1,
 		},
@@ -345,7 +353,7 @@ func TestFilter(t *testing.T) {
 		{
 			Input:  struct{}{},
 			Output: ``,
-			Error:  `Invalid filter`,
+			Error:  `Invalid or malformed filter`,
 			Choice: `invalid`,
 			Length: 0,
 		},
@@ -395,6 +403,7 @@ func TestFilter(t *testing.T) {
 					t.Name(), idx, fstr, fstr2)
 				continue
 			}
+			filter.Index(9)
 		}
 	}
 }
@@ -405,6 +414,50 @@ func TestFilter_codecov(t *testing.T) {
 	av.Set([]byte(`hello`))
 	av.Set(struct{}{})
 
+	var ands AndFilter
+	ands.isFilter()
+	ands.BER()
+
+	var ors OrFilter
+	ors.isFilter()
+	ors.BER()
+
+	var nots NotFilter
+	nots.isFilter()
+	nots.BER()
+
+	var zerober *ber.Packet = &ber.Packet{}
+	unmarshalItemFilterBER(zerober)
+	unmarshalFilterBER(nil)
+	unmarshalFilterBER(&ber.Packet{
+		Description: `bogus`,
+		Children:    []*ber.Packet{zerober},
+	})
+	unmarshalSetFilterBER(zerober)
+	unmarshalNotFilterBER(zerober)
+	unmarshalSubstringsFilterBER(zerober)
+	unmarshalSubstringsFilterBER(&ber.Packet{
+		Description: `bogus`,
+		Children:    []*ber.Packet{zerober},
+	})
+	unmarshalEqualityFilterBER(zerober)
+	unmarshalEqualityFilterBER(&ber.Packet{
+		Description: `bogus`,
+		Children:    []*ber.Packet{zerober},
+	})
+	unmarshalGeLeFilterBER(&ber.Packet{
+		Description: `bogus`,
+		Children:    []*ber.Packet{zerober},
+	})
+	unmarshalApproxFilterBER(&ber.Packet{
+		Description: `bogus`,
+		Children:    []*ber.Packet{zerober},
+	})
+	unmarshalExtensibleFilterBER(&ber.Packet{
+		Description: `bogus`,
+	})
+	unmarshalPresentFilterBER(&ber.Packet{})
+
 	var gEqual GreaterOrEqualFilter
 	_ = gEqual.String()
 	gEqual.Index(9)
@@ -412,6 +465,7 @@ func TestFilter_codecov(t *testing.T) {
 	gEqual.Len()
 	gEqual.BER()
 	gEqual.tag()
+	gEqual.isFilter()
 
 	var lEqual LessOrEqualFilter
 	_ = lEqual.String()
@@ -420,6 +474,7 @@ func TestFilter_codecov(t *testing.T) {
 	lEqual.Len()
 	lEqual.BER()
 	lEqual.tag()
+	lEqual.isFilter()
 
 	var exts ExtensibleMatchFilter
 	exts.Index(9)
@@ -428,6 +483,9 @@ func TestFilter_codecov(t *testing.T) {
 	exts.Len()
 	exts.BER()
 	exts.tag()
+	exts.isFilter()
+	exts.DNAttributes = true
+	_ = exts.String()
 
 	var substr SubstringsFilter
 	_ = substr.String()
@@ -438,6 +496,9 @@ func TestFilter_codecov(t *testing.T) {
 	substr.tag()
 	substr.Substrings = SubstringAssertion{Any: AssertionValue(`blarg`)}
 	substr.BER()
+	substr.isFilter()
+	substr.Type = AttributeDescription(`cn`)
+	substr.BER()
 
 	var eqly EqualityMatchFilter
 	_ = eqly.String()
@@ -446,6 +507,7 @@ func TestFilter_codecov(t *testing.T) {
 	eqly.Len()
 	eqly.BER()
 	eqly.tag()
+	eqly.isFilter()
 
 	var pres PresentFilter
 	_ = pres.String()
@@ -454,6 +516,7 @@ func TestFilter_codecov(t *testing.T) {
 	pres.Len()
 	pres.BER()
 	pres.tag()
+	pres.isFilter()
 
 	var aprx ApproximateMatchFilter
 	_ = aprx.String()
@@ -462,6 +525,7 @@ func TestFilter_codecov(t *testing.T) {
 	aprx.Len()
 	aprx.BER()
 	aprx.tag()
+	aprx.isFilter()
 
 	var invalid invalidFilter
 	_ = invalid.String()
@@ -470,6 +534,15 @@ func TestFilter_codecov(t *testing.T) {
 	invalid.Len()
 	invalid.BER()
 	invalid.tag()
+	invalid.isFilter()
+
+	var attrdesc AttributeDescription
+	attrdesc = AttributeDescription(`cn;lang-cn`)
+	if attrdesc.Options()[0].Kind() != "tag" {
+		t.Errorf("%s failed: Failed to obtain AttributeOption (tag)",
+			t.Name())
+		return
+	}
 
 	checkParenEncaps(`(bdf`, `fdhjds`)
 	checkParenEncaps(`bdf`, `fdhjds)`)
@@ -498,6 +571,9 @@ func TestFilter_codecov(t *testing.T) {
 	processFilter(`uifeds\f43829`)
 	processFilter(` `)
 	parseComplexFilter(`_`, `&`)
+
+	dnAttrSplit(`A:dn:Z`)
+	dnAttrSplit(`A:DN:Z`)
 }
 
 func BenchmarkFilterParse(b *testing.B) {

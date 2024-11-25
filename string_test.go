@@ -103,8 +103,27 @@ func TestOctetString(t *testing.T) {
 		} else if got := oct.String(); raw != got {
 			t.Errorf("%s failed:\nwant: %s\ngot:  %s",
 				t.Name(), raw, got)
+		} else {
+			//oct.Eq(oct)
+			//oct.Ne(oct)
+			//oct.Ge(oct)
+			//oct.Gt(oct)
+			//oct.Le(oct)
+			//oct.Lt(oct)
 		}
 	}
+
+	//octet1 := OctetString{0x01, 0x02, 0x03}
+	//octet2 := OctetString{0x01, 0x02, 0x02}
+	//if result := octet1.Ge(octet2); !result {
+	//	t.Errorf("%s failed:\nwant: true\ngot:  false", t.Name())
+	//}
+
+	//octet1 = OctetString{0x01, 0x02, 0x02}
+	//octet2 = OctetString{0x01, 0x02, 0x02}
+	//if result := octet1.Gt(octet2); !result {
+	//	t.Errorf("%s failed:\nwant: false\ngot:  true", t.Name())
+	//}
 }
 
 func TestCountryString(t *testing.T) {
@@ -133,11 +152,15 @@ func TestBitString(t *testing.T) {
 	var r RFC4517
 
 	var raw string = `'10100101'B`
-	if bs, err := r.BitString(raw); err != nil {
+	bs, err := r.BitString(raw)
+	if err != nil {
 		t.Errorf("%s failed: %v", t.Name(), err)
 	} else if got := bs.String(); raw != got {
 		t.Errorf("%s failed:\nwant: %s\ngot:  %s",
 			t.Name(), raw, got)
+	}
+	if bs.IsZero() {
+		t.Errorf("%s failed: instance is zero", t.Name())
 	}
 }
 
@@ -173,14 +196,14 @@ func TestDirectoryString(t *testing.T) {
 
 	for idx, raw := range []any{
 		`This is a Directory String.`,
-		BMPString{0xD8, 0x00, 0xDC, 0x00}, // bad
+		BMPString{0x1E, 0x01, 0xDC, 0x00}, // bad
 		BMPString{0x1E, 0x02, 0x03, 0xA3},
 		BMPString{0x00, 0x00, 0xD8, 0x00}, // bad
-		BMPString{0x1E, 0x02, 0x00, 0x41, 0x00, 0x42, 0x00, 0x43},
+		BMPString{0x1E, 0x06, 0x00, 0x41, 0x00, 0x42, 0x00, 0x43},
 		BMPString{0x4E, 0x00, 0x6E, 0x00, 0x61, 0x00, 0x6D, 0x00, 0xE9}, // bad
-		BMPString{0x1E, 0x02, 0x00, 0x48, 0x00, 0x65, 0x00, 0x6C, 0x00, 0x6C, 0x00, 0x6F},
+		BMPString{0x1E, 0x0a, 0x00, 0x48, 0x00, 0x65, 0x00, 0x6C, 0x00, 0x6C, 0x00, 0x6F},
 		BMPString{0x00, 0x00, 0x00}, // bad
-		BMPString{0x1E, 0x02, 0x00, 0x54, 0x00, 0x65, 0x00, 0x78, 0x00, 0x74},
+		BMPString{0x1E, 0x08, 0x00, 0x54, 0x00, 0x65, 0x00, 0x78, 0x00, 0x74},
 		BMPString{0xFF}, // bad
 		BMPString{},
 		PrintableString("Invalid@Chars"), // bad
@@ -225,6 +248,7 @@ func TestDirectoryString(t *testing.T) {
 		_, _ = s.UTF8String(raw)
 		_, _ = s.UTF8String([]byte(ds.String()))
 		_, _ = x.BMPString([]byte(ds.String()))
+
 	}
 }
 
@@ -233,8 +257,8 @@ func TestString_codecov(t *testing.T) {
 	var s RFC4512
 	var x X680
 
-	_, _ = r.assertBitString([]byte{})
-	_, _ = r.assertBitString(nil)
+	//_, _ = r.assertBitString([]byte{})
+	//_, _ = r.assertBitString(nil)
 	_, _ = verifyBitStringContents([]byte(`'01001011`))
 	_, _ = verifyBitStringContents([]byte(`''B`))
 	_, _ = verifyBitStringContents([]byte(`01001011'B`))
@@ -242,6 +266,8 @@ func TestString_codecov(t *testing.T) {
 	var cs CountryString
 	cs.IsZero()
 	_ = cs.String()
+
+	isT61Single('\u009B')
 
 	r.CountryString(``)
 	r.CountryString(`#@`)
@@ -258,6 +284,14 @@ func TestString_codecov(t *testing.T) {
 	_, _ = x.BMPString(raw)
 	_, _ = x.BMPString(`12`)
 	_, _ = x.BMPString(nil)
+	_, _ = x.BMPString(BMPString([]byte{0x1E, 0x00}))
+	_, _ = x.BMPString(BMPString([]byte{0x00, 0x1E}))
+
+	var bigBMP []byte = []byte{0x1E, 0xFF}
+	for i := 0; i < 256; i++ {
+		bigBMP = append(bigBMP, byte(i))
+	}
+	_, _ = x.BMPString(bigBMP)
 	_, _ = r.UniversalString(``)
 	_, _ = r.UniversalString(UniversalString(`XYZ`))
 	_, _ = r.UniversalString([]byte{})

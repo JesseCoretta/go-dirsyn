@@ -39,7 +39,7 @@ func TestUTCTime(t *testing.T) {
 			utct.Ge(nil)
 			utct.Lt(nil)
 			utct.Le(nil)
-			timeEqualityMatch(utct, utct, 1)
+			timeMatch(utct, utct, 1)
 		}
 	}
 }
