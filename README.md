@@ -10,7 +10,9 @@ This package was mainly developed for the XDAPL Project, but may be freely used 
 
 ## Status
 
-The current state of this package is EXPERIMENTAL and very unstable. It should NOT be used in mission-critical or production environments, and is prone to breaking changes at any time.  There are some interesting long-term plans for this package, so it should continue to evolve and grow over time.
+**NOT YET READY FOR GENERAL USE!**
+
+The current state of this package is EXPERIMENTAL and very unstable. It should NOT be used in mission-critical or production environments, and is prone to breaking changes at any time.  There are some interesting long-term plans for this package, so it should continue to evolve and grow.
 
 Much research remains before this package can be relied upon implicitly. Some functionality is present only to serve as a placeholder, and does not exhibit fully standards-compliant behavior at this time.
 
