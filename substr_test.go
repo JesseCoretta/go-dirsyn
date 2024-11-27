@@ -35,10 +35,28 @@ func TestSubstringAssertion_codecov(t *testing.T) {
 	substrProcess4(`11*11`)
 	substrProcess4(`aaaa`)
 
-	processSubstringAssertion(nil)
-	processSubstringAssertion(``)
-	processSubstringAssertion([]byte{})
-	processSubstringAssertion(`thisis**bogus`)
+	marshalSubstringAssertion(nil)
+	marshalSubstringAssertion(``)
+	marshalSubstringAssertion([]byte{})
+	marshalSubstringAssertion(`thisis**bogus`)
+
+	b, err := caseIgnoreSubstringsMatch(`this*isa*substring`, `this*isa*substring`)
+	if err != nil {
+		t.Errorf("%s failed: %v", t.Name(), err)
+		return
+	} else if !b.True() {
+		t.Errorf("%s failed:\nwant: TRUE\ngot:  %s", t.Name(), b.String())
+		return
+	}
+
+	b, err = caseExactSubstringsMatch(`this*isa*substring`, `This*isa*Substring`)
+	if err != nil {
+		t.Errorf("%s failed: %v", t.Name(), err)
+		return
+	} else if !b.False() {
+		t.Errorf("%s failed:\nwant: FALSE\ngot:  %s", t.Name(), b.String())
+		return
+	}
 
 	//var r RFC4517
 

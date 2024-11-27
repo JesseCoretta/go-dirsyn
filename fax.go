@@ -93,7 +93,17 @@ to unmarshal x.
 Input x should be the ASN.1 encoded bytes of the receiver instance in
 string or []byte form.
 */
-func (r RFC4517) Fax(x any) (fax Fax, err error) {
+func (r RFC4517) Fax(x any) (Fax, error) {
+	return marshalFax(x)
+}
+
+func fax(x any) (result Boolean) {
+	_, err := marshalFax(x)
+	result.Set(err == nil)
+	return
+}
+
+func marshalFax(x any) (f Fax, err error) {
 	var b []byte
 	switch tv := x.(type) {
 	case string:
@@ -115,7 +125,7 @@ func (r RFC4517) Fax(x any) (fax Fax, err error) {
 			err = errorTxt("Extra left-over content found during ASN.1 unmarshal: '" +
 				string(rest) + "'")
 		} else {
-			fax.G3Facsimile = *body
+			f.G3Facsimile = *body
 		}
 	}
 

@@ -5,6 +5,50 @@ import (
 	"time"
 )
 
+func TestGeneralizedTimeOrderingMatch(t *testing.T) {
+	var gt1, gt2 GeneralizedTime
+	var err error
+
+	var r RFC4517
+	if gt1, err = r.GeneralizedTime(`19950218155703.000000Z`); err != nil {
+		t.Errorf("%s failed: %v", t.Name(), err)
+		return
+	}
+
+	if gt2, err = r.GeneralizedTime(`20240229155703.000000Z`); err != nil {
+		t.Errorf("%s failed: %v", t.Name(), err)
+		return
+	}
+
+	var result Boolean
+	// GreaterOrEqual
+	result, _ = generalizedTimeOrderingMatch(gt2, gt1) // >=
+	if result.True() {
+		t.Errorf("%s [GE] failed:\nwant: %s\ngot:  %s",
+			t.Name(), `FALSE`, result)
+		return
+	}
+	//t.Logf("%s>=%s\n", gt2,gt1)
+
+	// LessOrEqual
+	result, _ = generalizedTimeOrderingMatch(gt1, gt2) // <=
+	if result.False() {
+		t.Errorf("%s [LE] failed:\nwant: %s\ngot:  %s",
+			t.Name(), `TRUE`, result)
+		return
+	}
+	//t.Logf("%s<=%s\n", gt1,gt2)
+
+	// Equal (via LE)
+	result, _ = generalizedTimeOrderingMatch(gt1, gt1) // >= // equal
+	if result.True() {
+		t.Errorf("%s [EQ] failed:\nwant: %s\ngot:  %s",
+			t.Name(), `TRUE`, result)
+		return
+	}
+	//t.Logf("%s==%s\n", gt1,gt1)
+}
+
 func TestUTCTime(t *testing.T) {
 	var r RFC4517
 
@@ -29,17 +73,11 @@ func TestUTCTime(t *testing.T) {
 		struct{}{},
 		`98170306Z`,
 	} {
-		if utct, err := r.UTCTime(thyme); err == nil {
+		if _, err := r.UTCTime(thyme); err == nil {
 			t.Errorf("%s[%d] failed: expected error, got nil", t.Name(), idx)
 			return
-		} else {
-			utct.Eq(nil)
-			utct.Ne(nil)
-			utct.Gt(nil)
-			utct.Ge(nil)
-			utct.Lt(nil)
-			utct.Le(nil)
-			timeMatch(utct, utct, 1)
+			//} else {
+			//timeMatch(utct, utct, 1)
 		}
 	}
 }
@@ -94,12 +132,8 @@ func TestGeneralizedTime(t *testing.T) {
 
 func TestGeneralizedTimeMatchingRules(t *testing.T) {
 	assertions := map[int]string{
-		-1: `negatedEqualityMatch`,
-		0:  `equalityMatch`,
-		1:  `greaterOrEqual`,
-		2:  `lessOrEqual`,
-		3:  `greaterThan`,
-		4:  `lessThan`,
+		0: `equalityMatch`,
+		2: `lessOrEqual/greaterOrEqual`,
 	}
 
 	type assertion struct {
@@ -112,12 +146,8 @@ func TestGeneralizedTimeMatchingRules(t *testing.T) {
 
 	var err error
 	for idx, try := range []assertion{
-		{A: `20250408193455.013845Z`, B: `20230408193455Z`, T: -1, R: [4]bool{true, true, true, true}},
 		{A: `20250408193455Z`, B: `20250408193455Z`, T: 0, R: [4]bool{true, true, true, true}},
-		{A: `20250408193455Z`, B: `20240101000001.163742-0700`, T: 1, R: [4]bool{true, false, true, true}},
-		{A: `20210408193455Z`, B: `20240101000001.163742-0700`, T: 2, R: [4]bool{true, false, true, true}},
-		{A: `20250408193455Z`, B: `20240101000001.163742-0700`, T: 3, R: [4]bool{true, false, true, true}},
-		{A: `20210408193455Z`, B: `20240101000001.163742-0700`, T: 4, R: [4]bool{true, false, true, true}},
+		{A: `20210408193455Z`, B: `20240101000001.163742-0700`, T: 2, R: [4]bool{false, false, true, true}},
 	} {
 		var A, B GeneralizedTime
 		if A, err = r.GeneralizedTime(try.A); err != nil {
@@ -132,38 +162,28 @@ func TestGeneralizedTimeMatchingRules(t *testing.T) {
 		AT := time.Time(A)
 		BT := time.Time(B)
 
+		tM := func(a, b any) bool {
+			bewl, _ := generalizedTimeMatch(a, b)
+			return bewl.True()
+		}
+
+		tOM := func(a, b any) bool {
+			bewl, _ := generalizedTimeOrderingMatch(a, b)
+			return bewl.True()
+		}
+
 		var results []bool = make([]bool, len(try.R), len(try.R))
 		switch try.T {
-		case -1:
-			results[0] = try.R[0] == A.Ne(BT)
-			results[1] = try.R[1] == B.Ne(AT)
-			results[2] = try.R[2] == A.Ne(B)
-			results[3] = try.R[3] == A.Ne(B.String())
 		case 0:
-			results[0] = try.R[0] == A.Eq(BT)
-			results[1] = try.R[1] == B.Eq(AT)
-			results[2] = try.R[2] == A.Eq(B)
-			results[3] = try.R[3] == A.Eq(B.String())
-		case 1:
-			results[0] = try.R[0] == A.Ge(BT)
-			results[1] = try.R[1] == B.Ge(AT)
-			results[2] = try.R[2] == A.Ge(B)
-			results[3] = try.R[3] == A.Ge(B.String())
+			results[0] = try.R[0] == tM(A, BT)
+			results[1] = try.R[1] == tM(B, AT)
+			results[2] = try.R[2] == tM(A, B)
+			results[3] = try.R[3] == tM(A, B.String())
 		case 2:
-			results[0] = try.R[0] == A.Le(BT)
-			results[1] = try.R[1] == B.Le(AT)
-			results[2] = try.R[2] == A.Le(B)
-			results[3] = try.R[3] == A.Le(B.String())
-		case 3:
-			results[0] = try.R[0] == A.Gt(BT)
-			results[1] = try.R[1] == B.Gt(AT)
-			results[2] = try.R[2] == A.Gt(B)
-			results[3] = try.R[3] == A.Gt(B.String())
-		case 4:
-			results[0] = try.R[0] == A.Lt(BT)
-			results[1] = try.R[1] == B.Lt(AT)
-			results[2] = try.R[2] == A.Lt(B)
-			results[3] = try.R[3] == A.Lt(B.String())
+			results[0] = try.R[0] == tOM(AT, B)
+			results[1] = try.R[1] == tOM(BT, A)
+			results[2] = try.R[2] == tOM(A, B)
+			results[3] = try.R[3] == tOM(A, B.String())
 		}
 
 		for idx2, res := range results {

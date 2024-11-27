@@ -95,18 +95,18 @@ SubstringAssertion returns an error following an analysis of x in the
 context of a Substring Assertion.
 */
 func (r RFC4517) SubstringAssertion(x any) (SubstringAssertion, error) {
-	return processSubstringAssertion(x)
+	return marshalSubstringAssertion(x)
 }
 
-func processSubstringAssertion(z any) (ssa SubstringAssertion, err error) {
+func substringAssertion(x any) (result Boolean) {
+	_, err := marshalSubstringAssertion(x)
+	result.Set(err == nil)
+	return
+}
+
+func marshalSubstringAssertion(z any) (ssa SubstringAssertion, err error) {
 	var x string
-	switch tv := z.(type) {
-	case string:
-		x = tv
-	case []byte:
-		x = string(tv)
-	default:
-		err = errorBadType("Substring Assertion")
+	if x, err = assertSubstringAssertion(z); err != nil {
 		return
 	}
 
@@ -204,6 +204,21 @@ func substrProcess4(x string) (i, a, f AssertionValue, err error) {
 		i = AssertionValue(sp[0])
 		a = AssertionValue(join(sp[1:len(sp)-1], `*`))
 		f = AssertionValue(sp[len(sp)-1])
+	}
+
+	return
+}
+
+func assertSubstringAssertion(x any) (value string, err error) {
+	switch tv := x.(type) {
+	case string:
+		value = tv
+	case []byte:
+		value = string(tv)
+	case SubstringAssertion:
+		value = tv.String()
+	default:
+		err = errorBadType("SubstringAssertion")
 	}
 
 	return

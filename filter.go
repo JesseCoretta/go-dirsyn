@@ -956,7 +956,7 @@ func parseItemFilter(input string) (filter Filter, err error) {
 			AssertionValue(after)}
 	} else if cntns(after, "*") {
 		var ssa SubstringAssertion
-		if ssa, err = processSubstringAssertion(after); err == nil {
+		if ssa, err = marshalSubstringAssertion(after); err == nil {
 			err = checkFilterOIDs(pre, ``)
 			filter = SubstringsFilter{
 				Type:       AttributeDescription(pre),

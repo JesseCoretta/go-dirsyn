@@ -18,12 +18,22 @@ type Integer big.Int
 Integer returns an instance of Integer alongside an error following an
 analysis of x in the context of an ASN.1 Integer.
 */
-func (r RFC4517) Integer(x any) (i Integer, err error) {
+func (r RFC4517) Integer(x any) (Integer, error) {
+	return marshalInteger(x)
+}
+
+func marshalInteger(x any) (i Integer, err error) {
 	var _i *big.Int
 	if _i, err = assertNumber(x); err == nil {
 		i = Integer(*_i)
 	}
 
+	return
+}
+
+func integer(x any) (result Boolean) {
+	_, err := marshalInteger(x)
+	result.Set(err == nil)
 	return
 }
 
@@ -123,138 +133,6 @@ func (r Integer) String() (s string) {
 	}
 
 	return
-}
-
-/*
-Eq returns a Boolean value indicative of whether the receiver is equal to
-the value provided.
-
-Valid input types are string, int64, uint64, int, uint, *[math/big.Int] and [Integer].
-
-Any input that represents an unspecified number guarantees a false return.
-
-See also [Integer.Ne].
-*/
-func (r Integer) Eq(n any) (is bool) {
-	switch tv := n.(type) {
-	case *big.Int:
-		is = r.Cast().Cmp(tv) == 0
-	case Integer:
-		is = r.Cast().Cmp(tv.Cast()) == 0
-	case string:
-		if nf, ok := big.NewInt(0).SetString(tv, 10); ok {
-			is = r.Cast().Cmp(nf) == 0
-		}
-	case uint64:
-		is = r.Cast().Uint64() == tv
-	case uint:
-		is = r.Cast().Uint64() == uint64(tv)
-	case int64:
-		is = r.Cast().Int64() == tv
-	case int:
-		is = r.Cast().Int64() == int64(tv)
-	}
-
-	return
-}
-
-/*
-Ne returns a Boolean value indicative of whether the receiver is NOT equal
-to the value provided.
-
-This method wraps [Integer.Eq] in negated context, and operates under the
-same constraints.
-*/
-func (r Integer) Ne(n any) bool { return !r.Eq(n) }
-
-/*
-Gt returns a boolean value indicative of whether the receiver is greater than
-the value provided.
-
-Valid input types are string, int64, uint64, int, uint, *[math/big.Int] and [Integer].
-
-Any input that represents an unspecified number guarantees a false return.
-*/
-func (r Integer) Gt(n any) (is bool) {
-	switch tv := n.(type) {
-	case *big.Int:
-		is = r.Cast().Cmp(tv) == 1
-	case Integer:
-		is = r.Cast().Cmp(tv.Cast()) == 1
-	case string:
-		if nf, ok := big.NewInt(0).SetString(tv, 10); ok {
-			is = r.Cast().Cmp(nf) == 1
-		}
-	case uint64:
-		is = r.Cast().Uint64() > tv
-	case uint:
-		is = r.Cast().Uint64() > uint64(tv)
-	case int64:
-		is = r.Cast().Int64() > tv
-	case int:
-		is = r.Cast().Int64() > int64(tv)
-	}
-	return
-}
-
-/*
-Ge returns a boolean value indicative of whether the receiver is greater than
-or equal to the value provided.
-
-This method is merely a convenient wrapper to an ORed call of the [Integer.Gt]
-and [Integer.Eq] methods.
-
-Valid input types are string, int64, uint64, int, uint, *[math/big.Int] and [Integer].
-
-Any input that represents an unspecified number guarantees a false return.
-*/
-func (r Integer) Ge(n any) (is bool) {
-	return r.Gt(n) || r.Eq(n)
-}
-
-/*
-Lt returns a boolean value indicative of whether the receiver is less than
-the value provided.
-
-Valid input types are string, int64, uint64, int, uint, *[math/big.Int] and [Integer].
-
-Any input that represents an unspecified number guarantees a false return.
-*/
-func (r Integer) Lt(n any) (is bool) {
-	switch tv := n.(type) {
-	case *big.Int:
-		is = r.Cast().Cmp(tv) == -1
-	case Integer:
-		is = r.Cast().Cmp(tv.Cast()) == -1
-	case string:
-		if nf, ok := big.NewInt(0).SetString(tv, 10); ok {
-			is = r.Cast().Cmp(nf) == -1
-		}
-	case uint64:
-		is = r.Cast().Uint64() < tv
-	case uint:
-		is = r.Cast().Uint64() < uint64(tv)
-	case int64:
-		is = r.Cast().Int64() < tv
-	case int:
-		is = r.Cast().Int64() < int64(tv)
-	}
-	return
-}
-
-/*
-Le returns a boolean value indicative of whether the receiver is less than or
-equal to the value provided.
-
-This method is merely a convenient wrapper to an ORed call of the [Integer.Lt]
-and [Integer.Eq] methods.
-
-Valid input types are string, int64, uint64, int, uint, *[math/big.Int] and [Integer].
-
-Any input that represents an unspecified number guarantees a false return.
-*/
-func (r Integer) Le(n any) (is bool) {
-	return r.Lt(n) || r.Eq(n)
 }
 
 func assertInt(x any) (i *big.Int, err error) {

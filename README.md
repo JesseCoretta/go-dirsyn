@@ -1,6 +1,8 @@
-[![Go Report Card](https://goreportcard.com/badge/JesseCoretta/go-dirsyn)](https://goreportcard.com/report/github.com/JesseCoretta/go-dirsyn) [![Reference](https://pkg.go.dev/badge/github.com/JesseCoretta/go-dirsyn.svg)](https://pkg.go.dev/github.com/JesseCoretta/go-dirsyn) [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](https://github.com/JesseCoretta/go-dirsyn/blob/main/LICENSE) [![Issues](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/JesseCoretta/go-dirsyn/issues) [![Experimental](https://img.shields.io/badge/experimental-blue?logoColor=blue&label=%F0%9F%A7%AA%20%F0%9F%94%AC&labelColor=blue&color=gray)](https://github.com/JesseCoretta/JesseCoretta/blob/main/EXPERIMENTAL.md) [![Volatility Warning](https://img.shields.io/badge/volatile-darkred?label=%F0%9F%92%A5&labelColor=white&color=orange&cacheSeconds=86400)](https://github.com/JesseCoretta/JesseCoretta/blob/main/VOLATILE.md) [![Help Animals](https://img.shields.io/badge/help_animals-gray?label=%F0%9F%90%BE%20%F0%9F%98%BC%20%F0%9F%90%B6&labelColor=yellow)](https://github.com/JesseCoretta/JesseCoretta/blob/main/DONATIONS.md)
+<br>
 
 ![dirsyn_logo_small](https://github.com/user-attachments/assets/ae15a556-1478-406f-beac-4d4b52b1d133)
+
+[![Go Report Card](https://goreportcard.com/badge/JesseCoretta/go-dirsyn)](https://goreportcard.com/report/github.com/JesseCoretta/go-dirsyn) [![Reference](https://pkg.go.dev/badge/github.com/JesseCoretta/go-dirsyn.svg)](https://pkg.go.dev/github.com/JesseCoretta/go-dirsyn) [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](https://github.com/JesseCoretta/go-dirsyn/blob/main/LICENSE) [![Issues](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/JesseCoretta/go-dirsyn/issues) [![Experimental](https://img.shields.io/badge/experimental-blue?logoColor=blue&label=%F0%9F%A7%AA%20%F0%9F%94%AC&labelColor=blue&color=gray)](https://github.com/JesseCoretta/JesseCoretta/blob/main/EXPERIMENTAL.md) [![Volatility Warning](https://img.shields.io/badge/volatile-darkred?label=%F0%9F%92%A5&labelColor=white&color=orange&cacheSeconds=86400)](https://github.com/JesseCoretta/JesseCoretta/blob/main/VOLATILE.md) [![Help Animals](https://img.shields.io/badge/help_animals-gray?label=%F0%9F%90%BE%20%F0%9F%98%BC%20%F0%9F%90%B6&labelColor=yellow)](https://github.com/JesseCoretta/JesseCoretta/blob/main/DONATIONS.md)
 
 Package dirsyn implements directory syntax parsing and matching rule components.
 
@@ -8,7 +10,7 @@ This package was mainly developed for the XDAPL Project, but may be freely used 
 
 ## Status
 
-The current state of this package is EXPERIMENTAL. It should not be used in mission-critical or production environments, and is prone to breaking changes at any time.  There are some interesting long-term plans for this package, so it should continue to evolve and grow over time.
+The current state of this package is EXPERIMENTAL and very unstable. It should NOT be used in mission-critical or production environments, and is prone to breaking changes at any time.  There are some interesting long-term plans for this package, so it should continue to evolve and grow over time.
 
 Much research remains before this package can be relied upon implicitly. Some functionality is present only to serve as a placeholder, and does not exhibit fully standards-compliant behavior at this time.
 
@@ -35,6 +37,8 @@ This package relies upon the following packages from the standard library:
   - `fmt`<sup><sup>†</sup></sup>
   - `math/big`
   - `os`
+  - `reflect`<sup><sup>††</sup></sup>
+  - `regexp`<sup><sup>†††</sup></sup>
   - `sort`
   - `strconv`
   - `strings`
@@ -44,7 +48,12 @@ This package relies upon the following packages from the standard library:
   - `unicode/utf8`
   - `unicode/utf16`
 
-<sup><sup>**†** - ONLY used for testing/examples</sup></sup>
+<sup>
+  <sup><b>†</b>   - used ONLY for testing/examples</sup><br>
+  <sup><b>††</b>  - very limited use</sup><br>
+  <sup><b>†††</b> - only used for custom syntaxes implemented through the X-PATTERN eXtension</sup><br>
+</sup>
+<br>
 
 This package relies upon the following third-party packages:
 
@@ -56,13 +65,38 @@ This package relies upon the following third-party packages:
 
 The following matching rules are supported by this package at this time.  More will be added in the future:
 
-  - BooleanMatch [RFC 4517 § 4.2.2](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.2)
-  - GeneralizedTimeMatch [RFC 4517 § 4.2.16](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.16)
-  - GeneralizedTimeOrderingMatch [RFC 4517 § 4.2.17](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.17)
-  - IntegerMatch [RFC 4517 § 4.2.19](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.19)
-  - IntegerOrderingMatch [RFC 4517 § 4.2.20](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.20)
-  - OctetStringMatch [RFC 4517 § 4.2.27](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.27)
-  - OctetStringOrderingMatch [RFC 4517 § 4.2.28](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.28)
+  - `bitStringMatch` ([RFC 4517 § 4.2.1](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.1))
+  - `booleanMatch` ([RFC 4517 § 4.2.2](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.2))
+  - `caseExactIA5Match` ([RFC 4517 § 4.2.3](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.3))
+  - `caseExactMatch` ([RFC 4517 § 4.2.4](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.4))
+  - `caseExactOrderingMatch` ([RFC 4517 § 4.2.5](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.5))
+  - `caseExactSubstringsMatch` ([RFC 4517 § 4.2.6](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.6))
+  - `caseIgnoreIA5Match` ([RFC 4517 § 4.2.7](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.7))
+  - `caseIgnoreIA5SubstringsMatch` ([RFC 4517 § 4.2.8](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.8))
+  - `caseIgnoreListMatch` ([RFC 4517 § 4.2.9](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.9))
+  - `caseIgnoreListSubstringsMatch` ([RFC 4517 § 4.2.10](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.10))
+  - `caseIgnoreMatch` ([RFC 4517 § 4.2.11](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.11))
+  - `caseIgnoreOrderingMatch` ([RFC 4517 § 4.2.12](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.12))
+  - `caseIgnoreSubstringsMatch` ([RFC 4517 § 4.2.13](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.13))
+  - `directoryStringFirstComponentMatch` ([RFC 4517 § 4.2.14](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.14))
+  - `distinguishedNameMatch` ([RFC 4517 § 4.2.15](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.15))
+  - `generalizedTimeMatch` ([RFC 4517 § 4.2.16](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.16))
+  - `generalizedTimeOrderingMatch` ([RFC 4517 § 4.2.17](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.17))
+  - `integerFirstComponentMatch` ([RFC 4517 § 4.2.18](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.18))
+  - `integerMatch` ([RFC 4517 § 4.2.19](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.19))
+  - `integerOrderingMatch` ([RFC 4517 § 4.2.20](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.20))
+  - `keywordMatch` ([RFC 4517 § 4.2.21](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.21))
+  - `numericStringMatch` ([RFC 4517 § 4.2.22](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.22))
+  - `numericStringOrderingMatch` ([RFC 4517 § 4.2.23](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.23))
+  - `numericStringSubstringsMatch` ([RFC 4517 § 4.2.24](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.24))
+  - `objectIdentifierFirstComponentMatch` ([RFC 4517 § 4.2.25](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.25))
+  - `objectIdentifierMatch` ([RFC 4517 § 4.2.26](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.26))
+  - `octetStringMatch` ([RFC 4517 § 4.2.27](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.27))
+  - `octetStringOrderingMatch` ([RFC 4517 § 4.2.28](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.28))
+  - `telephoneNumberMatch` ([RFC 4517 § 4.2.29](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.29))
+  - `telephoneNumberSubstringsMatch` ([RFC 4517 § 4.2.30](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.30))
+  - `uniqueMemberMatch` ([RFC 4517 § 4.2.31](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.31))
+  - `wordMatch` ([RFC 4517 § 4.2.32](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.32))
 
 ## Supported Syntaxes
 
@@ -111,5 +145,5 @@ The following syntaxes are supported by this package at this time.  More will be
   - UTC Time ([RFC 4517 § 3.3.34](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.34))
   - UUID ([RFC 4530 § 2.1](https://datatracker.ietf.org/doc/html/rfc4530#section-2.1))
 
-To parse instances of the Netscape ACIv3 "`aci`" attribute type, see [`go-antlraci`](https://github.com/JesseCoretta/go-antlraci), or the full-featured [`go-aci`](https://github.com/Jessecoretta/go-aci). This functionality may be ported into dirsyn in the future.
+To parse instances of the Netscape ACIv3 "`aci`" attribute type, see [`go-antlraci`](https://github.com/JesseCoretta/go-antlraci), or the full-featured [`go-aci`](https://github.com/Jessecoretta/go-aci). This functionality may be ported into this package in the future.
 

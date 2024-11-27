@@ -29,6 +29,12 @@ IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r CountryString) IsZero() bool { return len(r) == 0 }
 
+func countryString(x any) (result Boolean) {
+	_, err := marshalCountryString(x)
+	result.Set(err == nil)
+	return
+}
+
 /*
 CountryString returns an error following an analysis of x in the context of
 an [ISO 3166] country code. Note that specific codes -- though syntactically
@@ -36,7 +42,11 @@ valid -- should be verified periodically in lieu of significant world events.
 
 [ISO 3166]: https://www.iso.org/iso-3166-country-codes.html
 */
-func (r RFC4517) CountryString(x any) (cs CountryString, err error) {
+func (r RFC4517) CountryString(x any) (CountryString, error) {
+	return marshalCountryString(x)
+}
+
+func marshalCountryString(x any) (cs CountryString, err error) {
 	var raw string
 
 	switch tv := x.(type) {
@@ -47,7 +57,7 @@ func (r RFC4517) CountryString(x any) (cs CountryString, err error) {
 		}
 		raw = tv
 	case []byte:
-		cs, err = r.CountryString(string(tv))
+		cs, err = marshalCountryString(string(tv))
 		return
 	default:
 		err = errorBadType("Country String")
@@ -112,10 +122,24 @@ From [ITU-T Rec. X.520 clause 2.6]:
 [§ 3.3.6 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.6
 [ITU-T Rec. X.520 clause 2.6]: https://www.itu.int/rec/T-REC-X.520
 */
-type DirectoryString struct {
-	Choice string
-	Value  any
+type DirectoryString interface {
+	String() string
+	Choice() string
+	IsZero() bool
+	isDirectoryString() // differentiate from other interfaces
 }
+
+func (r BMPString) isDirectoryString()       {}
+func (r UTF8String) isDirectoryString()      {}
+func (r UniversalString) isDirectoryString() {}
+func (r TeletexString) isDirectoryString()   {}
+func (r PrintableString) isDirectoryString() {}
+
+func (r BMPString) Choice() string       { return `bmpString` }
+func (r UTF8String) Choice() string      { return `utf8String` }
+func (r UniversalString) Choice() string { return `universalString` }
+func (r TeletexString) Choice() string   { return `teletexString` }
+func (r PrintableString) Choice() string { return `printableString` }
 
 /*
 DirectoryString returns an instance of [DirectoryString] alongside an error.
@@ -128,100 +152,34 @@ The following input types are accepted:
   - [TeletexString]
   - [BMPString]
 */
-func (r RFC4517) DirectoryString(x any) (ds DirectoryString, err error) {
+func (r RFC4517) DirectoryString(x any) (DirectoryString, error) {
+	return marshalDirectoryString(x)
+}
 
-	var choice string
-	var value any
+func directoryString(x any) (result Boolean) {
+	_, err := marshalDirectoryString(x)
+	result.Set(err == nil)
+	return
+}
 
+func marshalDirectoryString(x any) (ds DirectoryString, err error) {
 	switch tv := x.(type) {
-	case string:
-		var u UTF8String
-		u, err = uTF8(tv)
-		choice = `UTF8String`
-		value = u
+	case UTF8String, string, []byte:
+		ds, err = assertUTF8String(tv)
 	case PrintableString:
-		_, err = r.PrintableString(string(tv))
-		choice = `PrintableString`
-		value = tv
+		ds, err = marshalPrintableString(tv)
 	case UniversalString:
-		_, err = r.UniversalString(string(tv))
-		choice = `UniversalString`
-		value = tv
+		ds, err = marshalUniversalString(tv)
 	case BMPString:
-		var x680 X680
-		_, err = x680.BMPString(tv)
-		choice = `BMPString`
-		value = tv
+		ds, err = assertBMPString(tv)
 	case TeletexString:
-		_, err = r.TeletexString(string(tv))
-		choice = `TeletexString`
-		value = tv
-	case UTF8String:
-		var s RFC4512
-		_, err = s.UTF8String(string(tv))
-		choice = `UTF8String`
-		value = tv
+		ds, err = marshalTeletexString(tv)
 	default:
 		err = errorBadType("Directory String")
 	}
 
-	if err == nil {
-		ds = DirectoryString{
-			Choice: choice,
-			Value:  value,
-		}
-	}
-
-	return
+	return ds, err
 }
-
-/*
-Bytes returns the ASN.1 encoding of the underlying CHOICE of [DirectoryString]
-alongside an error.
-*/
-func (ds DirectoryString) Bytes() (b []byte, err error) {
-	switch ds.Choice {
-	case "TeletexString":
-		b, err = asn1m(ds.Value.(TeletexString))
-	case "PrintableString":
-		b, err = asn1m(ds.Value.(PrintableString))
-	case "BMPString":
-		b, err = asn1m(ds.Value.(BMPString))
-	case "UniversalString":
-		b, err = asn1m(ds.Value.(UniversalString))
-	case "UTF8String":
-		b, err = asn1m(ds.Value.(UTF8String))
-	default:
-		err = errorTxt("Invalid choice")
-	}
-
-	return
-}
-
-/*
-String returns the string representation of the receiver instance.
-*/
-func (ds DirectoryString) String() (s string) {
-	switch ds.Choice {
-	case "TeletexString":
-		s = string(ds.Value.(TeletexString))
-	case "PrintableString":
-		s = string(ds.Value.(PrintableString))
-	case "UTF8String":
-		s = string(ds.Value.(UTF8String))
-	case "BMPString":
-		s = ds.Value.(BMPString).String()
-	case "UniversalString":
-		s = string(ds.Value.(UniversalString))
-	}
-
-	return
-}
-
-/*
-IsZero returns a Boolean value indicative of a nil receiver state.
-*/
-func (r DirectoryString) IsZero() bool { return &r == nil }
 
 /*
 UTF8String implements the UTF8 String syntax and abstraction.
@@ -246,7 +204,11 @@ type UTF8String string
 UTF8String returns an instance of [UTF8String] alongside an error
 following an analysis of x in the context of a UTF8-compliant string.
 */
-func (r RFC4512) UTF8String(x any) (u UTF8String, err error) {
+func (r RFC4512) UTF8String(x any) (UTF8String, error) {
+	return assertUTF8String(x)
+}
+
+func assertUTF8String(x any) (u UTF8String, err error) {
 	var raw string
 
 	switch tv := x.(type) {
@@ -261,14 +223,22 @@ func (r RFC4512) UTF8String(x any) (u UTF8String, err error) {
 		return
 	}
 
-	if !utf8OK(raw) {
-		err = errorTxt("UTF8String failed UTF8 validation")
-		return
-	}
+	/*
+		if !utf8OK(raw) {
+			err = errorTxt("UTF8String failed UTF8 validation")
+			return
+		}
+	*/
 
 	u = UTF8String(raw)
 	return
 }
+
+/*
+String returns the string representation of the receiver instance.
+*/
+func (r UTF8String) String() string { return string(r) }
+func (r UTF8String) IsZero() bool   { return len(r) == 0 }
 
 /*
 PrintableString implements [§ 3.3.29 of RFC 4517]:
@@ -316,11 +286,21 @@ IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r PrintableString) IsZero() bool { return len(r) == 0 }
 
+func printableString(x any) (result Boolean) {
+	_, err := marshalPrintableString(x)
+	result.Set(err == nil)
+	return
+}
+
 /*
 PrintableString returns an error following an analysis of x in the context
 of a [PrintableString].
 */
-func (r RFC4517) PrintableString(x any) (ps PrintableString, err error) {
+func (r RFC4517) PrintableString(x any) (PrintableString, error) {
+	return marshalPrintableString(x)
+}
+
+func marshalPrintableString(x any) (ps PrintableString, err error) {
 	var raw string
 
 	switch tv := x.(type) {
@@ -331,7 +311,7 @@ func (r RFC4517) PrintableString(x any) (ps PrintableString, err error) {
 		}
 		raw = tv
 	case []byte:
-		ps, err = r.PrintableString(string(tv))
+		ps, err = marshalPrintableString(string(tv))
 		return
 	default:
 		err = errorBadType("Printable String")
@@ -387,7 +367,17 @@ type UniversalString string
 UniversalString returns an instance of [UniversalString] alongside an error
 following an analysis of x in the context of a UniversalString.
 */
-func (r RFC4517) UniversalString(x any) (us UniversalString, err error) {
+func (r RFC4517) UniversalString(x any) (UniversalString, error) {
+	return marshalUniversalString(x)
+}
+
+func universalString(x any) (result Boolean) {
+	_, err := marshalUniversalString(x)
+	result.Set(err == nil)
+	return
+}
+
+func marshalUniversalString(x any) (us UniversalString, err error) {
 	var raw string
 
 	switch tv := x.(type) {
@@ -450,16 +440,29 @@ IA5String returns an instance of [IA5String] alongside an error following
 an analysis of x in the context of an IA5 String.
 */
 func (r RFC4517) IA5String(x any) (ia5 IA5String, err error) {
+	return marshalIA5String(x)
+}
+
+func iA5String(x any) (result Boolean) {
+	_, err := marshalIA5String(x)
+	result.Set(err == nil)
+	return
+}
+
+func marshalIA5String(x any) (ia5 IA5String, err error) {
 	var raw string
-	switch tv := x.(type) {
-	case string:
-		if len(tv) == 0 {
-			err = errorBadLength("IA5 String", 0)
-			return
+	if raw, err = assertString(x, 1, "IA5String"); err == nil {
+		if err = checkIA5String(raw); err == nil {
+			ia5 = IA5String(raw)
 		}
-		raw = tv
-	default:
-		err = errorBadType("IA5 String")
+	}
+
+	return
+}
+
+func checkIA5String(raw string) (err error) {
+	if len(raw) == 0 {
+		err = errorTxt("Invalid IA5 String (zero)")
 		return
 	}
 
@@ -467,16 +470,7 @@ func (r RFC4517) IA5String(x any) (ia5 IA5String, err error) {
 		var char rune = rune(raw[i])
 		if !ucIs(iA5Range, char) {
 			err = errorTxt("Invalid IA5 String character: " + string(char))
-		}
-	}
-
-	var mdata []byte
-	if mdata, err = asn1m(raw); err == nil {
-		var testcss IA5String
-		if _, err = asn1um(mdata, &testcss); err == nil {
-			if testcss.String() == raw {
-				ia5 = IA5String(raw)
-			}
+			break
 		}
 	}
 
@@ -504,11 +498,21 @@ IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r NumericString) IsZero() bool { return len(r) == 0 }
 
+func numericString(x any) (result Boolean) {
+	_, err := marshalNumericString(x)
+	result.Set(err == nil)
+	return
+}
+
 /*
 NumericString returns an instance of [NumericString] alongside an error
 following an analysis of x in the context of a Numeric String.
 */
-func (r RFC4517) NumericString(x any) (ns NumericString, err error) {
+func (r RFC4517) NumericString(x any) (NumericString, error) {
+	return marshalNumericString(x)
+}
+
+func marshalNumericString(x any) (ns NumericString, err error) {
 	var raw string
 	if raw, err = assertNumericString(x); err == nil {
 		for _, char := range raw {
@@ -596,7 +600,17 @@ an error following an analysis of x in the context of a Teletex String, per
 
 [ITU-T Rec. T.61]: https://www.itu.int/rec/T-REC-T.61
 */
-func (r RFC4517) TeletexString(x any) (ts TeletexString, err error) {
+func (r RFC4517) TeletexString(x any) (TeletexString, error) {
+	return marshalTeletexString(x)
+}
+
+func teletexString(x any) (result Boolean) {
+	_, err := marshalTeletexString(x)
+	result.Set(err == nil)
+	return
+}
+
+func marshalTeletexString(x any) (ts TeletexString, err error) {
 	var raw string
 	switch tv := x.(type) {
 	case string:
@@ -606,7 +620,7 @@ func (r RFC4517) TeletexString(x any) (ts TeletexString, err error) {
 		}
 		raw = tv
 	case []byte:
-		ts, err = r.TeletexString(string(tv))
+		ts, err = marshalTeletexString(string(tv))
 		return
 	default:
 		err = errorBadType("Teletex String")
@@ -653,20 +667,19 @@ func (r OctetString) String() string {
 OctetString returns an instance of [OctetString] alongside an error
 following an analysis of x in the context of an Octet String.
 */
-func (r RFC4517) OctetString(x any) (oct OctetString, err error) {
+func (r RFC4517) OctetString(x any) (OctetString, error) {
+	return marshalOctetString(x)
+}
+
+func octetString(x any) (result Boolean) {
+	_, err := marshalOctetString(x)
+	result.Set(err == nil)
+	return
+}
+
+func marshalOctetString(x any) (oct OctetString, err error) {
 	var raw []byte
-	switch tv := x.(type) {
-	case []byte:
-		if len(tv) == 0 {
-			// zero length values are OK
-			return
-		}
-		raw = tv
-	case string:
-		oct, err = r.OctetString([]byte(tv))
-		return
-	default:
-		err = errorBadType("Octet String")
+	if raw, err = assertOctetString(x); err != nil {
 		return
 	}
 
@@ -734,7 +747,11 @@ func (r BMPString) IsZero() bool { return r == nil }
 BMPString marshals x into a BMPString (UTF-16) return value, returning
 an instance of [BMPString] alongside an error.
 */
-func (r X680) BMPString(x any) (enc BMPString, err error) {
+func (r X680) BMPString(x any) (BMPString, error) {
+	return assertBMPString(x)
+}
+
+func assertBMPString(x any) (enc BMPString, err error) {
 	var e string
 	switch tv := x.(type) {
 	case []uint8:
@@ -794,6 +811,8 @@ func (r X680) BMPString(x any) (enc BMPString, err error) {
 
 func assertString(x any, min int, name string) (str string, err error) {
 	switch tv := x.(type) {
+	case []byte:
+		str, err = assertString(string(tv), min, name)
 	case string:
 		if len(tv) < min && min != 0 {
 			err = errorBadLength(name, 0)
@@ -807,44 +826,17 @@ func assertString(x any, min int, name string) (str string, err error) {
 	return
 }
 
-/*
-orderingMatch compares two OCTET STRINGs and returns true if the
-first string appears earlier in collation order than the second
-string.
-*/
-func (r OctetString) orderingMatch(x any) bool {
-	var value []byte
-	switch tv := x.(type) {
+func assertOctetString(in any) (raw []byte, err error) {
+	switch tv := in.(type) {
 	case []byte:
-		if len(tv) == 0 {
-			// zero length values are OK
-			return len(r) == 0
-		}
-		value = tv
+		raw = tv
 	case OctetString:
-		return r.orderingMatch([]byte(tv))
+		raw = []byte(tv)
 	case string:
-		value = []byte(tv)
+		raw = []byte(tv)
 	default:
-		return false
+		err = errorBadType("OctetStringMatch")
 	}
 
-	mLen := len(value)
-	if len(r) < mLen {
-		mLen = len(r)
-	}
-
-	// Compare octet strings from the first octet to the last
-	for i := 0; i < mLen; i++ {
-		if value[i] < r[i] {
-			return true
-		} else if value[i] > r[i] {
-			return false
-		}
-	}
-
-	// If the strings are identical up to the length of the
-	// shorter string, the shorter string precedes the longer
-	// string
-	return len(value) < len(r)
+	return
 }

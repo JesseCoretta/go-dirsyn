@@ -11,6 +11,8 @@ import (
 	"github.com/JesseCoretta/go-objectid"
 )
 
+var newNumericOID func(...any) (*objectid.DotNotation, error) = objectid.NewDotNotation
+
 /*
 Descriptor implements "descr" per [§ 1.4 of RFC 4512]:
 
@@ -82,14 +84,25 @@ func (r RFC4517) OID(x any) (err error) {
 NumericOID returns a instance of [NumericOID] alongside an error. See
 also [RFC4512.OID].
 */
-func (r RFC4512) NumericOID(x any) (noid NumericOID, err error) {
+func (r RFC4512) NumericOID(x any) (NumericOID, error) {
+	return marshalNumericOID(x)
+}
+
+func oID(x any) (result Boolean) {
+	_, err1 := marshalNumericOID(x)
+	_, err2 := marshalDescriptor(x)
+	result.Set(err1 == nil || err2 == nil)
+	return
+}
+
+func marshalNumericOID(x any) (noid NumericOID, err error) {
 	var raw string
 	if raw, err = assertString(x, 1, "Numeric OID"); err != nil {
 		return
 	}
 
 	var o *objectid.DotNotation
-	if o, err = objectid.NewDotNotation(raw); err == nil {
+	if o, err = newNumericOID(raw); err == nil {
 		noid = NumericOID{o}
 	}
 
@@ -99,26 +112,26 @@ func (r RFC4512) NumericOID(x any) (noid NumericOID, err error) {
 /*
 NumericOID is a wrapping alias of [RFC4512.NumericOID].
 */
-func (r RFC4517) NumericOID(x any) (noid NumericOID, err error) {
-	var s RFC4512
-	noid, err = s.NumericOID(x)
-	return
+func (r RFC4517) NumericOID(x any) (NumericOID, error) {
+	return marshalNumericOID(x)
 }
 
 /*
 Descriptor is a wrapping alias of [RFC4512.Descriptor].
 */
-func (r RFC4517) Descriptor(x any) (descr Descriptor, err error) {
-	var s RFC4512
-	descr, err = s.Descriptor(x)
-	return
+func (r RFC4517) Descriptor(x any) (Descriptor, error) {
+	return marshalDescriptor(x)
 }
 
 /*
 Descriptor returns an instance of [Descriptor] alongside an error. See
 also [RFC4512.OID].
 */
-func (r RFC4512) Descriptor(x any) (descr Descriptor, err error) {
+func (r RFC4512) Descriptor(x any) (Descriptor, error) {
+	return marshalDescriptor(x)
+}
+
+func marshalDescriptor(x any) (descr Descriptor, err error) {
 	var raw string
 	if raw, err = assertString(x, 1, "Descriptor"); err != nil {
 		return

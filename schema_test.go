@@ -2,207 +2,47 @@ package dirsyn
 
 import "testing"
 
-var testSchemaDefinitions []string = []string{
-	// LDAPSyntaxDescription
-	`( 1.3.6.1.4.1.56521.101.2.1.3
-		DESC 'a syntax'
-		X-THING (
-			'this is a value'
-			'this is another value'
-		)
-		X-ORIGIN 'NOWHERE' )`,
-
-	// LDAPSyntaxDescription #2
-	`( 1.3.6.1.4.1.56521.101.2.1.4
-		DESC 'another syntax'
-		X-THING (
-			'this is a value'
-		)
-		X-ORIGIN 'NOWHERE' )`,
-
-	// MatchingRuleDescription
-	`( 2.5.15.13
-		NAME 'def'
-		DESC 'a matching rule'
-		SYNTAX 1.3.6.1.4.1.56521.101.2.1.1
-		X-THING (
-			'this is a value'
-			'this is another value'
-		)
-		X-ORIGIN 'NOWHERE' )`,
-
-	// AttributeTypeDescription
-	`( 2.5.4.3 NAME (
-			'cn'
-			'commonName'
-		)
-		DESC 'this isn\'t a bad example'
-		OBSOLETE
-		SUP 2.5.4.41
-		EQUALITY 2.5.13.2
-		ORDERING 2.5.13.3
-		SUBSTR 2.5.13.4
-		SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{32}
-		SINGLE-VALUE
-		NO-USER-MODIFICATION
-		USAGE dSAOperation
-		X-THING (
-			'this is a value'
-			'this is another value'
-		)
-		X-ORIGIN 'NOWHERE' )`,
-
-	// MRU not needed
-	``,
-
-	// ObjectClassDescription
-	`( 2.5.6.0
-		NAME 'class'
-		DESC 'an object class'
-		SUP ( domain
-		    $ locality
-		)
-		AUXILIARY
-		MUST ( cn
-		     $ sn
-		     $ l
-		     $ o
-		)
-		MAY description
-		X-THING (
-			'this is a value'
-			'this is another value'
-		)
-		X-ORIGIN 'NOWHERE' )`,
-
-	// DITContentRuleDescription
-	`( 2.5.6.0
-		NAME ( 'crule' )
-		DESC 'an content rule'
-		AUX ( domain
-		    $ locality
-		)
-		MUST ( cn
-		     $ sn
-		     $ l
-		     $ o )
-		MAY description
-		NOT userPassword
-		X-THING (
-			'this is a value'
-			'this is another value'
-		)
-		X-ORIGIN 'NOWHERE' )`,
-
-	// NameFormDescription
-	`( 2.5.6.0
-		NAME ( 'nameform' )
-		DESC 'a name form'
-		OC domain
-		MUST ( cn
-		     $ sn
-		)
-		MAY o
-		X-THING (
-			 'this is a value'
-			'this is another value'
-		)
-		X-ORIGIN 'NOWHERE' )`,
-
-	// DITStructureRuleDescription
-	`( 2
-		NAME ( 'srule' )
-		DESC 'a structure rule'
-		FORM nameform
-		SUP (
-			1
-			2
-		)
-		X-THING (
-			'this is a value'
-			'this is another value'
-		)
-		X-ORIGIN 'NOWHERE'
-		X-THINGS (
-			'one'
-			'two'
-		))`,
-}
-
 func TestSubschemaSubentry(t *testing.T) {
-	var schema SubschemaSubentry
+	schema := NewSubschemaSubentry()
 
-	var def0a, def0b LDAPSyntaxDescription
-	var def1 MatchingRuleDescription
-	var def2 AttributeTypeDescription
-	var def4 ObjectClassDescription
-	var def5 DITContentRuleDescription
-	var def6 NameFormDescription
-	var def7 DITStructureRuleDescription
+	for idx, err := range []error{
+		schema.RegisterAttributeType(testSchemaDefinitions[0]),
+		schema.RegisterAttributeType(testSchemaDefinitions[1]),
+		schema.RegisterAttributeType(testSchemaDefinitions[2]),
+		schema.RegisterAttributeType(testSchemaDefinitions[3]),
+		schema.RegisterAttributeType(testSchemaDefinitions[4]),
+		schema.RegisterAttributeType(testSchemaDefinitions[5]),
+		schema.RegisterAttributeType(testSchemaDefinitions[6]),
+		schema.RegisterAttributeType(testSchemaDefinitions[7]),
+		schema.RegisterObjectClass(testSchemaDefinitions[8]),
+		schema.RegisterObjectClass(testSchemaDefinitions[9]),
+		schema.RegisterNameForm(testSchemaDefinitions[10]),
+		schema.RegisterDITStructureRule(testSchemaDefinitions[11]),
+	} {
+		if err != nil {
+			t.Errorf("%s[%d] failed: %v", t.Name(), idx, err)
+			return
+		}
+	}
 
-	var err error
+	// register a custom syntax
+	schema.RegisterLDAPSyntax(`ldapSyntaxes: ( 1.3.6.1.4.1.56521.101.2.1.4                             
+          DESC 'X.680, cl. 32.3: ObjectIdentifierValue'                 
+          X-PATTERN '^\{([a-z](-?[A-Za-z0-9]+)*(\(\d+\))?)(\s([a-z](-?[A-Za-z0-9]+)*(\(\d+\))))*\}$'
+          X-ORIGIN 'RFC1234' )`)
 
-	def0a, err = parseLDAPSyntaxDescription(testSchemaDefinitions[0])
-	if err != nil {
-		t.Errorf("%s failed: %v", t.Name(), err)
+	syn := schema.LDAPSyntaxes[23] // INTEGER ASN.1 type
+	if result := syn.Verify(`1`); !result.True() {
+		t.Errorf("%s failed:\nwant: %s\ngot:  %s\n",
+			t.Name(), `TRUE`, result)
 		return
 	}
-	schema.LDAPSyntaxes = append(schema.LDAPSyntaxes, def0a)
-	def0b, err = parseLDAPSyntaxDescription(testSchemaDefinitions[1])
-	if err != nil {
-		t.Errorf("%s failed: %v", t.Name(), err)
+
+	syn = schema.LDAPSyntaxes[len(schema.LDAPSyntaxes)-1]
+	if result := syn.Verify(`{joint-iso-itu-t(2) uuid(25)}`); !result.True() {
+		t.Errorf("%s [custom syntax] failed:\nwant: %s\ngot:  %s\n",
+			t.Name(), `TRUE`, result)
 		return
-	}
-	schema.LDAPSyntaxes = append(schema.LDAPSyntaxes, def0b)
-
-	def1, err = parseMatchingRuleDescription(testSchemaDefinitions[2])
-	if err != nil {
-		t.Errorf("%s failed: %v", t.Name(), err)
-		return
-	}
-	schema.MatchingRules = append(schema.MatchingRules, def1)
-
-	def2, err = parseAttributeTypeDescription(testSchemaDefinitions[3])
-	if err != nil {
-		t.Errorf("%s failed: %v", t.Name(), err)
-		return
-	}
-	schema.AttributeTypes = append(schema.AttributeTypes, def2)
-
-	// def3 (MRU) not needed here.
-
-	def4, err = parseObjectClassDescription(testSchemaDefinitions[5])
-	if err != nil {
-		t.Errorf("%s failed: %v", t.Name(), err)
-		return
-	}
-	schema.ObjectClasses = append(schema.ObjectClasses, def4)
-
-	def5, err = parseDITContentRuleDescription(testSchemaDefinitions[6])
-	if err != nil {
-		t.Errorf("%s failed: %v", t.Name(), err)
-		return
-	}
-	schema.DITContentRules = append(schema.DITContentRules, def5)
-
-	def6, err = parseNameFormDescription(testSchemaDefinitions[7])
-	if err != nil {
-		t.Errorf("%s failed: %v", t.Name(), err)
-		return
-	}
-	schema.NameForms = append(schema.NameForms, def6)
-
-	def7, err = parseDITStructureRuleDescription(testSchemaDefinitions[8])
-	if err != nil {
-		t.Errorf("%s failed: %v", t.Name(), err)
-		return
-	}
-	schema.DITStructureRules = append(schema.DITStructureRules, def7)
-
-	want := 8
-	if got := schema.Counters()[8]; got != want {
-		t.Errorf("%s failed: unexpected number of definitions\nwant: %d, got:  %d",
-			t.Name(), want, got)
 	}
 
 	_ = schema.OID()
@@ -215,13 +55,16 @@ func TestSubschemaSubentry(t *testing.T) {
 	_ = schema.DITContentRules.OID()
 	_ = schema.NameForms.OID()
 	_ = schema.DITStructureRules.OID()
+}
+
+func TestSubschemaSubentry_codecov(t *testing.T) {
 
 	stringBooleanClause(`test`, true)
 	stringBooleanClause(`test`, false)
 
 	var mru MatchingRuleUse
 	mru = append(mru, MatchingRuleUseDescription{
-		OID:         `2.5.13.15`,
+		NumericOID:  `2.5.13.15`,
 		Description: `this is text`,
 		Name:        []string{`userRule`},
 		Applies:     []string{`cn`, `sn`},
@@ -259,22 +102,22 @@ func TestSubschemaSubentry(t *testing.T) {
 	_ = stringClassKind(2)
 	_ = stringClassKind(3)
 
-	_, _ = parseLDAPSyntaxDescription(`( 1.2.3.4
+	_, _ = marshalLDAPSyntaxDescription(`( 1.2.3.4
 		DESC 'info'
 		E-STRING 'BOGUS' )`)
-	_, _ = parseMatchingRuleDescription(`( 1.2.3.4
+	_, _ = marshalMatchingRuleDescription(`( 1.2.3.4
 		NAME 'matchingrule'
 		DESC 'info'
 		OBSOLETE
 		SYNTAX 1.2.3.4
 		E-STRING 'BOGUS' )`)
-	_, _ = parseAttributeTypeDescription(`( 1.2.3.4
+	_, _ = marshalAttributeTypeDescription(`( 1.2.3.4
 		NAME 'attribute'
 		DESC 'info'
 		OBSOLETE
 		SYNTAX 1.2.3.4
 		E-STRING 'BOGUS' )`)
-	_, _ = parseObjectClassDescription(`( 1.2.3.4
+	_, _ = marshalObjectClassDescription(`( 1.2.3.4
 		NAME 'class'
 		DESC 'info'
 		OBSOLETE
@@ -282,24 +125,90 @@ func TestSubschemaSubentry(t *testing.T) {
 		STRUCTURAL
 		MUST c
 		E-STRING 'BOGUS' )`)
-	_, _ = parseDITContentRuleDescription(`( 1.2.3.4
+	_, _ = marshalDITContentRuleDescription(`( 1.2.3.4
 		NAME 'crule'
 		DESC 'info'
 		OBSOLETE
 		AUX auxClass
 		MUST cn
 		E-STRING 'BOGUS' )`)
-	_, _ = parseNameFormDescription(`( 1.2.3.4
+	_, _ = marshalNameFormDescription(`( 1.2.3.4
 		NAME 'form'
 		DESC 'info'
 		OBSOLETE
 		OC structuralClass
 		MUST cn
 		E-STRING 'BOGUS' )`)
-	_, _ = parseDITStructureRuleDescription(`( 1
+	_, _ = marshalDITStructureRuleDescription(`( 1
 		NAME 'srule'
 		DESC 'info'
 		OBSOLETE
 		FORM form
 		E-STRING 'BOGUS' )`)
+}
+
+var testSchemaDefinitions []string = []string{
+	`attributeType: ( 2.5.4.0
+	        NAME 'objectClass'
+	        EQUALITY objectIdentifierMatch
+	        SYNTAX 1.3.6.1.4.1.1466.115.121.1.38
+	        X-ORIGIN 'RFC4512' )`,
+	`attributeType: ( 2.5.4.41
+	        NAME 'name'
+	        EQUALITY caseIgnoreMatch
+	        SUBSTR caseIgnoreSubstringsMatch
+	        SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+	        X-ORIGIN 'RFC4519' )`,
+	`attributeType: ( 2.5.4.3
+	        NAME ( 'cn' 'commonName' )
+	        DESC 'RFC4519: common name(s) for which the entity is known by'
+	        SUP name
+	        X-ORIGIN 'RFC4519' )`,
+	`attributeType: ( 2.5.4.13
+                NAME 'description'
+                EQUALITY caseIgnoreMatch
+                SUBSTR caseIgnoreSubstringsMatch
+                SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+                X-ORIGIN 'RFC4519' )`,
+	`attributeType: ( 2.5.4.7
+                NAME ( 'l' 'localityName' )
+                SUP name
+                X-ORIGIN 'RFC4519' )`,
+	`attributeType: ( 2.5.4.11
+                NAME ( 'ou' 'organizationalUnitName' )
+                SUP name
+                X-ORIGIN 'RFC4519' )`,
+	`attributeType: ( 2.5.4.49
+                NAME 'distinguishedName'
+                EQUALITY distinguishedNameMatch
+                SYNTAX 1.3.6.1.4.1.1466.115.121.1.12
+                X-ORIGIN 'RFC4519' )`,
+	`attributeType: ( 2.5.4.34
+                NAME 'seeAlso'
+                SUP distinguishedName
+                X-ORIGIN 'RFC4519' )`,
+	`objectClass: ( 2.5.6.0
+	        NAME 'top'
+	        ABSTRACT
+	        MUST objectClass
+	        X-ORIGIN 'RFC4512' )`,
+	`objectClass: ( 2.5.6.11
+	        NAME 'applicationProcess'
+	        SUP top
+	        STRUCTURAL
+	        MUST cn
+	        MAY ( description
+	            $ l
+	            $ ou
+	            $ seeAlso )
+	        X-ORIGIN 'RFC4519' )`,
+	`( 1.3.6.1.4.1.56521.999.1234
+                NAME 'applicationProcessNameForm'
+                OC applicationProcess
+                MUST cn
+                X-ORIGIN 'FAKE' )`,
+	`( 1
+		NAME 'applicationProcessStructure'
+		FORM applicationProcessNameForm
+                SUP 1 )`,
 }

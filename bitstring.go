@@ -51,10 +51,22 @@ BitString returns an error following an analysis of x in the context of
 an ASN.1 BIT STRING.
 */
 func (r RFC4517) BitString(x any) (bs BitString, err error) {
+	bs, err = marshalBitString(x)
+	return
+}
+
+func bitString(x any) (result Boolean) {
+	result.Set(false)
+	if _, err := marshalBitString(x); err == nil {
+		result.Set(true)
+	}
+
+	return
+}
+
+func marshalBitString(x any) (bs BitString, err error) {
 	var raw []byte
 	if raw, err = assertBitString(x); err == nil {
-		// Make sure there are enough remaining
-		// characters to actually do something.
 		if raw, err = verifyBitStringContents(raw); err == nil {
 			var tx string
 			var bss asn1.BitString

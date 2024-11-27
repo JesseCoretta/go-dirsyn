@@ -19,6 +19,7 @@ var (
 	utf8OK   func(string) bool                      = utf8.ValidString
 	utf16Enc func([]rune) []uint16                  = utf16.Encode
 	isSpace  func(rune) bool                        = unicode.IsSpace
+	isPunct  func(rune) bool                        = unicode.IsPunct
 )
 
 var runeSelf rune = utf8.RuneSelf
@@ -249,6 +250,10 @@ func assertRunes(x any, zok ...bool) (runes []rune, err error) {
 	switch tv := x.(type) {
 	case rune:
 		runes = append(runes, tv)
+	case byte:
+		runes = append(runes, rune(tv))
+	case []byte:
+		runes, err = assertRunes(string(tv))
 	case string:
 		if len(tv) == 0 && !zerook {
 			err = errorBadLength("Zero length rune", 0)

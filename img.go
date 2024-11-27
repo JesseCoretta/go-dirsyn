@@ -33,7 +33,16 @@ See also [§ 3.3.17 of RFC 4517].
 
 [§ 3.3.17 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.17
 */
-func (r RFC4517) JPEG(x any) (err error) {
+func (r RFC4517) JPEG(x any) error {
+	return marshalJPEG(x)
+}
+
+func jPEG(x any) (result Boolean) {
+	result.Set(marshalJPEG(x))
+	return
+}
+
+func marshalJPEG(x any) (err error) {
 	var raw []uint8
 
 	switch tv := x.(type) {
@@ -41,7 +50,7 @@ func (r RFC4517) JPEG(x any) (err error) {
 		// Read from file
 		if raw, err = readFile(tv); err == nil {
 			// Self-execute using the byte payload
-			err = r.JPEG(raw)
+			err = marshalJPEG(raw)
 			return
 		}
 	case []uint8:

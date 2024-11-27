@@ -28,11 +28,21 @@ func (r DeliveryMethod) String() string {
 	return join(r, ` $ `)
 }
 
+func deliveryMethod(x any) (result Boolean) {
+	_, err := marshalDeliveryMethod(x)
+	result.Set(err == nil)
+	return
+}
+
 /*
 DeliveryMethod returns an error following an analysis of x in the context
 of a [DeliveryMethod].
 */
-func (r RFC4517) DeliveryMethod(x any) (dm DeliveryMethod, err error) {
+func (r RFC4517) DeliveryMethod(x any) (DeliveryMethod, error) {
+	return marshalDeliveryMethod(x)
+}
+
+func marshalDeliveryMethod(x any) (dm DeliveryMethod, err error) {
 	postalDeliveryMethods := []string{
 		// Method	ASN.1 Type Integer [X.520]
 		`any`,       // 0
@@ -104,11 +114,21 @@ func (r PostalAddress) String() string {
 	return join(r, `$`)
 }
 
+func postalAddress(x any) (result Boolean) {
+	_, err := marshalPostalAddress(x)
+	result.Set(err == nil)
+	return
+}
+
 /*
 PostalAddress returns an error following an analysis of x in the context
 of a [PostalAddress].
 */
-func (r RFC4517) PostalAddress(x any) (pa PostalAddress, err error) {
+func (r RFC4517) PostalAddress(x any) (PostalAddress, error) {
+	return marshalPostalAddress(x)
+}
+
+func marshalPostalAddress(x any) (pa PostalAddress, err error) {
 	var lcs []string
 
 	var raw string
@@ -159,11 +179,21 @@ From [§ 3.2 of RFC 4517]:
 */
 type OtherMailbox [2]string
 
+func otherMailbox(x any) (result Boolean) {
+	_, err := marshalOtherMailbox(x)
+	result.Set(err == nil)
+	return
+}
+
 /*
 OtherMailbox returns an error following an analysis of x in the context
 of an [OtherMailbox].
 */
-func (r RFC4517) OtherMailbox(x any) (om OtherMailbox, err error) {
+func (r RFC4517) OtherMailbox(x any) (OtherMailbox, error) {
+	return marshalOtherMailbox(x)
+}
+
+func marshalOtherMailbox(x any) (om OtherMailbox, err error) {
 	var raw string
 	if raw, err = assertString(x, 1, "Other Mailbox"); err == nil {
 		raws := splitUnescaped(raw, `$`, `\`)
@@ -173,8 +203,8 @@ func (r RFC4517) OtherMailbox(x any) (om OtherMailbox, err error) {
 			return
 		}
 
-		if _, err = r.PrintableString(raws[0]); err == nil {
-			if _, err = r.IA5String(raws[1]); err == nil {
+		if _, err = marshalPrintableString(raws[0]); err == nil {
+			if _, err = marshalIA5String(raws[1]); err == nil {
 				om[0] = raws[0]
 				om[1] = raws[1]
 			}
@@ -199,22 +229,17 @@ func pSOrIA5s(x any) (psia5 []string, err error) {
 		return
 	}
 
-	var r RFC4517
-
-	if _, err = r.PrintableString(raws[0]); err != nil {
+	if _, err = marshalPrintableString(raws[0]); err != nil {
 		return
 	}
 	psia5 = append(psia5, raws[0])
 
-	for i := 1; i < len(raws); i++ {
-		if _, err = r.PrintableString(raws[i]); err == nil {
+	for i := 1; i < len(raws) && err == nil; i++ {
+		if _, err = marshalPrintableString(raws[i]); err == nil {
 			psia5 = append(psia5, raws[i])
-			continue
-		} else if _, err = r.IA5String(raws[i]); err == nil {
+		} else if err = checkIA5String(raws[i]); err == nil {
 			psia5 = append(psia5, raws[i])
-			continue
 		}
-		break
 	}
 
 	return

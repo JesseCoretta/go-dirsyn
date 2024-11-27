@@ -2,7 +2,6 @@ package dirsyn
 
 import (
 	"fmt"
-	"math/big"
 	"testing"
 )
 
@@ -66,7 +65,6 @@ func TestInteger_codecov(t *testing.T) {
 	assertInt(struct{}{})
 	assertUint(struct{}{})
 
-	i, _ := r.Integer(5)
 	for _, strint := range []string{
 		``,
 		`~`,
@@ -81,64 +79,41 @@ func TestInteger_codecov(t *testing.T) {
 	}
 
 	i1, _ := r.Integer(4)
-	i2, _ := r.Integer(5)
-	i3, _ := r.Integer(6)
+	//i2, _ := r.Integer(5)
+	//i3, _ := r.Integer(6)
 
 	i1.IsZero()
 	_ = i1.String()
 
-	bint1 := big.NewInt(int64(4))
-	bint2 := big.NewInt(int64(5))
-	bint3 := big.NewInt(int64(6))
+	//bint1 := big.NewInt(int64(4))
+	//bint2 := big.NewInt(int64(5))
+	//bint3 := big.NewInt(int64(6))
 
-	for idx, Bool := range []bool{
-		!i.Eq(`~`),
-		i.Eq(`5`),
-		i.Eq(5),
-		i.Eq(uint(5)),
-		i.Eq(uint64(5)),
-		i.Eq(bint2),
-		i.Eq(i2),
-		i.Ne(`#`),
-		i.Ne(`4`),
-		i.Ne(4),
-		i.Ne(uint(4)),
-		i.Ne(uint64(4)),
-		i.Ne(bint1),
-		i.Ne(i1),
-		!i.Lt(`!`),
-		i.Lt(`6`),
-		i.Lt(6),
-		i.Lt(uint(6)),
-		i.Lt(uint64(6)),
-		i.Lt(bint3),
-		i.Lt(i3),
-		!i.Le(`_`),
-		i.Le(`6`),
-		i.Le(6),
-		i.Le(uint(6)),
-		i.Le(uint64(6)),
-		i.Le(bint3),
-		i.Lt(i3),
-		!i.Gt(`=`),
-		i.Gt(`4`),
-		i.Gt(4),
-		i.Gt(uint(4)),
-		i.Gt(uint64(4)),
-		i.Gt(bint1),
-		i.Gt(i1),
-		!i.Ge(`@`),
-		i.Ge(`4`),
-		i.Ge(4),
-		i.Ge(uint(4)),
-		i.Ge(uint64(4)),
-		i.Ge(bint1),
-		i.Ge(i1),
-	} {
-		if !Bool {
-			t.Errorf("%s[%d] failed:\nwant: %t\ngot:  %t",
-				t.Name(), idx, true, Bool)
-		}
+	//var err error
+
+	var result Boolean
+	// LessOrEqual
+	result, _ = integerOrderingMatch(1001, 101) // <=
+	if !result.False() {
+		t.Errorf("%s [LE] failed:\nwant: %s\ngot:  %s",
+			t.Name(), `FALSE`, result)
+		return
+	}
+
+	// GreaterOrEqual
+	result, _ = integerOrderingMatch(10, 11) // >=
+	if !result.True() {
+		t.Errorf("%s [GE] failed:\nwant: %s\ngot:  %s",
+			t.Name(), `TRUE`, result)
+		return
+	}
+
+	// Equal (via LE)
+	result, _ = integerOrderingMatch(1, 1) // <= (==)
+	if !result.True() {
+		t.Errorf("%s [EQ] failed:\nwant: %s\ngot:  %s",
+			t.Name(), `TRUE`, result)
+		return
 	}
 
 	isIntegerType(int32(3))

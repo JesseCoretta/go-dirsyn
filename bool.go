@@ -41,21 +41,13 @@ From [§ 3.3.3 of RFC 4517]:
 [§ 3.3.3 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.3
 */
 func (r RFC4517) Boolean(x any) (b Boolean, err error) {
-	switch tv := x.(type) {
-	case nil:
-	case bool:
-		b = Boolean{&tv}
-	case string:
-		if !(eqf(tv, `TRUE`) || eqf(tv, `FALSE`)) {
-			err = errorTxt("Invalid Boolean " + tv)
-		} else {
-			_b := uc(tv) == `TRUE`
-			b = Boolean{&_b}
-		}
-	default:
-		err = errorBadType("Boolean")
-	}
+	b, err = assertBoolean(x)
+	return
+}
 
+func boolean(x any) (result Boolean) {
+	_, err := assertBoolean(x)
+	result.Set(err == nil)
 	return
 }
 
@@ -64,6 +56,34 @@ IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r Boolean) IsZero() bool {
 	return r.bool == nil
+}
+
+/*
+Undefined wraps [Boolean.IsZero] and indicates a state that is neither
+true nor false.
+*/
+func (r Boolean) Undefined() bool { return r.IsZero() }
+
+/*
+True returns a Boolean value indicative of a true receiver state.
+*/
+func (r Boolean) True() (v bool) {
+	if !r.IsZero() {
+		v = (*r.bool) == true
+	}
+
+	return
+}
+
+/*
+False returns a Boolean value indicative of a false receiver state.
+*/
+func (r Boolean) False() (v bool) {
+	if !r.IsZero() {
+		v = (*r.bool) != true
+	}
+
+	return
 }
 
 /*
@@ -99,6 +119,25 @@ func (r Boolean) String() (s string) {
 		if *r.bool {
 			s = "TRUE"
 		}
+	}
+
+	return
+}
+
+func assertBoolean(x any) (b Boolean, err error) {
+	switch tv := x.(type) {
+	case nil:
+	case bool:
+		b = Boolean{&tv}
+	case string:
+		if !(streqf(tv, `TRUE`) || streqf(tv, `FALSE`)) {
+			err = errorTxt("Invalid Boolean " + tv)
+		} else {
+			_b := uc(tv) == `TRUE`
+			b = Boolean{&_b}
+		}
+	default:
+		err = errorBadType("Boolean")
 	}
 
 	return

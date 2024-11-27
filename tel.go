@@ -116,7 +116,17 @@ From [§ 1.4 of RFC 4512]:
 [§ 1.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-1.4
 [§ 3.3.11 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.11
 */
-func (r RFC4517) FacsimileTelephoneNumber(x any) (ftn FacsimileTelephoneNumber, err error) {
+func (r RFC4517) FacsimileTelephoneNumber(x any) (FacsimileTelephoneNumber, error) {
+	return marshalFacsimileTelephoneNumber(x)
+}
+
+func facsimileTelephoneNumber(x any) (result Boolean) {
+	_, err := marshalFacsimileTelephoneNumber(x)
+	result.Set(err == nil)
+	return
+}
+
+func marshalFacsimileTelephoneNumber(x any) (ftn FacsimileTelephoneNumber, err error) {
 	var raw string
 	if raw, err = assertString(x, 1, "Facsimile Telephone Number"); err != nil {
 		return
@@ -127,7 +137,7 @@ func (r RFC4517) FacsimileTelephoneNumber(x any) (ftn FacsimileTelephoneNumber, 
 	if len(raws) == 0 {
 		err = errorTxt("Invalid Facsimile Telephone Number")
 		return
-	} else if ftn.TelephoneNumber, err = r.PrintableString(raws[0]); err != nil || len(raws) == 1 {
+	} else if ftn.TelephoneNumber, err = marshalPrintableString(raws[0]); err != nil || len(raws) == 1 {
 		return
 	}
 
@@ -175,7 +185,17 @@ func (r TelephoneNumber) String() string {
 TelephoneNumber returns an instance of [TelephoneNumber] alongside an error
 following an analysis of x in the context of a Telephone Number.
 */
-func (r RFC4517) TelephoneNumber(x any) (tn TelephoneNumber, err error) {
+func (r RFC4517) TelephoneNumber(x any) (TelephoneNumber, error) {
+	return marshalTelephoneNumber(x)
+}
+
+func telephoneNumber(x any) (result Boolean) {
+	_, err := marshalTelephoneNumber(x)
+	result.Set(err == nil)
+	return
+}
+
+func marshalTelephoneNumber(x any) (tn TelephoneNumber, err error) {
 	var raw string
 	switch tv := x.(type) {
 	case string:
@@ -204,7 +224,7 @@ func (r RFC4517) TelephoneNumber(x any) (tn TelephoneNumber, err error) {
 		}
 	}
 
-	if _, err = r.PrintableString(raw); err == nil {
+	if _, err = marshalPrintableString(raw); err == nil {
 		tn = TelephoneNumber(raw)
 	}
 
@@ -240,7 +260,17 @@ type TelexNumber [3]string
 TelexNumber returns an error following an analysis of x in the context
 of a Telex Number.
 */
-func (r RFC4517) TelexNumber(x any) (tn TelexNumber, err error) {
+func (r RFC4517) TelexNumber(x any) (TelexNumber, error) {
+	return marshalTelexNumber(x)
+}
+
+func telexNumber(x any) (result Boolean) {
+	_, err := marshalTelexNumber(x)
+	result.Set(err == nil)
+	return
+}
+
+func marshalTelexNumber(x any) (tn TelexNumber, err error) {
 	var raw string
 	if raw, err = assertString(x, 1, "Telex Number"); err != nil {
 		return
@@ -255,7 +285,7 @@ func (r RFC4517) TelexNumber(x any) (tn TelexNumber, err error) {
 	var _tn []string
 	var ct int
 	for _, slice := range raws {
-		if _, err = r.PrintableString(slice); err == nil {
+		if _, err = marshalPrintableString(slice); err == nil {
 			_tn = append(_tn, slice)
 			ct++
 		}
@@ -379,7 +409,17 @@ func (r TeletexNonBasicParameters) string() string {
 TeletexTerminalIdentifier returns an error following an analysis of x in
 the context of a Teletex Terminal Identifier.
 */
-func (r RFC4517) TeletexTerminalIdentifier(x any) (tti TeletexTerminalIdentifier, err error) {
+func (r RFC4517) TeletexTerminalIdentifier(x any) (TeletexTerminalIdentifier, error) {
+	return marshalTeletexTerminalIdentifier(x)
+}
+
+func teletexTerminalIdentifier(x any) (result Boolean) {
+	_, err := marshalTeletexTerminalIdentifier(x)
+	result.Set(err == nil)
+	return
+}
+
+func marshalTeletexTerminalIdentifier(x any) (tti TeletexTerminalIdentifier, err error) {
 	var (
 		raw string
 		raws,
@@ -391,9 +431,9 @@ func (r RFC4517) TeletexTerminalIdentifier(x any) (tti TeletexTerminalIdentifier
 	}
 
 	_raws := splitUnescaped(raw, `$`, `\`)
-	if raws, vals, err = r.processTeletex(_raws[1:]); err != nil {
+	if raws, vals, err = marshalTeletex(_raws[1:]); err != nil {
 		return
-	} else if _, err = r.PrintableString(_raws[0]); err != nil {
+	} else if _, err = marshalPrintableString(_raws[0]); err != nil {
 		return
 	}
 
@@ -432,7 +472,7 @@ func (r RFC4517) TeletexTerminalIdentifier(x any) (tti TeletexTerminalIdentifier
 	return
 }
 
-func (r RFC4517) processTeletex(_raws []string) (raws, vals []string, err error) {
+func marshalTeletex(_raws []string) (raws, vals []string, err error) {
 	var cfound bool
 	for i := 0; i < len(_raws); i++ {
 		if idx := idxr(_raws[i], ':'); idx != -1 {

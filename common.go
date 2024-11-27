@@ -5,49 +5,69 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"math/big"
 	"os"
+	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 )
 
 var (
-	fmtInt   func(int64, int) string                   = strconv.FormatInt
-	fmtUint  func(uint64, int) string                  = strconv.FormatUint
-	atoi     func(string) (int, error)                 = strconv.Atoi
-	itoa     func(int) string                          = strconv.Itoa
-	cntns    func(string, string) bool                 = strings.Contains
-	mkerr    func(string) error                        = errors.New
-	fields   func(string) []string                     = strings.Fields
-	trimS    func(string) string                       = strings.TrimSpace
-	trimR    func(string, string) string               = strings.TrimRight
-	trimPfx  func(string, string) string               = strings.TrimPrefix
-	trimSfx  func(string, string) string               = strings.TrimSuffix
-	hasPfx   func(string, string) bool                 = strings.HasPrefix
-	hasSfx   func(string, string) bool                 = strings.HasSuffix
-	join     func([]string, string) string             = strings.Join
-	split    func(string, string) []string             = strings.Split
-	splitN   func(string, string, int) []string        = strings.SplitN
-	idxr     func(string, rune) int                    = strings.IndexRune
-	repAll   func(string, string, string) string       = strings.ReplaceAll
-	eqf      func(string, string) bool                 = strings.EqualFold
-	puint    func(string, int, int) (uint64, error)    = strconv.ParseUint
-	fuint    func(uint64, int) string                  = strconv.FormatUint
-	hexdec   func(string) ([]byte, error)              = hex.DecodeString
-	hexencs  func([]byte) string                       = hex.EncodeToString
-	hexlen   func(int) int                             = hex.EncodedLen
-	hexenc   func([]byte, []byte) int                  = hex.Encode
-	asn1m    func(any) ([]byte, error)                 = asn1.Marshal
-	asn1mp   func(any, string) ([]byte, error)         = asn1.MarshalWithParams
-	asn1um   func([]byte, any) ([]byte, error)         = asn1.Unmarshal
-	asn1ump  func([]byte, any, string) ([]byte, error) = asn1.UnmarshalWithParams
-	stridx   func(string, string) int                  = strings.Index
-	strlidx  func(string, string) int                  = strings.LastIndex
-	strcnt   func(string, string) int                  = strings.Count
-	trim     func(string, string) string               = strings.Trim
-	uc       func(string) string                       = strings.ToUpper
-	lc       func(string) string                       = strings.ToLower
-	readFile func(string) ([]byte, error)              = os.ReadFile
+	fmtInt     func(int64, int) string                   = strconv.FormatInt
+	fmtUint    func(uint64, int) string                  = strconv.FormatUint
+	atoi       func(string) (int, error)                 = strconv.Atoi
+	itoa       func(int) string                          = strconv.Itoa
+	cntns      func(string, string) bool                 = strings.Contains
+	mkerr      func(string) error                        = errors.New
+	fields     func(string) []string                     = strings.Fields
+	trimS      func(string) string                       = strings.TrimSpace
+	trimL      func(string, string) string               = strings.TrimLeft
+	trimR      func(string, string) string               = strings.TrimRight
+	trimPfx    func(string, string) string               = strings.TrimPrefix
+	trimSfx    func(string, string) string               = strings.TrimSuffix
+	hasPfx     func(string, string) bool                 = strings.HasPrefix
+	hasSfx     func(string, string) bool                 = strings.HasSuffix
+	join       func([]string, string) string             = strings.Join
+	split      func(string, string) []string             = strings.Split
+	splitN     func(string, string, int) []string        = strings.SplitN
+	idxr       func(string, rune) int                    = strings.IndexRune
+	repAll     func(string, string, string) string       = strings.ReplaceAll
+	puint      func(string, int, int) (uint64, error)    = strconv.ParseUint
+	fuint      func(uint64, int) string                  = strconv.FormatUint
+	hexdec     func(string) ([]byte, error)              = hex.DecodeString
+	hexencs    func([]byte) string                       = hex.EncodeToString
+	hexlen     func(int) int                             = hex.EncodedLen
+	hexenc     func([]byte, []byte) int                  = hex.Encode
+	asn1m      func(any) ([]byte, error)                 = asn1.Marshal
+	asn1mp     func(any, string) ([]byte, error)         = asn1.MarshalWithParams
+	asn1um     func([]byte, any) ([]byte, error)         = asn1.Unmarshal
+	asn1ump    func([]byte, any, string) ([]byte, error) = asn1.UnmarshalWithParams
+	streqf     func(string, string) bool                 = strings.EqualFold
+	stridx     func(string, string) int                  = strings.Index
+	strlidx    func(string, string) int                  = strings.LastIndex
+	strcnt     func(string, string) int                  = strings.Count
+	trim       func(string, string) string               = strings.Trim
+	uc         func(string) string                       = strings.ToUpper
+	lc         func(string) string                       = strings.ToLower
+	readFile   func(string) ([]byte, error)              = os.ReadFile
+	newBigInt  func(int64) *big.Int                      = big.NewInt
+	valOf      func(any) reflect.Value                   = reflect.ValueOf
+	typeOf     func(any) reflect.Type                    = reflect.TypeOf
+	regexMatch func(string, string) (bool, error)        = regexp.MatchString
 )
+
+func streq(a, b string) bool {
+	return a == b
+}
+
+/*
+isStruct returns a boolean value indicative of whether
+kind reflection revealed the presence of a struct type.
+*/
+func isStruct(x any) bool {
+	return typeOf(x).Kind() == reflect.Struct
+}
 
 func newStrBuilder() strings.Builder {
 	return strings.Builder{}
@@ -169,9 +189,20 @@ func strInSlice(r string, slice []string, cEM ...bool) (match bool) {
 		if cem {
 			match = r == slice[i]
 		} else {
-			match = eqf(r, slice[i])
+			match = streqf(r, slice[i])
 		}
 	}
 
 	return
+}
+
+func isNumber(x string) bool {
+	x = trimL(x, `-`)
+	for _, c := range x {
+		if !('0' <= rune(c) && rune(c) <= '9') {
+			return false
+		}
+	}
+
+	return true
 }

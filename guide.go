@@ -47,7 +47,17 @@ type EnhancedGuide struct {
 /*
 EnhancedGuide returns an instance of [EnhancedGuide] alongside an error.
 */
-func (r RFC4517) EnhancedGuide(x any) (guide EnhancedGuide, err error) {
+func (r RFC4517) EnhancedGuide(x any) (EnhancedGuide, error) {
+	return marshalEnhancedGuide(x)
+}
+
+func enhancedGuide(x any) (result Boolean) {
+	_, err := marshalEnhancedGuide(x)
+	result.Set(err == nil)
+	return
+}
+
+func marshalEnhancedGuide(x any) (g EnhancedGuide, err error) {
 	var raw string
 	if raw, err = assertString(x, 5, "Enhanced Guide"); err != nil {
 		return
@@ -62,23 +72,23 @@ func (r RFC4517) EnhancedGuide(x any) (guide EnhancedGuide, err error) {
 	// object-class is the first of three (3)
 	// mandatory Enhanced Guide components.
 	oc := trimS(raws[0])
-	if err = r.OID(oc); err != nil {
+	if res := oID(oc); !res.True() {
 		err = errorTxt("Invalid object-class for Enhanced Guide: " + oc)
 		return
 	}
-	guide.ObjectClass = oc
+	g.ObjectClass = oc
 
 	// criteria is the second of three (3)
 	// mandatory Enhanced Guide components.
 	cp := newCriteriaParser(raws[1])
-	if guide.Criteria = cp.tokenizeCriteria(); guide.Criteria.IsZero() {
+	if g.Criteria = cp.tokenizeCriteria(); g.Criteria.IsZero() {
 		err = errorTxt("Invalid Criteria for Enhanced Guide: " + raws[1])
 		return
 	}
 
 	// subset is the last of three (3)
 	// mandatory Enhanced Guide components.
-	if guide.Subset = subsetToInt(raws[2]); guide.Subset == -1 {
+	if g.Subset = subsetToInt(raws[2]); g.Subset == -1 {
 		err = errorTxt("Incompatible subset for Enhanced Guide: " + raws[2])
 	}
 
@@ -157,7 +167,17 @@ type Guide struct {
 /*
 Guide returns an instance of [Guide] alongside an error.
 */
-func (r RFC4517) Guide(x any) (guide Guide, err error) {
+func (r RFC4517) Guide(x any) (Guide, error) {
+	return marshalGuide(x)
+}
+
+func guide(x any) (result Boolean) {
+	_, err := marshalGuide(x)
+	result.Set(err == nil)
+	return
+}
+
+func marshalGuide(x any) (g Guide, err error) {
 	var raw string
 	if raw, err = assertString(x, 5, "Guide"); err != nil {
 		return
@@ -169,15 +189,15 @@ func (r RFC4517) Guide(x any) (guide Guide, err error) {
 	case 1:
 		// Assume single value is the criteria
 		cp := newCriteriaParser(raws[0])
-		guide.Criteria = cp.tokenizeCriteria()
+		g.Criteria = cp.tokenizeCriteria()
 	case 2:
 		// Assume two (2) components represent the
 		// object-class and criteria respectively.
 		oc := trimS(raws[0])
-		if err = r.OID(oc); err == nil {
-			guide.ObjectClass = oc
+		if res := oID(oc); res.True() {
+			g.ObjectClass = oc
 			cp := newCriteriaParser(raws[1])
-			guide.Criteria = cp.tokenizeCriteria()
+			g.Criteria = cp.tokenizeCriteria()
 		}
 	default:
 		err = errorTxt("Unexpected component length for Guide; want 2, got " +
@@ -185,7 +205,7 @@ func (r RFC4517) Guide(x any) (guide Guide, err error) {
 	}
 
 	if err == nil {
-		if guide.Criteria.IsZero() {
+		if g.Criteria.IsZero() {
 			err = errorTxt("Invalid Criteria for Guide: " + raws[0])
 		}
 	}

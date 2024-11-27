@@ -103,27 +103,27 @@ func TestOctetString(t *testing.T) {
 		} else if got := oct.String(); raw != got {
 			t.Errorf("%s failed:\nwant: %s\ngot:  %s",
 				t.Name(), raw, got)
-		} else {
-			//oct.Eq(oct)
-			//oct.Ne(oct)
-			//oct.Ge(oct)
-			//oct.Gt(oct)
-			//oct.Le(oct)
-			//oct.Lt(oct)
 		}
 	}
 
-	//octet1 := OctetString{0x01, 0x02, 0x03}
-	//octet2 := OctetString{0x01, 0x02, 0x02}
-	//if result := octet1.Ge(octet2); !result {
-	//	t.Errorf("%s failed:\nwant: true\ngot:  false", t.Name())
-	//}
+	octet1 := OctetString{0x01, 0x02, 0x03}
+	octet2 := OctetString{0x01, 0x02, 0x02}
+	result, err := octetStringMatch(octet1, octet2)
+	if err != nil {
+		t.Errorf("%s failed: %v", t.Name(), err)
+		return
+	} else if !result.False() {
+		t.Errorf("%s failed:\nwant: true\ngot:  %s", t.Name(), result)
+		return
+	}
 
-	//octet1 = OctetString{0x01, 0x02, 0x02}
-	//octet2 = OctetString{0x01, 0x02, 0x02}
-	//if result := octet1.Gt(octet2); !result {
-	//	t.Errorf("%s failed:\nwant: false\ngot:  true", t.Name())
-	//}
+	octet1 = OctetString{0x01, 0x02, 0x02}
+	result, err = octetStringMatch(octet1, octet2)
+	if err != nil {
+		t.Errorf("%s failed: %v", t.Name(), err)
+	} else if !result.True() {
+		t.Errorf("%s failed:\nwant: true\ngot:  %s", t.Name(), result)
+	}
 }
 
 func TestCountryString(t *testing.T) {
@@ -189,73 +189,57 @@ func TestPrintableString(t *testing.T) {
 	}
 }
 
-func TestDirectoryString(t *testing.T) {
-	var r RFC4517
-	var s RFC4512
-	var x X680
-
-	for idx, raw := range []any{
-		`This is a Directory String.`,
-		BMPString{0x1E, 0x01, 0xDC, 0x00}, // bad
-		BMPString{0x1E, 0x02, 0x03, 0xA3},
-		BMPString{0x00, 0x00, 0xD8, 0x00}, // bad
-		BMPString{0x1E, 0x06, 0x00, 0x41, 0x00, 0x42, 0x00, 0x43},
-		BMPString{0x4E, 0x00, 0x6E, 0x00, 0x61, 0x00, 0x6D, 0x00, 0xE9}, // bad
-		BMPString{0x1E, 0x0a, 0x00, 0x48, 0x00, 0x65, 0x00, 0x6C, 0x00, 0x6C, 0x00, 0x6F},
-		BMPString{0x00, 0x00, 0x00}, // bad
-		BMPString{0x1E, 0x08, 0x00, 0x54, 0x00, 0x65, 0x00, 0x78, 0x00, 0x74},
-		BMPString{0xFF}, // bad
-		BMPString{},
-		PrintableString("Invalid@Chars"), // bad
-		PrintableString(" "),
-		PrintableString("Test@PRINTABLE#"), // bad
-		PrintableString("Printable123"),
-		PrintableString(""), // bad
-		PrintableString("Yes."),
-		UniversalString("\x00\x00\x00\x20\x00\xDC\x00\x00"), // bad
-		UniversalString("こんにちは世界！"),
-		UniversalString("\x00\x00\xD8\x00\x00\x00\xDF\xFF"), // bad
-		UniversalString("This is a universal string 😊"),
-		UTF8String("\xC3\x28"), // bad
-		UTF8String(""),
-		UTF8String("\xF0\x28\x8C\xBC"), // bad
-		UTF8String(`ZFKJ345325^&*$`),
-		UTF8String("\xF0"), // bad
-		UTF8String("Hola! こんにちは"),
-		UTF8String("\xF0\x82\x82\xAC"), // bad
-		UTF8String("Hello, 世界!"),
-		UTF8String("\xE2\x28\xA1"), // bad
-		UTF8String("Zǹǹêrī!"),
-		TeletexString("\x80\x81\x82"), // bad
-		TeletexString(`maybe`),
-		TeletexString("\xC0\xC1"), // bad
-		TeletexString("Hello"),
-		TeletexString("\xF1\xF2\xF3"), // bad
-		TeletexString("Teletex123!"),
-	} {
-		even := idx%2 == 0
-		ds, err := r.DirectoryString(raw)
-		ok := err == nil
-		if !ok && even {
-			t.Errorf("%s[%d] %T failed: %v", t.Name(), idx, raw, err)
-		} else if ok && !even {
-			t.Errorf("%s[%d] %T succeeded but should have failed", t.Name(), idx, raw)
-		}
-		_ = ds.String()
-		ds.IsZero()
-		ds.Bytes()
-
-		_, _ = s.UTF8String(raw)
-		_, _ = s.UTF8String([]byte(ds.String()))
-		_, _ = x.BMPString([]byte(ds.String()))
-
-	}
-}
+/*
+   BMPString{0x1E, 0x01, 0xDC, 0x00}, // bad
+   BMPString{0x00, 0x00, 0xD8, 0x00}, // bad
+   BMPString{0x4E, 0x00, 0x6E, 0x00, 0x61, 0x00, 0x6D, 0x00, 0xE9}, // bad
+   BMPString{0x00, 0x00, 0x00}, // bad
+   BMPString{0xFF}, // bad
+   PrintableString("Invalid@Chars"), // bad
+   PrintableString("Test@PRINTABLE#"), // bad
+   PrintableString(""), // bad
+   UniversalString("\x00\x00\x00\x20\x00\xDC\x00\x00"), // bad
+   UniversalString("\x00\x00\xD8\x00\x00\x00\xDF\xFF"), // bad
+   UTF8String("\xC3\x28"), // bad
+   UTF8String("\xF0\x28\x8C\xBC"), // bad
+   UTF8String("\xF0"), // bad
+   UTF8String("\xF0\x82\x82\xAC"), // bad
+   UTF8String("\xE2\x28\xA1"), // bad
+   TeletexString("\x80\x81\x82"), // bad
+   TeletexString("\xC0\xC1"), // bad
+   TeletexString("\xF1\xF2\xF3"), // bad
+*/
 
 func TestString_codecov(t *testing.T) {
 	var r RFC4517
 	var s RFC4512
 	var x X680
+
+	for _, ds := range []DirectoryString{
+		BMPString{0x1E, 0x02, 0x03, 0xA3},
+		BMPString{0x1E, 0x06, 0x00, 0x41, 0x00, 0x42, 0x00, 0x43},
+		BMPString{0x1E, 0x0a, 0x00, 0x48, 0x00, 0x65, 0x00, 0x6C, 0x00, 0x6C, 0x00, 0x6F},
+		BMPString{0x1E, 0x08, 0x00, 0x54, 0x00, 0x65, 0x00, 0x78, 0x00, 0x74},
+		BMPString{},
+		PrintableString(" "),
+		PrintableString("Printable123"),
+		PrintableString("Yes."),
+		UniversalString("こんにちは世界！"),
+		UniversalString("This is a universal string 😊"),
+		UTF8String(""),
+		UTF8String(`ZFKJ345325^&*$`),
+		UTF8String("Hola! こんにちは"),
+		UTF8String("Hello, 世界!"),
+		UTF8String("Zǹǹêrī!"),
+		TeletexString(`maybe`),
+		TeletexString("Hello"),
+		TeletexString("Teletex123!"),
+	} {
+		_ = ds.String()
+		ds.IsZero()
+		ds.Choice()
+		ds.isDirectoryString()
+	}
 
 	//_, _ = r.assertBitString([]byte{})
 	//_, _ = r.assertBitString(nil)
