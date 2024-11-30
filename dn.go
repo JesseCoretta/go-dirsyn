@@ -52,39 +52,33 @@ type AttributeTypeAndValue struct {
 	Value string
 }
 
-func (r *AttributeTypeAndValue) setType(str string) error {
-	result, err := decodeString(str)
-	if err != nil {
-		return err
+func (r *AttributeTypeAndValue) setType(str string) (err error) {
+	var result string
+	if result, err = decodeString(str); err == nil {
+		r.Type = result
 	}
-	r.Type = result
 
-	return nil
+	return
 }
 
-func (r *AttributeTypeAndValue) setValue(s string) error {
+func (r *AttributeTypeAndValue) setValue(s string) (err error) {
 	// https://www.ietf.org/rfc/rfc4514.html#section-2.4
 	// If the AttributeType is of the dotted-decimal form, the
 	// AttributeValue is represented by an number sign ('#' U+0023)
 	// character followed by the hexadecimal encoding of each of the octets
 	// of the BER encoding of the X.500 AttributeValue.
+	var decodedString string
 	if len(s) > 0 && s[0] == '#' {
-		decodedString, err := decodeEncodedString(s[1:])
-		if err != nil {
-			return err
+		if decodedString, err = decodeEncodedString(s[1:]); err == nil {
+			r.Value = decodedString
 		}
-
-		r.Value = decodedString
-		return nil
 	} else {
-		decodedString, err := decodeString(s)
-		if err != nil {
-			return err
+		if decodedString, err = decodeString(s); err == nil {
+			r.Value = decodedString
 		}
-
-		r.Value = decodedString
-		return nil
 	}
+
+	return
 }
 
 /*
@@ -720,4 +714,58 @@ func foldRune(r rune) rune {
 		}
 		r = r2
 	}
+}
+
+func distinguishedNameMatch(a, b any) (result Boolean, err error) {
+	var dn1, dn2 DistinguishedName
+	if dn1, err = marshalDistinguishedName(a); err != nil {
+		return
+	}
+
+	if dn2, err = marshalDistinguishedName(b); err != nil {
+		return
+	}
+
+	if len(dn1.RDNs) != len(dn2.RDNs) {
+		result.Set(false)
+		return
+	}
+
+	for i := range dn1.RDNs {
+		if !dn1.RDNs[i].Equal(dn2.RDNs[i]) {
+			result.Set(false)
+			return
+		}
+	}
+
+	result.Set(true)
+	return
+}
+
+func uniqueMemberMatch(a, b any) (result Boolean, err error) {
+	var nou1, nou2 NameAndOptionalUID
+	if nou1, err = marshalNameAndOptionalUID(a); err != nil {
+		return
+	}
+
+	if nou2, err = marshalNameAndOptionalUID(b); err != nil {
+		return
+	}
+
+	if result, err = distinguishedNameMatch(nou1.DN, nou2.DN); err != nil {
+		result.Set(false)
+		return
+	} else if !result.True() {
+		return
+	}
+
+	if len(nou1.UID.Bytes) == 0 && len(nou2.UID.Bytes) == 0 {
+		result.Set(true)
+	} else if len(nou1.UID.Bytes) != 0 && len(nou2.UID.Bytes) != 0 {
+		var matched Boolean
+		matched, err = bitStringMatch(nou1.UID, nou2.UID)
+		result.Set(matched)
+	}
+
+	return
 }

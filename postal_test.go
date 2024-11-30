@@ -55,17 +55,28 @@ func TestOtherMailbox(t *testing.T) {
 func TestPostal_codecov(t *testing.T) {
 	pSOrIA5s(nil)
 	pSOrIA5s(`\\$`)
+	pSOrIA5s(string(rune(0)))
+	pSOrIA5s(string(rune(14)))
 	pSOrIA5s(`\$`)
 	pSOrIA5s(`......\$....!`)
+	pSOrIA5s(`......\\$....!`)
+	pSOrIA5s("......\\$....!")
 	pSOrIA5s(`.$.$.$.$.$`)
 	pSOrIA5s(`.$.$@$#$.$`)
 	pSOrIA5s(`界界界`)
 	pSOrIA5s(`界$界$界`)
 	pSOrIA5s(`$100000 Sweepstakes$10 Million Dollar Avenue$New York$NY`)
 
+	deliveryMethod(nil)
+	postalAddress(nil)
+	otherMailbox(nil)
+
+	_ = printableString(`Hello.`)
+
 	lineChar(`.#.$.$.$$`)
 	lineChar(`.#.naïve.$.$$`)
 	lineChar(string(rune('\U0010AAAA')) + `ð`)
-	lineChar(`$abc$界$`)
+	lineChar(`$a\\bc$界$`)
 	lineChar(string([]rune{'\u00e0', '$', '\u00FF'}))
+	lineChar(string([]rune{'\u00e0', '$', '\uFFFF'}))
 }

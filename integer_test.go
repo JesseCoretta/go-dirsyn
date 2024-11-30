@@ -138,4 +138,36 @@ func TestInteger_codecov(t *testing.T) {
 	castInt64(int32(33))
 	castInt64(int64(9))
 	castInt64(struct{}{})
+
+	var ii Integer
+	ii.SetBytes([]byte{
+		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+		0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+		0x10,
+	})
+	ii.UUID()
+
+	integerMatch(struct{}{}, 1)
+	integerMatch(1, struct{}{})
+
+	type FirstComponent struct {
+		Field Integer
+	}
+	type BadFirstComponent struct {
+		Field float32
+	}
+
+	bint, _ := assertNumber(3)
+
+	fc := FirstComponent{i1}
+	bc := BadFirstComponent{float32(1)}
+	integerFirstComponentMatch(nil, fc)
+	integerFirstComponentMatch(bc, fc)
+	integerFirstComponentMatch(fc, nil)
+	integerFirstComponentMatch(fc, 1)
+	integerFirstComponentMatch(fc, bint)
+	integerFirstComponentMatch(fc, struct{}{})
+	integerFirstComponentMatch(fc, fc)
+	integerFirstComponentMatch(struct{}{}, fc)
+	integerFirstComponentMatch(struct{}{}, 1)
 }

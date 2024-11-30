@@ -241,3 +241,97 @@ func uTCHandler(raw, sec, diff, format string) (utc UTCTime, err error) {
 
 	return
 }
+
+/*
+generalizedTimeMatch implements [§ 4.2.16 of RFC 4517].
+
+OID: 2.5.13.27.
+
+[§ 4.2.16 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-4.2.16
+*/
+func generalizedTimeMatch(a, b any) (result Boolean, err error) {
+	result, err = timeMatch(a, b, 0)
+	return
+}
+
+/*
+generalizedTimeOrderingMatch implements [§ 4.2.17 of RFC 4517].
+
+OID: 2.5.13.28.
+
+[§ 4.2.17 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-4.2.17
+*/
+func generalizedTimeOrderingMatch(a, b any) (result Boolean, err error) {
+	result, err = timeMatch(a, b, 2)
+	return
+}
+
+func timeMatch(rcv, assert any, typ int) (result Boolean, err error) {
+	var c time.Time
+	var utc bool
+
+	switch tv := rcv.(type) {
+	case GeneralizedTime:
+		c = tv.Cast().UTC()
+	case UTCTime:
+		c = tv.Cast().UTC()
+		utc = true
+	case string:
+		switch len(tv) {
+		case 15:
+			var gt GeneralizedTime
+			gt, err = marshalGenTime(tv)
+			c = gt.Cast().UTC()
+		case 10:
+			utc = true
+			var ut UTCTime
+			ut, err = marshalUTCTime(tv)
+			c = ut.Cast().UTC()
+		default:
+			err = errorTxt("invalid GeneralizedTime or UTCTime format")
+		}
+	default:
+		err = errorBadType("GeneralizedTime")
+	}
+
+	if err == nil {
+		var funk func(time.Time) bool
+		switch typ {
+		case 0:
+			funk = func(thyme time.Time) bool {
+				return c.Equal(thyme)
+			}
+			result.Set(compareTimes(assert, utc, funk))
+		case 2:
+			funk = func(thyme time.Time) bool {
+				return c.Before(thyme)
+			}
+			result.Set(compareTimes(assert, utc, funk))
+		default:
+			err = errorTxt("Invalid time format or value")
+		}
+	}
+
+	return
+}
+
+func compareTimes(assert any, utc bool, funk func(time.Time) bool) (result bool) {
+	switch tv := assert.(type) {
+	case GeneralizedTime:
+		result = funk(tv.Cast())
+	case UTCTime:
+		result = funk(tv.Cast())
+	case time.Time:
+		result = funk(tv)
+	default:
+		if utc {
+			d, err := marshalUTCTime(tv)
+			result = funk(d.Cast()) && err == nil
+		} else {
+			d, err := marshalGenTime(tv)
+			result = funk(d.Cast()) && err == nil
+		}
+	}
+
+	return
+}

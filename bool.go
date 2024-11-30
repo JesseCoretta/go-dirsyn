@@ -127,6 +127,8 @@ func (r Boolean) String() (s string) {
 func assertBoolean(x any) (b Boolean, err error) {
 	switch tv := x.(type) {
 	case nil:
+	case Boolean:
+		b = tv
 	case bool:
 		b = Boolean{&tv}
 	case string:
@@ -138,6 +140,34 @@ func assertBoolean(x any) (b Boolean, err error) {
 		}
 	default:
 		err = errorBadType("Boolean")
+	}
+
+	return
+}
+
+/*
+booleanMatch implements [§ 4.2.2 of RFC 4517].
+
+OID: 2.5.13.13.
+
+[§ 4.2.2 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-4.2.2
+*/
+func booleanMatch(a, b any) (result Boolean, err error) {
+
+	var A, B Boolean
+	if A, err = assertBoolean(a); err != nil {
+		return
+	}
+	if B, err = assertBoolean(b); err != nil {
+		return
+	}
+
+	if A.True() {
+		result.Set(B.True())
+	} else if A.False() {
+		result.Set(B.False())
+	} else if A.Undefined() {
+		result.Set(B.Undefined())
 	}
 
 	return

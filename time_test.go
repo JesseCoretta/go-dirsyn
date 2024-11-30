@@ -49,6 +49,33 @@ func TestGeneralizedTimeOrderingMatch(t *testing.T) {
 	//t.Logf("%s==%s\n", gt1,gt1)
 }
 
+func TestGeneralizedTime_codecov(t *testing.T) {
+	_ = generalizedTime(`...`)
+	_ = uTCTime(`...`)
+	var u UTCTime
+	u.Cast()
+
+	var r RFC4517
+	var a, b UTCTime
+	var err error
+
+	if a, err = r.UTCTime(`9911040404`); err != nil {
+		t.Errorf("%s failed: %v", t.Name(), err)
+		return
+	}
+
+	if b, err = r.UTCTime(`9911040403`); err != nil {
+		t.Errorf("%s failed: %v", t.Name(), err)
+		return
+	}
+
+	_, _ = timeMatch(`20210404041113Z`, `20210404041113Z`, 0)
+	_, _ = timeMatch(`9911040404`, `9901160801`, 0)
+	_, _ = timeMatch(a, b, 2)
+	_, _ = timeMatch(`127`, b, 2)
+	_, _ = timeMatch(a, b, -1)
+}
+
 func TestUTCTime(t *testing.T) {
 	var r RFC4517
 

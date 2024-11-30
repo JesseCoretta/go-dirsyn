@@ -1,10 +1,10 @@
 package dirsyn
 
-import "sync"
-
 /*
 schema.go implements much of Section 4 of RFC 4512.
 */
+
+import "sync"
 
 /*
 NewSubschemaSubentry returns a freshly initialized instance of
@@ -35,23 +35,24 @@ type Definition interface {
 	OID() string
 	Type() string
 	String() string
+	XOrigin() []string
 	isDefinition()
 }
 
 /*
-Definitions is an interface type qualified through instances of the
+definitions is an interface type qualified through instances of the
 following types:
 
-  - [LDAPSyntaxes]
-  - [MatchingRules]
-  - [AttributeTypes]
-  - [MatchingRuleUse]
-  - [ObjectClasses]
-  - [DITContentRules]
-  - [NameForms]
-  - [DITStructureRules]
+  - [ldapSyntaxes]
+  - [matchingRules]
+  - [attributeTypes]
+  - [matchingRuleUses]
+  - [objectClasses]
+  - [dITContentRules]
+  - [nameForms]
+  - [dITStructureRules]
 */
-type Definitions interface {
+type definitions interface {
 	Len() int
 	OID() string
 	Type() string
@@ -67,14 +68,14 @@ of various definition types.
 [§ 4.2 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2
 */
 type SubschemaSubentry struct {
-	LDAPSyntaxes
-	MatchingRules
-	AttributeTypes
-	MatchingRuleUse
-	ObjectClasses
-	DITContentRules
-	NameForms
-	DITStructureRules
+	ldapSyntaxes
+	matchingRules
+	attributeTypes
+	matchingRuleUses
+	objectClasses
+	dITContentRules
+	nameForms
+	dITStructureRules
 
 	lock *sync.Mutex
 }
@@ -93,7 +94,9 @@ func (r *SubschemaSubentry) primeBuiltIns() {
 }
 
 /*
-OID returns the numeric OID associated with the receiver instance.
+OID returns the numeric OID literal "2.5.18.10" per [§ 4.2 of RFC 4512].
+
+[§ 4.2 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2
 */
 func (r SubschemaSubentry) OID() string { return `2.5.18.10` }
 
@@ -102,52 +105,19 @@ String returns the string representation of the receiver instance.
 */
 func (r SubschemaSubentry) String() (ssse string) {
 
-	ssse += r.LDAPSyntaxes.String()
-	ssse += r.MatchingRules.String()
-	ssse += r.AttributeTypes.String()
-	ssse += r.MatchingRuleUse.String()
-	ssse += r.ObjectClasses.String()
-	ssse += r.DITContentRules.String()
-	ssse += r.NameForms.String()
-	ssse += r.DITStructureRules.String()
+	ssse += r.ldapSyntaxes.String()
+	ssse += r.matchingRules.String()
+	ssse += r.attributeTypes.String()
+	ssse += r.matchingRuleUses.String()
+	ssse += r.objectClasses.String()
+	ssse += r.dITContentRules.String()
+	ssse += r.nameForms.String()
+	ssse += r.dITStructureRules.String()
 
 	// remove final newline
 	ssse = trim(ssse, string(rune(10)))
 
 	return
-}
-
-/*
-Push assigns def to the receiver instance. This method engages [sync.Lock]
-and is thread-safe.
-
-The input def argument must be one of the following types:
-
-  - [LDAPSyntaxDescription]
-  - [MatchingRuleDescription]
-  - [AttributeTypeDescription]
-  - [ObjectClassDescription]
-  - [DITContentRuleDescription]
-  - [NameFormDescription]
-  - [DITStructureRuleDescription]
-*/
-func (r *SubschemaSubentry) Push(def any) {
-	switch tv := def.(type) {
-	case LDAPSyntaxDescription:
-		r.RegisterLDAPSyntax(tv)
-	case MatchingRuleDescription:
-		r.RegisterMatchingRule(tv)
-	case AttributeTypeDescription:
-		r.RegisterAttributeType(tv)
-	case ObjectClassDescription:
-		r.RegisterObjectClass(tv)
-	case DITContentRuleDescription:
-		r.RegisterDITContentRule(tv)
-	case NameFormDescription:
-		r.RegisterNameForm(tv)
-	case DITStructureRuleDescription:
-		r.RegisterDITStructureRule(tv)
-	}
 }
 
 /*
@@ -164,7 +134,7 @@ func (r *SubschemaSubentry) RegisterLDAPSyntax(input any) (err error) {
 
 	switch tv := input.(type) {
 	case LDAPSyntaxDescription:
-		if !def.Valid() {
+		if !tv.Valid() {
 			err = errorTxt("ldapSyntax: Invalid description syntax")
 		}
 		def = tv
@@ -178,7 +148,7 @@ func (r *SubschemaSubentry) RegisterLDAPSyntax(input any) (err error) {
 		return
 	}
 
-	if r.LDAPSyntaxes.Contains(def.NumericOID) != -1 {
+	if _, idx := r.LDAPSyntax(def.NumericOID); idx != -1 {
 		err = errorTxt("ldapSyntax: Duplicate registration: '" + def.NumericOID + "'")
 		return
 	}
@@ -186,7 +156,7 @@ func (r *SubschemaSubentry) RegisterLDAPSyntax(input any) (err error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	r.LDAPSyntaxes = append(r.LDAPSyntaxes, def)
+	r.ldapSyntaxes = append(r.ldapSyntaxes, def)
 
 	return
 }
@@ -205,9 +175,6 @@ func (r *SubschemaSubentry) RegisterMatchingRule(input any) (err error) {
 
 	switch tv := input.(type) {
 	case MatchingRuleDescription:
-		if !def.Valid() {
-			err = errorTxt("matchingRule: Invalid description syntax")
-		}
 		def = tv
 	case string:
 		def, err = marshalMatchingRuleDescription(tv)
@@ -220,21 +187,32 @@ func (r *SubschemaSubentry) RegisterMatchingRule(input any) (err error) {
 	}
 
 	if len(def.Syntax) > 0 {
-		if r.LDAPSyntaxes.Contains(def.Syntax) == -1 {
+		if _, idx := r.LDAPSyntax(def.Syntax); idx == -1 {
 			err = errorTxt("matchingRule: Unknown SYNTAX '" + def.Syntax + "'")
 			return
 		}
 	}
 
-	if r.MatchingRules.Contains(def.NumericOID) != -1 {
+	if _, idx := r.MatchingRule(def.NumericOID); idx != -1 {
 		err = errorTxt("matchingRule: Duplicate registration: '" + def.NumericOID + "'")
 		return
 	}
 
+	if !def.Valid() {
+		err = errorTxt("matchingRule: Invalid description syntax")
+		return
+	}
+
+	// Initialize MRU using new MR def.
+	mru := def.newMatchingRuleUse()
+
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	r.MatchingRules = append(r.MatchingRules, def)
+	r.matchingRules = append(r.matchingRules, def)
+	if mru.NumericOID != "" {
+		r.matchingRuleUses = append(r.matchingRuleUses, mru)
+	}
 
 	return
 }
@@ -253,9 +231,6 @@ func (r *SubschemaSubentry) RegisterAttributeType(input any) (err error) {
 
 	switch tv := input.(type) {
 	case AttributeTypeDescription:
-		if !def.Valid() {
-			err = errorTxt("attributeType: Invalid description syntax")
-		}
 		def = tv
 	case string:
 		def, err = marshalAttributeTypeDescription(tv)
@@ -267,11 +242,14 @@ func (r *SubschemaSubentry) RegisterAttributeType(input any) (err error) {
 		return
 	}
 
-	if r.AttributeTypes.Contains(def.NumericOID) != -1 {
+	if _, idx := r.AttributeType(def.NumericOID); idx != -1 {
 		err = errorTxt("attributeType: Duplicate registration: '" +
 			def.NumericOID + "'")
 		return
 	}
+
+	// store whatever MRs we validate
+	var mrups map[string]string = make(map[string]string, 3)
 
 	for typ, mr := range map[string]string{
 		"EQUALITY": def.Equality,
@@ -279,17 +257,22 @@ func (r *SubschemaSubentry) RegisterAttributeType(input any) (err error) {
 		"SUBSTR":   def.Substring,
 	} {
 		if mr != "" {
-			if r.MatchingRules.Contains(mr) == -1 {
+			var rule MatchingRuleDescription
+			var idx int
+
+			if rule, idx = r.MatchingRule(mr); idx == -1 {
 				err = errorTxt("attributeType: Unknown " + typ +
 					" matching rule: '" + mr + "'")
 				return
 			}
+
+			mrups[typ] = rule.NumericOID
 		}
 	}
 
 	// Make sure supertype, if present, is sane.
 	if def.SuperType != "" {
-		if r.AttributeTypes.Contains(def.SuperType) == -1 {
+		if _, idx := r.AttributeType(def.SuperType); idx == -1 {
 			err = errorTxt("attributeType: Unknown SUP (supertype): '" +
 				def.SuperType + "'")
 			return
@@ -297,18 +280,41 @@ func (r *SubschemaSubentry) RegisterAttributeType(input any) (err error) {
 	}
 
 	if len(def.Syntax) > 0 {
-		if r.LDAPSyntaxes.Contains(def.Syntax) == -1 {
+		if _, idx := r.LDAPSyntax(def.Syntax); idx == -1 {
 			err = errorTxt("attributeType: Unknown SYNTAX '" + def.Syntax + "'")
 			return
 		}
 	}
 
+	if !def.Valid() {
+		err = errorTxt("attributeType: Invalid description syntax")
+		return
+	}
+
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	r.AttributeTypes = append(r.AttributeTypes, def)
+	r.attributeTypes = append(r.attributeTypes, def)
+	r.updateMatchingRuleUse(def, mrups)
 
 	return
+}
+
+func (r *SubschemaSubentry) updateMatchingRuleUse(def AttributeTypeDescription, mrups map[string]string) {
+	name := def.NumericOID
+	if len(def.Name) > 0 {
+		// Use the principal NAME, if set.
+		name = def.Name[0]
+	}
+
+	// Update appropriate MRUs to include new attr OID
+	for _, v := range mrups {
+		if _, idx := r.MatchingRuleUse(v); idx != -1 {
+			if found := strInSlice(name, r.matchingRuleUses[idx].Applies); !found {
+				r.matchingRuleUses[idx].Applies = append(r.matchingRuleUses[idx].Applies, name)
+			}
+		}
+	}
 }
 
 /*
@@ -325,9 +331,6 @@ func (r *SubschemaSubentry) RegisterObjectClass(input any) (err error) {
 
 	switch tv := input.(type) {
 	case ObjectClassDescription:
-		if !def.Valid() {
-			err = errorTxt("objectClass: Invalid description syntax")
-		}
 		def = tv
 	case string:
 		def, err = marshalObjectClassDescription(tv)
@@ -339,7 +342,7 @@ func (r *SubschemaSubentry) RegisterObjectClass(input any) (err error) {
 		return
 	}
 
-	if r.ObjectClasses.Contains(def.NumericOID) != -1 {
+	if _, idx := r.ObjectClass(def.NumericOID); idx != -1 {
 		err = errorTxt("objectClass: Duplicate registration: '" +
 			def.NumericOID + "'")
 		return
@@ -351,26 +354,32 @@ func (r *SubschemaSubentry) RegisterObjectClass(input any) (err error) {
 		`MAY`:  def.May,
 	} {
 		for _, at := range slices {
-			if r.AttributeTypes.Contains(at) == -1 {
+			if _, idx := r.AttributeType(at); idx == -1 {
 				err = errorTxt("objectClass: Unknown " + clause +
 					" attribute type: '" + at + "'")
+				return
 			}
 		}
 	}
 
 	// Make sure superclasses, if present, are sane.
 	for i := 0; i < len(def.SuperClasses); i++ {
-		if r.ObjectClasses.Contains(def.SuperClasses[i]) == -1 {
+		if _, idx := r.ObjectClass(def.SuperClasses[i]); idx == -1 {
 			err = errorTxt("objectClass: Unknown SUP (superclass): '" +
 				def.SuperClasses[i] + "'")
 			return
 		}
 	}
 
+	if !def.Valid() {
+		err = errorTxt("objectClass: failed validity checks")
+		return
+	}
+
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	r.ObjectClasses = append(r.ObjectClasses, def)
+	r.objectClasses = append(r.objectClasses, def)
 
 	return
 }
@@ -389,9 +398,6 @@ func (r *SubschemaSubentry) RegisterDITContentRule(input any) (err error) {
 
 	switch tv := input.(type) {
 	case DITContentRuleDescription:
-		if !def.Valid() {
-			err = errorTxt("dITContentRule: Invalid description syntax")
-		}
 		def = tv
 	case string:
 		def, err = marshalDITContentRuleDescription(tv)
@@ -403,11 +409,11 @@ func (r *SubschemaSubentry) RegisterDITContentRule(input any) (err error) {
 		return
 	}
 
-	if r.ObjectClasses.Contains(def.NumericOID) == -1 {
+	if _, idx := r.ObjectClass(def.NumericOID); idx == -1 {
 		err = errorTxt("dITContentRule: Unregistered structural class OID: '" +
 			def.NumericOID + "'")
 		return
-	} else if r.DITContentRules.Contains(def.NumericOID) != -1 {
+	} else if _, idx := r.DITContentRule(def.NumericOID); idx != -1 {
 		err = errorTxt("dITContentRule: Duplicate registration: '" +
 			def.NumericOID + "'")
 		return
@@ -420,7 +426,7 @@ func (r *SubschemaSubentry) RegisterDITContentRule(input any) (err error) {
 		`NOT`:  def.Not,
 	} {
 		for _, at := range slices {
-			if r.AttributeTypes.Contains(at) == -1 {
+			if _, idx := r.AttributeType(at); idx == -1 {
 				err = errorTxt("dITContentRule: Unknown " + clause +
 					" attribute type: '" + at + "'")
 				return
@@ -430,20 +436,26 @@ func (r *SubschemaSubentry) RegisterDITContentRule(input any) (err error) {
 
 	// Make sure auxiliary classes, if present, are sane.
 	for i := 0; i < len(def.Aux); i++ {
-		if idx := r.ObjectClasses.Contains(def.Aux[i]); idx == -1 {
+		if _, idx := r.ObjectClass(def.Aux[i]); idx == -1 {
 			err = errorTxt("dITContentRule: Unknown AUX (auxiliary class): '" +
 				def.Aux[i] + "'")
 			return
-		} else if r.ObjectClasses[idx].Kind != 1 {
-			err = errorTxt("dITContentRule: non-AUX class in AUX clause")
+		} else if r.objectClasses[idx].Kind != 1 {
+			err = errorTxt("dITContentRule: non-AUXILIARY class in AUX clause: '" +
+				def.Aux[i] + "'")
 			return
 		}
+	}
+
+	if !def.Valid() {
+		err = errorTxt("dITContentRule: Invalid description syntax")
+		return
 	}
 
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	r.DITContentRules = append(r.DITContentRules, def)
+	r.dITContentRules = append(r.dITContentRules, def)
 
 	return
 }
@@ -462,9 +474,6 @@ func (r *SubschemaSubentry) RegisterNameForm(input any) (err error) {
 
 	switch tv := input.(type) {
 	case NameFormDescription:
-		if !def.Valid() {
-			err = errorTxt("nameForm: Invalid description syntax")
-		}
 		def = tv
 	case string:
 		def, err = marshalNameFormDescription(tv)
@@ -476,11 +485,14 @@ func (r *SubschemaSubentry) RegisterNameForm(input any) (err error) {
 		return
 	}
 
-	if r.ObjectClasses.Contains(def.OC) == -1 {
-		err = errorTxt("nameForm: Unknown structural class OID: '" +
+	oc, idx := r.ObjectClass(def.OC)
+	if idx == -1 || oc.Kind != 0 {
+		err = errorTxt("nameForm: Unknown or invalid structural class OID: '" +
 			def.OC + "'")
 		return
-	} else if r.NameForms.Contains(def.NumericOID) != -1 {
+	}
+
+	if _, idx = r.NameForm(def.NumericOID); idx != -1 {
 		err = errorTxt("nameForm: Duplicate registration: '" +
 			def.NumericOID + "'")
 		return
@@ -492,7 +504,7 @@ func (r *SubschemaSubentry) RegisterNameForm(input any) (err error) {
 		`MAY`:  def.May,
 	} {
 		for _, at := range slices {
-			if r.AttributeTypes.Contains(at) == -1 {
+			if _, idx := r.AttributeType(at); idx == -1 {
 				err = errorTxt("nameForm: Unknown " + clause +
 					" attribute type: '" + at + "'")
 				return
@@ -500,10 +512,15 @@ func (r *SubschemaSubentry) RegisterNameForm(input any) (err error) {
 		}
 	}
 
+	if !def.Valid() {
+		err = errorTxt("nameForm: Invalid description syntax")
+		return
+	}
+
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	r.NameForms = append(r.NameForms, def)
+	r.nameForms = append(r.nameForms, def)
 
 	return
 }
@@ -522,9 +539,6 @@ func (r *SubschemaSubentry) RegisterDITStructureRule(input any) (err error) {
 
 	switch tv := input.(type) {
 	case DITStructureRuleDescription:
-		if !def.Valid() {
-			err = errorTxt("dITStructureRule: Invalid description syntax")
-		}
 		def = tv
 	case string:
 		def, err = marshalDITStructureRuleDescription(tv)
@@ -536,11 +550,11 @@ func (r *SubschemaSubentry) RegisterDITStructureRule(input any) (err error) {
 		return
 	}
 
-	if r.DITStructureRules.Contains(def.RuleID) != -1 {
+	if _, idx := r.DITStructureRule(def.RuleID); idx != -1 {
 		err = errorTxt("dITStructureRule: Duplicate registration: '" +
 			def.RuleID + "'")
 		return
-	} else if r.NameForms.Contains(def.Form) == -1 {
+	} else if _, idx := r.NameForm(def.Form); idx == -1 {
 		err = errorTxt("dITStructureRule: nameForm: Unknown name form OID: '" +
 			def.Form + "'")
 		return
@@ -548,7 +562,7 @@ func (r *SubschemaSubentry) RegisterDITStructureRule(input any) (err error) {
 
 	// Make sure superclasses, if present, are sane.
 	for i := 0; i < len(def.SuperRules); i++ {
-		if r.DITStructureRules.Contains(def.SuperRules[i]) == -1 {
+		if _, idx := r.DITStructureRule(def.SuperRules[i]); idx == -1 {
 			// Allow recursive rules to be added (ignore
 			// "Not Found" for current ruleid).
 			if def.SuperRules[i] != def.RuleID {
@@ -559,18 +573,23 @@ func (r *SubschemaSubentry) RegisterDITStructureRule(input any) (err error) {
 		}
 	}
 
+	if !def.Valid() {
+		err = errorTxt("dITStructureRule: Invalid description syntax")
+		return
+	}
+
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	r.DITStructureRules = append(r.DITStructureRules, def)
+	r.dITStructureRules = append(r.dITStructureRules, def)
 
 	return
 }
 
 /*
-Counters returns an instance of [9]int, each slice representing the
+Counters returns an instance of [9]uint, each slice representing the
 current number of definitions of a particular collection, while the
-final slice represents the total of the previous eight (8).
+final slice represents the sum total of the previous eight (8).
 
 Collection indices are as follows:
 
@@ -584,23 +603,325 @@ Collection indices are as follows:
   - 7 - "dITStructureRules"
   - 8 - "total"
 */
-func (r SubschemaSubentry) Counters() (counters [9]int) {
-	counters[0] = len(r.LDAPSyntaxes)
-	counters[1] = len(r.MatchingRules)
-	counters[2] = len(r.AttributeTypes)
-	counters[3] = len(r.MatchingRuleUse)
-	counters[4] = len(r.ObjectClasses)
-	counters[5] = len(r.DITContentRules)
-	counters[6] = len(r.NameForms)
-	counters[7] = len(r.DITStructureRules)
-	counters[8] = counters[0] +
+func (r SubschemaSubentry) Counters() (counters [9]uint) {
+	counters[0] = uint(r.ldapSyntaxes.Len())
+	counters[1] = uint(r.matchingRules.Len())
+	counters[2] = uint(r.attributeTypes.Len())
+	counters[3] = uint(r.matchingRuleUses.Len())
+	counters[4] = uint(r.objectClasses.Len())
+	counters[5] = uint(r.dITContentRules.Len())
+	counters[6] = uint(r.nameForms.Len())
+	counters[7] = uint(r.dITStructureRules.Len())
+	counters[8] = uint(counters[0] +
 		counters[1] +
 		counters[2] +
 		counters[3] +
 		counters[4] +
 		counters[5] +
 		counters[6] +
-		counters[7]
+		counters[7])
+
+	return
+}
+
+/*
+LDAPSyntax returns an instance of [LDAPSyntaxDescription] alongside the
+associated integer index. If not found, the index shall be -1 and the
+schema definition shall be unpopulated.
+
+The input id value (identifier) should be the string representation of the
+desired LDAPSyntax numeric OID, or the description text.
+
+Note that if description text is used, neither whitespace nor case-folding
+are significant in the matching process.
+*/
+func (r SubschemaSubentry) LDAPSyntax(id string) (ls LDAPSyntaxDescription, idx int) {
+	idx = -1
+	desc := trimS(repAll(id, ` `, ``))
+	for i := 0; i < r.ldapSyntaxes.Len(); i++ {
+		def := r.ldapSyntaxes[i]
+		ldesc := repAll(def.Description, ` `, ``)
+		fo := def.NumericOID == id
+		fn := streqf(ldesc, desc)
+		if fo || fn {
+			ls = def
+			idx = i
+			break
+		}
+	}
+
+	return
+}
+
+/*
+MatchingRule returns an instance of [MatchingRuleDescription] alongside
+the associated integer index. If not found, the index shall be -1 and the
+schema definition shall be unpopulated.
+
+The input id value (identifier) should be the string representation of the
+desired MatchingRule numeric OID, or name.
+
+Note that if a name is used, case-folding is not significant in the matching
+process.
+*/
+func (r SubschemaSubentry) MatchingRule(id string) (mr MatchingRuleDescription, idx int) {
+	idx = -1
+	for i := 0; i < r.matchingRules.Len(); i++ {
+		def := r.matchingRules[i]
+		fo := def.NumericOID == id
+		fn := strInSlice(id, def.Name)
+		if fo || fn {
+			mr = def
+			idx = i
+			break
+		}
+	}
+
+	return
+}
+
+/*
+MatchingRuleUse returns an instance of [MatchingRuleUseDescription] alongside
+the associated integer index. If not found, the index shall be -1 and the
+schema definition shall be unpopulated.
+
+The input id value (identifier) should be the string representation of the
+desired MatchingRuleUse numeric OID, or name.
+
+Note that if a name is used, case-folding is not significant in the matching
+process.
+*/
+func (r SubschemaSubentry) MatchingRuleUse(id string) (mr MatchingRuleUseDescription, idx int) {
+	idx = -1
+	for i := 0; i < r.matchingRuleUses.Len(); i++ {
+		def := r.matchingRuleUses[i]
+		fo := def.NumericOID == id
+		fn := strInSlice(id, def.Name)
+		if fo || fn {
+			mr = def
+			idx = i
+			break
+		}
+	}
+
+	return
+}
+
+/*
+AttributeType returns an instance of [AttributeTypeDescription] alongside
+the associated integer index. If not found, the index shall be -1 and the
+schema definition shall be unpopulated.
+
+The input id value (identifier) should be the string representation of the
+desired AttributeType numeric OID, or name.
+
+Note that if a name is used, case-folding is not significant in the matching
+process.
+*/
+func (r SubschemaSubentry) AttributeType(id string) (at AttributeTypeDescription, idx int) {
+	idx = -1
+	for i := 0; i < r.attributeTypes.Len(); i++ {
+		def := r.attributeTypes[i]
+		fo := def.NumericOID == id
+		fn := strInSlice(id, def.Name)
+		if fo || fn {
+			at = def
+			idx = i
+			break
+		}
+	}
+
+	return
+}
+
+/*
+ObjectClassID returns an instance of [ObjectClassDescription] alongside
+the associated integer index. If not found, the index shall be -1 and the
+schema definition shall be unpopulated.
+
+The input id value (identifier) should be the string representation of the
+desired ObjectClass numeric OID, or name.
+
+Note that if a name is used, case-folding is not significant in the matching
+process.
+*/
+func (r SubschemaSubentry) ObjectClass(id string) (oc ObjectClassDescription, idx int) {
+	idx = -1
+	for i := 0; i < r.objectClasses.Len(); i++ {
+		def := r.objectClasses[i]
+		fo := def.NumericOID == id
+		fn := strInSlice(id, def.Name)
+		if fo || fn {
+			oc = def
+			idx = i
+			break
+		}
+	}
+
+	return
+}
+
+/*
+NameForm returns an instance of [NameFormDescription] alongside the
+associated integer index. If not found, the index shall be -1 and
+the schema definition shall be unpopulated.
+
+The input id value (identifier) should be the string representation of
+the desired NameForm numeric OID, or name.
+
+Note that if a name is used, case-folding is not significant in the matching
+process.
+*/
+func (r SubschemaSubentry) NameForm(id string) (nf NameFormDescription, idx int) {
+	idx = -1
+	for i := 0; i < r.nameForms.Len(); i++ {
+		def := r.nameForms[i]
+		fo := def.NumericOID == id
+		fn := strInSlice(id, def.Name)
+		if fo || fn {
+			nf = def
+			idx = i
+			break
+		}
+	}
+
+	return
+}
+
+/*
+DITContentRule returns an instance of [DITContentRuleDescription] alongside
+the associated integer index. If not found, the index shall be -1 and the
+schema definition shall be unpopulated.
+
+The input id value (identifier) should be the string representation of the
+desired DITContentRule numeric OID, or name.
+
+Note that if a name is used, case-folding is not significant in the matching
+process.
+*/
+func (r SubschemaSubentry) DITContentRule(id string) (dc DITContentRuleDescription, idx int) {
+	idx = -1
+	for i := 0; i < r.dITContentRules.Len(); i++ {
+		def := r.dITContentRules[i]
+		fo := def.NumericOID == id
+		fn := strInSlice(id, def.Name)
+		if fo || fn {
+			dc = def
+			idx = i
+			break
+		}
+	}
+
+	return
+}
+
+/*
+DITStructureRule returns an instance of [DITStructureRuleDescription]
+alongside the associated integer index. If not found, the index shall
+be -1 and the schema definition shall be unpopulated.
+
+The input id value (identifier) should be the string representation of
+the desired DITStructureRule integer identifier (rule ID), or name.
+
+Note that if a name is used, case-folding is not significant in the
+matching process.
+*/
+func (r SubschemaSubentry) DITStructureRule(id string) (ds DITStructureRuleDescription, idx int) {
+	idx = -1
+	for i := 0; i < r.dITStructureRules.Len(); i++ {
+		def := r.dITStructureRules[i]
+		fo := def.RuleID == id
+		fn := strInSlice(id, def.Name)
+		if fo || fn {
+			ds = def
+			idx = i
+			break
+		}
+	}
+
+	return
+}
+
+/*
+SubordinateStructureRules returns slices of [DITStructureRuleDescription], each of
+which are direct subordinate structure rules of the input string id.
+
+The input string id must be the rule ID or name of the supposed superior
+structure rule.
+
+Note that if a name is used, case-folding is not significant in the matching
+process.
+
+If zero slices are returned, this can mean either the superior structure rule
+was not found, or that it has no subordinate rules of its own.
+*/
+func (r SubschemaSubentry) SubordinateStructureRules(id string) (sub []DITStructureRuleDescription) {
+	if rule, idx := r.DITStructureRule(id); idx != -1 {
+		for i := 0; i < r.dITStructureRules.Len(); i++ {
+			// NOTE - don't skip the superior rule itself,
+			// as it may be a recursive (self-referencing)
+			// structure rule.
+			dsr := r.dITStructureRules[i]
+			if strInSlice(rule.RuleID, dsr.SuperRules) {
+				sub = append(sub, dsr)
+			}
+		}
+	}
+
+	return
+}
+
+/*
+SubordinateStructureRules returns slices of [DITStructureRuleDescription], each of
+which are direct superior structure rules of the input string id.
+
+The input string id must be the rule ID or name of the subordinate structure rule.
+
+Note that if a name is used, case-folding is not significant in the matching
+process.
+
+If zero slices are returned, this can mean either the structure rule was not
+found, or that it has no superior rules of its own.
+*/
+func (r SubschemaSubentry) SuperiorStructureRules(id string) (sup []DITStructureRuleDescription) {
+	if rule, idx := r.DITStructureRule(id); idx != -1 {
+		for i := 0; i < len(rule.SuperRules); i++ {
+			s := rule.SuperRules[i]
+
+			// NOTE - don't skip the superior rule itself,
+			// as it may be a recursive (self-referencing)
+			// structure rule.
+			if dsr, sidx := r.DITStructureRule(s); sidx != -1 {
+				sup = append(sup, dsr)
+			}
+		}
+	}
+
+	return
+}
+
+/*
+NamedObjectClass returns an instance of [ObjectClassDescription] alongside its
+associated slice index within the receiver's object class collection.
+
+The input id must be the integer identifier (rule ID) or name of a registered
+[DITStructureRuleDescription] instance.
+
+The return instance of [ObjectClassDescription] is resolved from the "OC" clause
+found within the [NameFormDescription] beared by the [DITStructureRuleDescription].
+
+The [ObjectClassDescription], if found, is guaranteed to be of the STRUCTURAL kind.
+*/
+func (r SubschemaSubentry) NamedObjectClass(id string) (noc ObjectClassDescription, idx int) {
+	idx = -1
+	if rule, sidx := r.DITStructureRule(id); sidx != -1 {
+		if form, fidx := r.NameForm(rule.Form); fidx != -1 {
+			if oc, oidx := r.ObjectClass(form.OC); oidx != -1 && oc.Kind == 0 {
+				noc = oc
+				idx = oidx
+			}
+		}
+	}
 
 	return
 }
@@ -628,17 +949,17 @@ func (r Extension) String() (ext string) {
 }
 
 /*
-LDAPSyntaxes implements [§ 4.2.5 of RFC 4512] and contains slices of
+ldapSyntaxes implements [§ 4.2.5 of RFC 4512] and contains slices of
 [LDAPSyntaxDescription].
 
 [§ 4.2.5 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.5
 */
-type LDAPSyntaxes []LDAPSyntaxDescription
+type ldapSyntaxes []LDAPSyntaxDescription
 
 /*
 String returns the string representation of the receiver instance.
 */
-func (r LDAPSyntaxes) String() (s string) {
+func (r ldapSyntaxes) String() (s string) {
 	for i := 0; i < r.Len(); i++ {
 		s += r.Type() + `: ` + r[i].String() + string(rune(10))
 	}
@@ -647,34 +968,24 @@ func (r LDAPSyntaxes) String() (s string) {
 }
 
 /*
-Contains returns the integer index of a matching instance within the
-receiver instance. The match is conducted using the input id value
-against the numeric OID or DESC clauses.
-
-Neither whitespace nor case folding are significant in the matching
-process.
+LDAPSyntaxByIndex returns the Nth [LDAPSyntaxDescription] instances found
+within the receiver instance.
 */
-func (r LDAPSyntaxes) Contains(id string) (idx int) {
-	idx = -1
-	id = trim(id, ` `)
-	for i := 0; i < r.Len(); i++ {
-		desc := repAll(r[i].Description, ` `, ``)
-		fn := streqf(id, desc)
-		fi := r[i].NumericOID == id
-
-		if fn || fi {
-			idx = i
-			break
-		}
+func (r SubschemaSubentry) LDAPSyntaxByIndex(idx int) (def LDAPSyntaxDescription) {
+	if 0 <= idx && idx < r.ldapSyntaxes.Len() {
+		def = r.ldapSyntaxes[idx]
 	}
 
 	return
 }
 
 /*
-OID returns the numeric OID associated with the receiver instance.
+OID returns the numeric OID literal "1.3.6.1.4.1.1466.101.120.16" per
+[§ 4.2.5 of RFC 4512].
+
+[§ 4.2.5 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.5
 */
-func (r LDAPSyntaxes) OID() string { return `1.3.6.1.4.1.1466.101.120.16` }
+func (r ldapSyntaxes) OID() string { return `1.3.6.1.4.1.1466.101.120.16` }
 
 /*
 LDAPSyntaxDescription implements [§ 4.1.5 of RFC 4512].
@@ -692,10 +1003,8 @@ String returns the string representation of the receiver instance.
 */
 func (r LDAPSyntaxDescription) String() (def string) {
 	if r.Valid() {
-		def = `( ` + r.NumericOID + ` `
-		if len(r.Description) > 0 {
-			def += ` DESC '` + r.Description + `'`
-		}
+		def = `( ` + r.NumericOID
+		def += definitionDescription(r.Description)
 		def += stringExtensions(r.Extensions)
 		def += ` )`
 	}
@@ -709,10 +1018,56 @@ This will be used by [LDAPSyntaxDescription.Verify] method to validate a
 value against a custom syntax.
 */
 func (r LDAPSyntaxDescription) xPattern() (xpat string) {
-	for _, v := range r.Extensions {
-		if v.XString == `X-PATTERN` && len(v.Values) > 0 {
-			xpat = v.Values[0]
+	for _, ext := range r.Extensions {
+		if ext.XString == `X-PATTERN` && len(ext.Values) == 1 {
+			xpat = ext.Values[0]
 			break
+		}
+	}
+
+	return
+}
+
+/*
+XOrigin returns slices of standards citations, each being the name of an
+RFC or ITU-T document from which the receiver originates.
+
+This method is merely a convenient alternative to manually checking the
+underlying Extensions field instance for the presence of an [Extension]
+instance bearing the `X-ORIGIN` XString and at least one (1) value.
+*/
+func (r LDAPSyntaxDescription) XOrigin() (origins []string) {
+	for _, ext := range r.Extensions {
+		if streqf(ext.XString, `X-ORIGIN`) && len(ext.Values) > 0 {
+			origins = ext.Values
+			break
+		}
+	}
+
+	return
+}
+
+/*
+HumanReadable returns a Boolean value indicative of whether the receiver
+instance represents a human readable syntax.
+
+This method is merely a convenient alternative to manually checking the
+underlying Extensions field instance for the presence of an [Extension]
+instance bearing the `X-NOT-HUMAN-READABLE` XString and a BOOLEAN ASN.1
+value of `TRUE`.
+*/
+func (r LDAPSyntaxDescription) HumanReadable() (hr bool) {
+	// Assume true by default, as most syntaxes
+	// are, in fact, human readable.
+	hr = true
+
+	for _, ext := range r.Extensions {
+		if streqf(ext.XString, `X-NOT-HUMAN-READABLE`) {
+			if strInSlice(`TRUE`, ext.Values) &&
+				len(ext.Values) == 1 {
+				hr = false
+				break
+			}
 		}
 	}
 
@@ -747,21 +1102,22 @@ func (r LDAPSyntaxDescription) Verify(x any) (result Boolean) {
 Valid returns a Boolean value indicative of a valid receiver instance.
 */
 func (r LDAPSyntaxDescription) Valid() bool {
-	return len(r.NumericOID) > 0
+	_, err := marshalNumericOID(r.NumericOID)
+	return err == nil
 }
 
 /*
-MatchingRules implements [§ 4.2.3 of RFC 4512] and contains slices of
+matchingRules implements [§ 4.2.3 of RFC 4512] and contains slices of
 [MatchingRuleDescription].
 
 [§ 4.2.3 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.3
 */
-type MatchingRules []MatchingRuleDescription
+type matchingRules []MatchingRuleDescription
 
 /*
 String returns the string representation of the receiver instance.
 */
-func (r MatchingRules) String() (s string) {
+func (r matchingRules) String() (s string) {
 	for i := 0; i < r.Len(); i++ {
 		s += r.Type() + `: ` + r[i].String() + string(rune(10))
 	}
@@ -770,33 +1126,35 @@ func (r MatchingRules) String() (s string) {
 }
 
 /*
-Contains returns the integer index of a matching instance within the
-receiver instance. The match is conducted using the input id value
-against the numeric OID or NAME clauses.
-
-Neither whitespace nor case folding are significant in the matching
-process.
+MatchingRuleIndex returns the Nth [MatchingRuleDescription] instances found
+within the receiver instance.
 */
-func (r MatchingRules) Contains(id string) (idx int) {
-	idx = -1
-	id = trim(id, ` `)
-	for i := 0; i < r.Len(); i++ {
-		fn := strInSlice(id, r[i].Name)
-		fi := r[i].NumericOID == id
-
-		if fn || fi {
-			idx = i
-			break
-		}
+func (r SubschemaSubentry) MatchingRuleByIndex(idx int) (def MatchingRuleDescription) {
+	if 0 <= idx && idx < r.matchingRules.Len() {
+		def = r.matchingRules[idx]
 	}
 
 	return
 }
 
 /*
-OID returns the numeric OID associated with the receiver instance.
+MatchingRuleUseIndex returns the Nth [MatchingRuleUseDescription] instances
+found within the receiver instance.
 */
-func (r MatchingRules) OID() string { return `2.5.21.4` }
+func (r SubschemaSubentry) MatchingRuleUseByIndex(idx int) (def MatchingRuleUseDescription) {
+	if 0 <= idx && idx < r.matchingRuleUses.Len() {
+		def = r.matchingRuleUses[idx]
+	}
+
+	return
+}
+
+/*
+OID returns the numeric OID literal "2.5.21.4" per [§ 4.2.3 of RFC 4512].
+
+[§ 4.2.3 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.3
+*/
+func (r matchingRules) OID() string { return `2.5.21.4` }
 
 /*
 MatchingRuleDescription implements [§ 4.1.3 of RFC 4512].
@@ -812,18 +1170,41 @@ type MatchingRuleDescription struct {
 	Extensions  map[int]Extension
 }
 
+func (r MatchingRuleDescription) EqualityMatch(actual, assertion any) (result Boolean) {
+	if funk, found := matchingRuleAssertions[r.NumericOID]; found {
+		result, _ = funk(actual, assertion)
+	}
+
+	return
+}
+
+/*
+XOrigin returns slices of standards citations, each being the name of an
+RFC or ITU-T document from which the receiver originates.
+
+This method is merely a convenient alternative to manually checking the
+underlying Extensions field instance for the presence of an [Extension]
+instance bearing the `X-ORIGIN` XString and at least one (1) value.
+*/
+func (r MatchingRuleDescription) XOrigin() (origins []string) {
+	for _, ext := range r.Extensions {
+		if streqf(ext.XString, `X-ORIGIN`) && len(ext.Values) > 0 {
+			origins = ext.Values
+			break
+		}
+	}
+
+	return
+}
+
 /*
 String returns the string representation of the receiver instance.
 */
 func (r MatchingRuleDescription) String() (def string) {
 	if r.Valid() {
 		def = `( ` + r.NumericOID + ` `
-		if len(r.Name) > 0 {
-			def += stringQuotedDescrs(r.Name)
-		}
-		if len(r.Description) > 0 {
-			def += ` DESC '` + r.Description + `'`
-		}
+		def += definitionName(r.Name)
+		def += definitionDescription(r.Description)
 		def += stringBooleanClause(`OBSOLETE`, r.Obsolete)
 		def += ` SYNTAX ` + r.Syntax
 		def += stringExtensions(r.Extensions)
@@ -834,30 +1215,47 @@ func (r MatchingRuleDescription) String() (def string) {
 }
 
 /*
-String returns the string representation of the receiver instance.
+newMatchingRuleUse initializes and returns a new instance of [MatchingRuleUseDescription].
 */
-func (r MatchingRuleDescription) Valid() bool {
-	return len(r.NumericOID) > 0 &&
-		len(r.Syntax) > 0
+func (r MatchingRuleDescription) newMatchingRuleUse() (mru MatchingRuleUseDescription) {
+	if r.Valid() {
+		mru.NumericOID = r.NumericOID
+		mru.Description = r.Description
+		mru.Extensions = r.Extensions
+	}
+
+	return
 }
 
 /*
-AttributeTypes implements [§ 4.2.2 of RFC 4512] and contains slices of
+Valid returns a Boolean value indicative of a syntactically valid receiver
+instance. Note this does not verify the presence of dependency schema elements.
+*/
+func (r MatchingRuleDescription) Valid() bool {
+	_, oerr := marshalNumericOID(r.NumericOID)
+	_, serr := marshalNumericOID(r.Syntax)
+	return oerr == nil && serr == nil
+}
+
+/*
+attributeTypes implements [§ 4.2.2 of RFC 4512] and contains slices of
 [AttributeTypeDescription].
 
 [§ 4.2.2 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.2
 */
-type AttributeTypes []AttributeTypeDescription
+type attributeTypes []AttributeTypeDescription
 
 /*
-OID returns the numeric OID associated with the receiver instance.
+OID returns the numeric OID literal "2.5.21.5" per [§ 4.2.2 of RFC 4512].
+
+[§ 4.2.2 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.2
 */
-func (r AttributeTypes) OID() string { return `2.5.21.5` }
+func (r attributeTypes) OID() string { return `2.5.21.5` }
 
 /*
 String returns the string representation of the receiver instance.
 */
-func (r AttributeTypes) String() (s string) {
+func (r attributeTypes) String() (s string) {
 	for i := 0; i < r.Len(); i++ {
 		s += r.Type() + `: ` + r[i].String() + string(rune(10))
 	}
@@ -866,24 +1264,12 @@ func (r AttributeTypes) String() (s string) {
 }
 
 /*
-Contains returns the integer index of a matching instance within the
-receiver instance. The match is conducted using the input id value
-against the numeric OID or NAME clauses.
-
-Neither whitespace nor case folding are significant in the matching
-process.
+AttributeTypeIndex returns the Nth [AttributeTypeDescription] instances found
+within the receiver instance.
 */
-func (r AttributeTypes) Contains(id string) (idx int) {
-	idx = -1
-	id = trim(id, ` `)
-	for i := 0; i < r.Len(); i++ {
-		fn := strInSlice(id, r[i].Name)
-		fi := r[i].NumericOID == id
-
-		if fn || fi {
-			idx = i
-			break
-		}
+func (r SubschemaSubentry) AttributeTypeByIndex(idx int) (def AttributeTypeDescription) {
+	if 0 <= idx && idx < r.attributeTypes.Len() {
+		def = r.attributeTypes[idx]
 	}
 
 	return
@@ -918,20 +1304,10 @@ String returns the string representation of the receiver instance.
 func (r AttributeTypeDescription) String() (def string) {
 	if r.Valid() {
 		def = `( ` + r.NumericOID + ` `
-		if len(r.Name) > 0 {
-			def += stringQuotedDescrs(r.Name)
-		}
-
-		if len(r.Description) > 0 {
-			def += ` DESC '` + r.Description + `'`
-		}
-
+		def += definitionName(r.Name)
+		def += definitionDescription(r.Description)
 		def += stringBooleanClause(`OBSOLETE`, r.Obsolete)
-
-		if len(r.SuperType) > 0 {
-			def += ` SUP ` + r.SuperType
-		}
-
+		def += definitionMVDescriptors(`SUP`, r.SuperType)
 		def += r.syntaxMatchingRuleClauses()
 		def += r.mutexBooleanString()
 		def += stringBooleanClause(`NO-USER-MODIFICATION`, r.NoUserModification)
@@ -941,6 +1317,25 @@ func (r AttributeTypeDescription) String() (def string) {
 		}
 		def += stringExtensions(r.Extensions)
 		def += ` )`
+	}
+
+	return
+}
+
+/*
+XOrigin returns slices of standards citations, each being the name of an
+RFC or ITU-T document from which the receiver originates.
+
+This method is merely a convenient alternative to manually checking the
+underlying Extensions field instance for the presence of an [Extension]
+instance bearing the `X-ORIGIN` XString and at least one (1) value.
+*/
+func (r AttributeTypeDescription) XOrigin() (origins []string) {
+	for _, ext := range r.Extensions {
+		if streqf(ext.XString, `X-ORIGIN`) && len(ext.Values) > 0 {
+			origins = ext.Values
+			break
+		}
 	}
 
 	return
@@ -980,37 +1375,47 @@ func (r AttributeTypeDescription) syntaxMatchingRuleClauses() (clause string) {
 }
 
 /*
-String returns the string representation of the receiver instance.
+Valid returns a Boolean value indicative of a syntactically valid receiver
+instance. Note this does not verify the presence of dependency schema elements.
 */
 func (r AttributeTypeDescription) Valid() bool {
-	return len(r.NumericOID) > 0 &&
-		!(r.Collective && r.Single) &&
-		(len(r.SuperType) > 0 || len(r.Syntax) > 0)
+	_, oerr := marshalNumericOID(r.NumericOID)
+	result := oID(r.SuperType)
+
+	_, xerr := marshalNumericOID(r.Syntax)
+
+	return oerr == nil &&
+		(result.True() || xerr == nil) &&
+		!(r.Collective && r.Single)
 }
 
 /*
-MatchingRuleUse implements [§ 4.2.4 of RFC 4512] and contains slices of
+matchingRuleUses implements [§ 4.2.4 of RFC 4512] and contains slices of
 [MatchingRuleUseDescription].
 
 [§ 4.2.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.4
 */
-type MatchingRuleUse []MatchingRuleUseDescription
+type matchingRuleUses []MatchingRuleUseDescription
 
 /*
 String returns the string representation of the receiver instance.
 */
-func (r MatchingRuleUse) String() (s string) {
+func (r matchingRuleUses) String() (s string) {
 	for i := 0; i < r.Len(); i++ {
-		s += r.Type() + `: ` + r[i].String() + string(rune(10))
+		if def := r[i].String(); def != "" {
+			s += r.Type() + `: ` + r[i].String() + string(rune(10))
+		}
 	}
 
 	return
 }
 
 /*
-OID returns the numeric OID associated with the receiver instance.
+OID returns the numeric OID literal "2.5.21.8" per [§ 4.2.4 of RFC 4512].
+
+[§ 4.2.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.4
 */
-func (r MatchingRuleUse) OID() string { return `2.5.21.8` }
+func (r matchingRuleUses) OID() string { return `2.5.21.8` }
 
 /*
 MatchingRuleUseDescription implements [§ 4.1.4 of RFC 4512].
@@ -1032,14 +1437,10 @@ String returns the string representation of the receiver instance.
 func (r MatchingRuleUseDescription) String() (def string) {
 	if r.Valid() {
 		def = `( ` + r.NumericOID + ` `
-		if len(r.Name) > 0 {
-			def += stringQuotedDescrs(r.Name)
-		}
-		if len(r.Description) > 0 {
-			def += ` DESC '` + r.Description + `'`
-		}
+		def += definitionName(r.Name)
+		def += definitionDescription(r.Description)
 		def += stringBooleanClause(`OBSOLETE`, r.Obsolete)
-		def += ` APPLIES ` + stringDescrs(r.Applies, ` $ `)
+		def += definitionMVDescriptors(`APPLIES`, r.Applies)
 		def += stringExtensions(r.Extensions)
 		def += ` )`
 	}
@@ -1048,43 +1449,17 @@ func (r MatchingRuleUseDescription) String() (def string) {
 }
 
 /*
-String returns the string representation of the receiver instance.
+XOrigin returns slices of standards citations, each being the name of an
+RFC or ITU-T document from which the receiver originates.
+
+This method is merely a convenient alternative to manually checking the
+underlying Extensions field instance for the presence of an [Extension]
+instance bearing the `X-ORIGIN` XString and at least one (1) value.
 */
-func (r MatchingRuleUseDescription) Valid() bool {
-	return len(r.NumericOID) > 0 &&
-		len(r.Applies) > 0
-}
-
-/*
-ObjectClasses implements [§ 4.2.1 of RFC 4512] and contains slices of
-[ObjectClassDescription].
-
-[§ 4.2.1 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.1
-*/
-type ObjectClasses []ObjectClassDescription
-
-/*
-OID returns the numeric OID associated with the receiver instance.
-*/
-func (r ObjectClasses) OID() string { return `2.5.21.6` }
-
-/*
-Contains returns the integer index of a matching instance within the
-receiver instance. The match is conducted using the input id value
-against the numeric OID or NAME clauses.
-
-Neither whitespace nor case folding are significant in the matching
-process.
-*/
-func (r ObjectClasses) Contains(id string) (idx int) {
-	idx = -1
-	id = trim(id, ` `)
-	for i := 0; i < r.Len(); i++ {
-		fn := strInSlice(id, r[i].Name)
-		fi := r[i].NumericOID == id
-
-		if fn || fi {
-			idx = i
+func (r MatchingRuleUseDescription) XOrigin() (origins []string) {
+	for _, ext := range r.Extensions {
+		if streqf(ext.XString, `X-ORIGIN`) && len(ext.Values) > 0 {
+			origins = ext.Values
 			break
 		}
 	}
@@ -1093,9 +1468,57 @@ func (r ObjectClasses) Contains(id string) (idx int) {
 }
 
 /*
+Valid returns a Boolean value indicative of a syntactically valid receiver
+instance. Note this does not verify the presence of dependency schema elements.
+*/
+func (r MatchingRuleUseDescription) Valid() bool {
+	_, err := marshalNumericOID(r.NumericOID)
+
+	var bogusNumber int
+	if len(r.Applies) == 0 {
+		bogusNumber++
+	}
+
+	for _, at := range r.Applies {
+		if !oID(at).True() {
+			bogusNumber++
+		}
+	}
+
+	return err == nil && bogusNumber == 0
+}
+
+/*
+objectClasses implements [§ 4.2.1 of RFC 4512] and contains slices of
+[ObjectClassDescription].
+
+[§ 4.2.1 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.1
+*/
+type objectClasses []ObjectClassDescription
+
+/*
+OID returns the numeric OID literal "2.5.21.6" per [§ 4.2.1 of RFC 4512].
+
+[§ 4.2.1 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.1
+*/
+func (r objectClasses) OID() string { return `2.5.21.6` }
+
+/*
+ObjectClassIndex returns the Nth [ObjectClassDescription] instances found
+within the receiver instance.
+*/
+func (r SubschemaSubentry) ObjectClassByIndex(idx int) (def ObjectClassDescription) {
+	if 0 <= idx && idx < r.objectClasses.Len() {
+		def = r.objectClasses[idx]
+	}
+
+	return
+}
+
+/*
 String returns the string representation of the receiver instance.
 */
-func (r ObjectClasses) String() (s string) {
+func (r objectClasses) String() (s string) {
 	for i := 0; i < r.Len(); i++ {
 		s += r.Type() + `: ` + r[i].String() + string(rune(10))
 	}
@@ -1126,32 +1549,34 @@ String returns the string representation of the receiver instance.
 func (r ObjectClassDescription) String() (def string) {
 	if r.Valid() {
 		def = `( ` + r.NumericOID + ` `
-		if len(r.Name) > 0 {
-			def += stringQuotedDescrs(r.Name)
-		}
-
-		if len(r.Description) > 0 {
-			def += ` DESC '` + r.Description + `'`
-		}
-
+		def += definitionName(r.Name)
+		def += definitionDescription(r.Description)
 		def += stringBooleanClause(`OBSOLETE`, r.Obsolete)
-
-		if len(r.SuperClasses) > 0 {
-			def += ` SUP ` + stringDescrs(r.SuperClasses, ` $ `)
-		}
-
+		def += definitionMVDescriptors(`SUP`, r.SuperClasses)
 		def += stringClassKind(r.Kind)
-
-		if len(r.Must) > 0 {
-			def += ` MUST ` + stringDescrs(r.Must, ` $ `)
-		}
-
-		if len(r.May) > 0 {
-			def += ` MAY ` + stringDescrs(r.May, ` $ `)
-		}
-
+		def += definitionMVDescriptors(`MUST`, r.Must)
+		def += definitionMVDescriptors(`MAY`, r.May)
 		def += stringExtensions(r.Extensions)
 		def += ` )`
+	}
+
+	return
+}
+
+/*
+XOrigin returns slices of standards citations, each being the name of an
+RFC or ITU-T document from which the receiver originates.
+
+This method is merely a convenient alternative to manually checking the
+underlying Extensions field instance for the presence of an [Extension]
+instance bearing the `X-ORIGIN` XString and at least one (1) value.
+*/
+func (r ObjectClassDescription) XOrigin() (origins []string) {
+	for _, ext := range r.Extensions {
+		if streqf(ext.XString, `X-ORIGIN`) && len(ext.Values) > 0 {
+			origins = ext.Values
+			break
+		}
 	}
 
 	return
@@ -1173,45 +1598,84 @@ func stringClassKind(kind uint8) (k string) {
 	return
 }
 
-/*
-String returns the string representation of the receiver instance.
-*/
-func (r ObjectClassDescription) Valid() bool {
-	return len(r.NumericOID) > 0
+func definitionDescription(desc string) (def string) {
+	if len(desc) > 0 {
+		def += ` DESC '` + desc + `'`
+	}
+
+	return
+}
+
+func definitionName(name []string) (def string) {
+	switch len(name) {
+	case 0:
+	default:
+		def += ` NAME ` + stringQuotedDescrs(name)
+	}
+
+	return
+}
+
+func definitionMVDescriptors(key string, src any) (clause string) {
+	switch tv := src.(type) {
+	case string:
+		clause += ` ` + uc(key) + ` ` + tv
+	case []string:
+		clause += ` ` + uc(key) + ` ` + stringDescrs(tv, ` $ `)
+	}
+
+	return
 }
 
 /*
-DITContentRules implements [§ 4.2.6 of RFC 4512] and contains slices of
+Valid returns a Boolean value indicative of a syntactically valid receiver
+instance. Note this does not verify the presence of dependency schema elements.
+*/
+func (r ObjectClassDescription) Valid() bool {
+	_, err := marshalNumericOID(r.NumericOID)
+
+	var bogusNumber int
+	if !(uint8(0) <= r.Kind && r.Kind <= uint8(2)) {
+		bogusNumber++
+	}
+
+	for _, slices := range [][]string{
+		r.SuperClasses,
+		r.Must,
+		r.May,
+	} {
+		for _, at := range slices {
+			if result := oID(at); !result.True() {
+				bogusNumber++
+			}
+		}
+	}
+
+	return err == nil && bogusNumber == 0
+}
+
+/*
+dITContentRules implements [§ 4.2.6 of RFC 4512] and contains slices of
 [DITContentRuleDescription].
 
 [§ 4.2.6 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.6
 */
-type DITContentRules []DITContentRuleDescription
+type dITContentRules []DITContentRuleDescription
 
 /*
-OID returns the numeric OID associated with the receiver instance.
+OID returns the numeric OID literal "2.5.21.2" per [§ 4.2.6 of RFC 4512].
+
+[§ 4.2.6 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.6
 */
-func (r DITContentRules) OID() string { return `2.5.21.2` }
+func (r dITContentRules) OID() string { return `2.5.21.2` }
 
 /*
-Contains returns the integer index of a matching instance within the
-receiver instance. The match is conducted using the input id value
-against the numeric OID or NAME clauses.
-
-Neither whitespace nor case folding are significant in the matching
-process.
+DITContentRuleIndex returns the Nth [DITContentRuleDescription] instances found
+within the receiver instance.
 */
-func (r DITContentRules) Contains(id string) (idx int) {
-	idx = -1
-	id = trim(id, ` `)
-	for i := 0; i < r.Len(); i++ {
-		fn := strInSlice(id, r[i].Name)
-		fi := r[i].NumericOID == id
-
-		if fn || fi {
-			idx = i
-			break
-		}
+func (r SubschemaSubentry) DITContentRuleByIndex(idx int) (def DITContentRuleDescription) {
+	if 0 <= idx && idx < r.dITContentRules.Len() {
+		def = r.dITContentRules[idx]
 	}
 
 	return
@@ -1220,7 +1684,7 @@ func (r DITContentRules) Contains(id string) (idx int) {
 /*
 String returns the string representation of the receiver instance.
 */
-func (r DITContentRules) String() (s string) {
+func (r dITContentRules) String() (s string) {
 	for i := 0; i < r.Len(); i++ {
 		s += r.Type() + `: ` + r[i].String() + string(rune(10))
 	}
@@ -1251,32 +1715,13 @@ String returns the string representation of the receiver instance.
 func (r DITContentRuleDescription) String() (def string) {
 	if r.Valid() {
 		def = `( ` + r.NumericOID + ` `
-		if len(r.Name) > 0 {
-			def += stringQuotedDescrs(r.Name)
-		}
-
-		if len(r.Description) > 0 {
-			def += ` DESC '` + r.Description + `'`
-		}
-
+		def += definitionName(r.Name)
+		def += definitionDescription(r.Description)
 		def += stringBooleanClause(`OBSOLETE`, r.Obsolete)
-
-		if len(r.Aux) > 0 {
-			def += ` AUX ` + stringDescrs(r.Aux, ` $ `)
-		}
-
-		if len(r.Must) > 0 {
-			def += ` MUST ` + stringDescrs(r.Must, ` $ `)
-		}
-
-		if len(r.May) > 0 {
-			def += ` MAY ` + stringDescrs(r.May, ` $ `)
-		}
-
-		if len(r.Not) > 0 {
-			def += ` NOT ` + stringDescrs(r.Not, ` $ `)
-		}
-
+		def += definitionMVDescriptors(`AUX`, r.Aux)
+		def += definitionMVDescriptors(`MUST`, r.Must)
+		def += definitionMVDescriptors(`MAY`, r.May)
+		def += definitionMVDescriptors(`NOT`, r.Not)
 		def += stringExtensions(r.Extensions)
 		def += ` )`
 	}
@@ -1285,42 +1730,17 @@ func (r DITContentRuleDescription) String() (def string) {
 }
 
 /*
-String returns the string representation of the receiver instance.
+XOrigin returns slices of standards citations, each being the name of an
+RFC or ITU-T document from which the receiver originates.
+
+This method is merely a convenient alternative to manually checking the
+underlying Extensions field instance for the presence of an [Extension]
+instance bearing the `X-ORIGIN` XString and at least one (1) value.
 */
-func (r DITContentRuleDescription) Valid() bool {
-	return len(r.NumericOID) > 0
-}
-
-/*
-NameForms implements [§ 4.2.8 of RFC 4512] and contains slices of
-[NameFormDescription].
-
-[§ 4.2.8 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.8
-*/
-type NameForms []NameFormDescription
-
-/*
-OID returns the numeric OID associated with the receiver instance.
-*/
-func (r NameForms) OID() string { return `2.5.21.7` }
-
-/*
-Contains returns the integer index of a matching instance within the
-receiver instance. The match is conducted using the input id value
-against the numeric OID or NAME clauses.
-
-Neither whitespace nor case folding are significant in the matching
-process.
-*/
-func (r NameForms) Contains(id string) (idx int) {
-	idx = -1
-	id = trim(id, ` `)
-	for i := 0; i < r.Len(); i++ {
-		fn := strInSlice(id, r[i].Name)
-		fi := r[i].NumericOID == id
-
-		if fn || fi {
-			idx = i
+func (r DITContentRuleDescription) XOrigin() (origins []string) {
+	for _, ext := range r.Extensions {
+		if streqf(ext.XString, `X-ORIGIN`) && len(ext.Values) > 0 {
+			origins = ext.Values
 			break
 		}
 	}
@@ -1329,9 +1749,76 @@ func (r NameForms) Contains(id string) (idx int) {
 }
 
 /*
+Valid returns a Boolean value indicative of a syntactically valid receiver
+instance. Note this does not verify the presence of dependency schema elements.
+*/
+func (r DITContentRuleDescription) Valid() bool {
+	// ensure numeric OID is valid
+	_, err := marshalNumericOID(r.NumericOID)
+
+	var bogusNumber int
+	for _, slices := range [][]string{
+		r.Aux,
+		r.Must,
+		r.May,
+		r.Not,
+	} {
+		for _, o := range slices {
+			// ensure o is a valid numeric OID
+			// or descriptor.
+			if result := oID(o); !result.True() {
+				bogusNumber++
+			}
+		}
+	}
+
+	// Make sure MUST and MAY attributes
+	// do not appear in NOT clause.
+	for _, slices := range [][]string{
+		r.Must,
+		r.May,
+	} {
+		for _, at := range slices {
+			if strInSlice(at, r.Not) {
+				bogusNumber++
+			}
+		}
+	}
+
+	return err == nil && bogusNumber == 0
+}
+
+/*
+nameForms implements [§ 4.2.8 of RFC 4512] and contains slices of
+[NameFormDescription].
+
+[§ 4.2.8 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.8
+*/
+type nameForms []NameFormDescription
+
+/*
+OID returns the numeric OID literal "2.5.21.7" per [§ 4.2.8 of RFC 4512].
+
+[§ 4.2.8 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.8
+*/
+func (r nameForms) OID() string { return `2.5.21.7` }
+
+/*
+NameFormIndex returns the Nth [NameFormDescription] instances found
+within the receiver instance.
+*/
+func (r SubschemaSubentry) NameFormByIndex(idx int) (def NameFormDescription) {
+	if 0 <= idx && idx < r.nameForms.Len() {
+		def = r.nameForms[idx]
+	}
+
+	return
+}
+
+/*
 String returns the string representation of the receiver instance.
 */
-func (r NameForms) String() (s string) {
+func (r nameForms) String() (s string) {
 	for i := 0; i < r.Len(); i++ {
 		s += r.Type() + `: ` + r[i].String() + string(rune(10))
 	}
@@ -1361,19 +1848,12 @@ String returns the string representation of the receiver instance.
 func (r NameFormDescription) String() (def string) {
 	if r.Valid() {
 		def = `( ` + r.NumericOID + ` `
-		if len(r.Name) > 0 {
-			def += stringQuotedDescrs(r.Name)
-		}
-		if len(r.Description) > 0 {
-			def += ` DESC '` + r.Description + `'`
-		}
-
+		def += definitionName(r.Name)
+		def += definitionDescription(r.Description)
 		def += stringBooleanClause(`OBSOLETE`, r.Obsolete)
-		def += ` OC ` + r.OC
-		def += ` MUST ` + stringDescrs(r.Must, ` $ `)
-		if len(r.May) > 0 {
-			def += ` MAY ` + stringDescrs(r.May, ` $ `)
-		}
+		def += definitionMVDescriptors(`OC`, r.OC)
+		def += definitionMVDescriptors(`MUST`, r.Must)
+		def += definitionMVDescriptors(`MAY`, r.May)
 		def += stringExtensions(r.Extensions)
 		def += ` )`
 	}
@@ -1382,42 +1862,17 @@ func (r NameFormDescription) String() (def string) {
 }
 
 /*
-String returns the string representation of the receiver instance.
+XOrigin returns slices of standards citations, each being the name of an
+RFC or ITU-T document from which the receiver originates.
+
+This method is merely a convenient alternative to manually checking the
+underlying Extensions field instance for the presence of an [Extension]
+instance bearing the `X-ORIGIN` XString and at least one (1) value.
 */
-func (r NameFormDescription) Valid() bool {
-	return len(r.NumericOID) > 0 && len(r.OC) > 0 && len(r.Must) > 0
-}
-
-/*
-DITStructureRules implements [§ 4.2.7 of RFC 4512] and contains slices of
-[DITStructureRuleDescription].
-
-[§ 4.2.7 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.7
-*/
-type DITStructureRules []DITStructureRuleDescription
-
-/*
-OID returns the numeric OID associated with the receiver instance.
-*/
-func (r DITStructureRules) OID() string { return `2.5.21.1` }
-
-/*
-Contains returns the integer index of a matching instance within the
-receiver instance. The match is conducted using the input id value
-against the numeric OID or NAME clauses.
-
-Neither whitespace nor case folding are significant in the matching
-process.
-*/
-func (r DITStructureRules) Contains(id string) (idx int) {
-	idx = -1
-	id = trim(id, ` `)
-	for i := 0; i < r.Len(); i++ {
-		fn := strInSlice(id, r[i].Name)
-		fi := r[i].RuleID == id
-
-		if fn || fi {
-			idx = i
+func (r NameFormDescription) XOrigin() (origins []string) {
+	for _, ext := range r.Extensions {
+		if streqf(ext.XString, `X-ORIGIN`) && len(ext.Values) > 0 {
+			origins = ext.Values
 			break
 		}
 	}
@@ -1426,9 +1881,71 @@ func (r DITStructureRules) Contains(id string) (idx int) {
 }
 
 /*
+Valid returns a Boolean value indicative of a syntactically valid receiver
+instance. Note this does not verify the presence of dependency schema elements.
+*/
+func (r NameFormDescription) Valid() bool {
+	// ensure numeric OID is valid
+	_, err := marshalNumericOID(r.NumericOID)
+	ocres := oID(r.OC)
+
+	var bogusNumber int
+	for _, slices := range [][]string{
+		r.Must,
+		r.May,
+	} {
+		for _, o := range slices {
+			// ensure o is a valid numeric OID
+			// or descriptor.
+			if result := oID(o); !result.True() {
+				bogusNumber++
+			}
+		}
+	}
+
+	// Make sure MUST and MAY attributes
+	// do not overlap. This is fine for
+	// classes, but not name forms.
+	for _, at := range r.May {
+		if strInSlice(at, r.Must) {
+			bogusNumber++
+		}
+	}
+
+	return ocres.True() && err == nil && bogusNumber == 0
+}
+
+/*
+dITStructureRules implements [§ 4.2.7 of RFC 4512] and contains slices of
+[DITStructureRuleDescription].
+
+[§ 4.2.7 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.7
+*/
+type dITStructureRules []DITStructureRuleDescription
+
+/*
+OID returns the numeric OID literal "2.5.21.1" per [§ 4.2.7 of RFC 4512].
+
+[§ 4.2.7 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.7
+*/
+func (r dITStructureRules) OID() string { return `2.5.21.1` }
+
+/*
+DITStructureRuleIndex returns the Nth [DITStructureRuleDescription] instances found
+within the receiver instance.
+*/
+func (r SubschemaSubentry) DITStructureRuleByIndex(idx int) (def DITStructureRuleDescription) {
+	if 0 <= idx && idx < r.dITStructureRules.Len() {
+		def = r.dITStructureRules[idx]
+	}
+
+	return
+}
+
+/*
 String returns the string representation of the receiver instance.
 */
-func (r DITStructureRules) String() (s string) {
+func (r dITStructureRules) String() (s string) {
 	for i := 0; i < r.Len(); i++ {
 		s += r.Type() + `: ` + r[i].String() + string(rune(10))
 	}
@@ -1457,21 +1974,11 @@ String returns the string representation of the receiver instance.
 func (r DITStructureRuleDescription) String() (def string) {
 	if r.Valid() {
 		def = `( ` + r.RuleID + ` `
-		if len(r.Name) > 0 {
-			def += stringQuotedDescrs(r.Name)
-		}
-
-		if len(r.Description) > 0 {
-			def += ` DESC '` + r.Description + `'`
-		}
-
+		def += definitionName(r.Name)
+		def += definitionDescription(r.Description)
 		def += stringBooleanClause(`OBSOLETE`, r.Obsolete)
-		def += ` FORM ` + r.Form
-
-		if len(r.SuperRules) > 0 {
-			def += ` SUP ` + stringDescrs(r.SuperRules, ` `)
-		}
-
+		def += definitionMVDescriptors(`FORM`, r.Form)
+		def += definitionMVDescriptors(`SUP`, r.SuperRules)
 		def += stringExtensions(r.Extensions)
 		def += ` )`
 	}
@@ -1480,10 +1987,43 @@ func (r DITStructureRuleDescription) String() (def string) {
 }
 
 /*
-String returns the string representation of the receiver instance.
+XOrigin returns slices of standards citations, each being the name of an
+RFC or ITU-T document from which the receiver originates.
+
+This method is merely a convenient alternative to manually checking the
+underlying Extensions field instance for the presence of an [Extension]
+instance bearing the `X-ORIGIN` XString and at least one (1) value.
+*/
+func (r DITStructureRuleDescription) XOrigin() (origins []string) {
+	for _, ext := range r.Extensions {
+		if streqf(ext.XString, `X-ORIGIN`) && len(ext.Values) > 0 {
+			origins = ext.Values
+			break
+		}
+	}
+
+	return
+}
+
+/*
+Valid returns a Boolean value indicative of a syntactically valid receiver
+instance. Note this does not verify the presence of dependency schema elements.
 */
 func (r DITStructureRuleDescription) Valid() bool {
-	return len(r.RuleID) > 0 && len(r.Form) > 0
+	// ensure integer identifier
+	// (rule ID) is valid
+	num := isUnsignedNumber(r.RuleID)
+
+	// similarly ensure each super rule
+	// is a valid integer identifier.
+	var bogusNumber int
+	for _, rule := range r.SuperRules {
+		if !isUnsignedNumber(rule) {
+			bogusNumber++
+		}
+	}
+
+	return oID(r.Form).True() && num && bogusNumber == 0
 }
 
 func lDAPSyntaxDescription(x any) (result Boolean) {
@@ -2028,14 +2568,16 @@ func (t *schemaTokenizer) next() bool {
 	start := t.pos
 	if t.input[t.pos] == '\'' {
 		t.pos++
-		for t.pos < len(t.input) && (t.input[t.pos] != '\'' || (t.pos > start && t.input[t.pos-1] == '\\')) {
+		for t.pos < len(t.input) && (t.input[t.pos] != '\'' ||
+			(t.pos > start && t.input[t.pos-1] == '\\')) {
 			t.pos++
 		}
 		t.pos++
 	} else if t.input[t.pos] == '(' || t.input[t.pos] == ')' {
 		t.pos++
 	} else {
-		for t.pos < len(t.input) && !isSpace(t.input[t.pos]) && t.input[t.pos] != '(' && t.input[t.pos] != ')' {
+		for t.pos < len(t.input) && !isSpace(t.input[t.pos]) &&
+			t.input[t.pos] != '(' && t.input[t.pos] != ')' {
 			t.pos++
 		}
 	}
@@ -2121,49 +2663,102 @@ func trimDefinitionLabelToken(input string) string {
 			if idx := stridx(rest, "("); idx != -1 {
 				return rest
 			}
-
-			return rest
 		}
 	}
 
 	return input
 }
 
-func (r LDAPSyntaxDescription) OID() string       { return `1.3.6.1.4.1.1466.115.121.1.54` }
-func (r MatchingRuleDescription) OID() string     { return `1.3.6.1.4.1.1466.115.121.1.30` }
-func (r AttributeTypeDescription) OID() string    { return `1.3.6.1.4.1.1466.115.121.1.3` }
-func (r MatchingRuleUseDescription) OID() string  { return `1.3.6.1.4.1.1466.115.121.1.31` }
-func (r ObjectClassDescription) OID() string      { return `1.3.6.1.4.1.1466.115.121.1.37` }
-func (r DITContentRuleDescription) OID() string   { return `1.3.6.1.4.1.1466.115.121.1.16` }
-func (r NameFormDescription) OID() string         { return `1.3.6.1.4.1.1466.115.121.1.35` }
+/*
+OID returns the numeric OID literal "1.3.6.1.4.1.1466.115.121.1.54" per
+[§ 3.3.1 of RFC 4517].
+
+[§ 3.3.1 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.1
+*/
+func (r LDAPSyntaxDescription) OID() string { return `1.3.6.1.4.1.1466.115.121.1.54` }
+
+/*
+OID returns the numeric OID literal "1.3.6.1.4.1.1466.115.121.1.30" per
+[§ 3.3.19 of RFC 4517].
+
+[§ 3.3.19 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.19
+*/
+func (r MatchingRuleDescription) OID() string { return `1.3.6.1.4.1.1466.115.121.1.30` }
+
+/*
+OID returns the numeric OID literal "1.3.6.1.4.1.1466.115.121.1.3" per
+[§ 3.3.1 of RFC 4517].
+
+[§ 3.3.1 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.1
+*/
+func (r AttributeTypeDescription) OID() string { return `1.3.6.1.4.1.1466.115.121.1.3` }
+
+/*
+OID returns the numeric OID literal "1.3.6.1.4.1.1466.115.121.1.31" per
+[§ 3.3.20 of RFC 4517].
+
+[§ 3.3.20 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.20
+*/
+func (r MatchingRuleUseDescription) OID() string { return `1.3.6.1.4.1.1466.115.121.1.31` }
+
+/*
+OID returns the numeric OID literal "1.3.6.1.4.1.1466.115.121.1.37" per
+[§ 3.3.24 of RFC 4517].
+
+[§ 3.3.24 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.24
+*/
+func (r ObjectClassDescription) OID() string { return `1.3.6.1.4.1.1466.115.121.1.37` }
+
+/*
+OID returns the numeric OID literal "1.3.6.1.4.1.1466.115.121.1.16" per
+[§ 3.3.7 of RFC 4517].
+
+[§ 3.3.7 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.7
+*/
+func (r DITContentRuleDescription) OID() string { return `1.3.6.1.4.1.1466.115.121.1.16` }
+
+/*
+OID returns the numeric OID literal "1.3.6.1.4.1.1466.115.121.1.35" per
+[§ 3.3.22 of RFC 4517].
+
+[§ 3.3.22 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.22
+*/
+func (r NameFormDescription) OID() string { return `1.3.6.1.4.1.1466.115.121.1.35` }
+
+/*
+OID returns the numeric OID literal "1.3.6.1.4.1.1466.115.121.1.17" per
+[§ 3.3.8 of RFC 4517].
+
+[§ 3.3.8 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.8
+*/
 func (r DITStructureRuleDescription) OID() string { return `1.3.6.1.4.1.1466.115.121.1.17` }
 
-func (r LDAPSyntaxes) Len() int      { return len(r) }
-func (r MatchingRules) Len() int     { return len(r) }
-func (r AttributeTypes) Len() int    { return len(r) }
-func (r MatchingRuleUse) Len() int   { return len(r) }
-func (r ObjectClasses) Len() int     { return len(r) }
-func (r DITContentRules) Len() int   { return len(r) }
-func (r NameForms) Len() int         { return len(r) }
-func (r DITStructureRules) Len() int { return len(r) }
+func (r ldapSyntaxes) Len() int      { return len(r) }
+func (r matchingRules) Len() int     { return len(r) }
+func (r attributeTypes) Len() int    { return len(r) }
+func (r matchingRuleUses) Len() int  { return len(r) }
+func (r objectClasses) Len() int     { return len(r) }
+func (r dITContentRules) Len() int   { return len(r) }
+func (r nameForms) Len() int         { return len(r) }
+func (r dITStructureRules) Len() int { return len(r) }
 
-func (r LDAPSyntaxes) Type() string      { return `ldapSyntaxes` }
-func (r MatchingRules) Type() string     { return `matchingRules` }
-func (r AttributeTypes) Type() string    { return `attributeTypes` }
-func (r MatchingRuleUse) Type() string   { return `matchingRuleUse` }
-func (r ObjectClasses) Type() string     { return `objectClasses` }
-func (r DITContentRules) Type() string   { return `dITContentRules` }
-func (r NameForms) Type() string         { return `nameForms` }
-func (r DITStructureRules) Type() string { return `dITStructureRules` }
+func (r ldapSyntaxes) Type() string      { return headerTokens[0] }
+func (r matchingRules) Type() string     { return headerTokens[2] }
+func (r attributeTypes) Type() string    { return headerTokens[4] }
+func (r matchingRuleUses) Type() string  { return headerTokens[6] }
+func (r objectClasses) Type() string     { return headerTokens[8] }
+func (r dITContentRules) Type() string   { return headerTokens[10] }
+func (r nameForms) Type() string         { return headerTokens[12] }
+func (r dITStructureRules) Type() string { return headerTokens[14] }
 
-func (r LDAPSyntaxDescription) Type() string       { return `ldapSyntax` }
-func (r MatchingRuleDescription) Type() string     { return `matchingRule` }
-func (r AttributeTypeDescription) Type() string    { return `attributeType` }
-func (r MatchingRuleUseDescription) Type() string  { return `matchingRuleUse` }
-func (r ObjectClassDescription) Type() string      { return `objectClass` }
-func (r DITContentRuleDescription) Type() string   { return `dITContentRule` }
-func (r NameFormDescription) Type() string         { return `nameForm` }
-func (r DITStructureRuleDescription) Type() string { return `dITStructureRule` }
+func (r LDAPSyntaxDescription) Type() string       { return headerTokens[1] }
+func (r MatchingRuleDescription) Type() string     { return headerTokens[3] }
+func (r AttributeTypeDescription) Type() string    { return headerTokens[5] }
+func (r MatchingRuleUseDescription) Type() string  { return headerTokens[7] }
+func (r ObjectClassDescription) Type() string      { return headerTokens[9] }
+func (r DITContentRuleDescription) Type() string   { return headerTokens[11] }
+func (r NameFormDescription) Type() string         { return headerTokens[13] }
+func (r DITStructureRuleDescription) Type() string { return headerTokens[15] }
 
 func (r LDAPSyntaxDescription) isDefinition()       {}
 func (r MatchingRuleDescription) isDefinition()     {}
@@ -2174,19 +2769,23 @@ func (r DITContentRuleDescription) isDefinition()   {}
 func (r NameFormDescription) isDefinition()         {}
 func (r DITStructureRuleDescription) isDefinition() {}
 
-func (r LDAPSyntaxes) isDefinitions()      {}
-func (r MatchingRules) isDefinitions()     {}
-func (r AttributeTypes) isDefinitions()    {}
-func (r MatchingRuleUse) isDefinitions()   {}
-func (r ObjectClasses) isDefinitions()     {}
-func (r DITContentRules) isDefinitions()   {}
-func (r NameForms) isDefinitions()         {}
-func (r DITStructureRules) isDefinitions() {}
+func (r ldapSyntaxes) isDefinitions()      {}
+func (r matchingRules) isDefinitions()     {}
+func (r attributeTypes) isDefinitions()    {}
+func (r matchingRuleUses) isDefinitions()  {}
+func (r objectClasses) isDefinitions()     {}
+func (r dITContentRules) isDefinitions()   {}
+func (r nameForms) isDefinitions()         {}
+func (r dITStructureRules) isDefinitions() {}
 
+// Keep plurals before singulars for optimal matching. Note that
+// the respective indices correlate to the return values of the
+// Type method held by collection and definition description types.
 var headerTokens []string = []string{
 	"ldapSyntaxes", "ldapSyntax",
 	"matchingRules", "matchingRule",
 	"attributeTypes", "attributeType",
+	"matchingRuleUses", "matchingRuleUse",
 	"objectClasses", "objectClass",
 	"dITContentRules", "dITContentRule",
 	"nameForms", "nameForm",

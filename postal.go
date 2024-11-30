@@ -248,7 +248,8 @@ func pSOrIA5s(x any) (psia5 []string, err error) {
 func lineChar(raw string) (lineChars []string, err error) {
 	var last rune
 	value := newStrBuilder()
-	for _, r := range raw {
+	for i := 0; i < len(raw) && err == nil; i++ {
+		r := rune(raw[i])
 		rL := runeLen(r)
 		if rL == 1 {
 			// UTF0
@@ -272,19 +273,14 @@ func lineChar(raw string) (lineChars []string, err error) {
 			}
 
 			last = r
-			if ucIs(lineCharRange, r) {
+			if err = uTFMB(r); err == nil || ucIs(lineCharRange, r) {
 				value.WriteString(string(r))
-				continue
-			} else if err = uTFMB(r); err == nil {
-				value.WriteString(string(r))
-				continue
+				err = nil
+			} else {
+				err = errorTxt("Incompatible rune length for UTF0 (in line-char): " +
+					fmtInt(int64(rL), 10))
 			}
-
-			break
 		}
-
-		err = errorTxt("Incompatible rune length for UTF0 (in line-char): " + fmtInt(int64(rL), 10))
-		break
 	}
 
 	if value.Len() > 0 && err == nil {

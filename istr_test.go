@@ -1,0 +1,59 @@
+package dirsyn
+
+import (
+	"testing"
+)
+
+func TestIA5String(t *testing.T) {
+	var r RFC4517
+
+	var raw string = `Jerry. Hello.`
+	if ia, err := r.IA5String(raw); err != nil {
+		t.Errorf("%s failed: %v", t.Name(), err)
+	} else if got := ia.String(); raw != got {
+		t.Errorf("%s failed:\nwant: %s\ngot:  %s",
+			t.Name(), raw, got)
+	}
+}
+
+func TestIA5String_SubstringsMatch(t *testing.T) {
+	result, err := caseIgnoreIA5SubstringsMatch(`JERRY. HELLO.`, `JERR*.*HELL*.`)
+	if err != nil {
+		t.Errorf("%s failed: %v", t.Name(), err)
+	} else if !result.True() {
+		t.Errorf("%s failed:\nwant: %s\ngot:  %s", t.Name(), `TRUE`, result)
+	}
+}
+
+func TestIA5String_CaseMatch(t *testing.T) {
+	result, err := caseExactIA5Match(`This`, `This`)
+	if err != nil {
+		t.Errorf("%s failed: %v", t.Name(), err)
+	} else if !result.True() {
+		t.Errorf("%s failed:\nwant: %s\ngot:  %s",
+			t.Name(), `TRUE`, result)
+	}
+
+	result, err = caseIgnoreIA5Match(`This`, `THIS`)
+	if err != nil {
+		t.Errorf("%s failed: %v", t.Name(), err)
+	} else if !result.True() {
+		t.Errorf("%s failed:\nwant: %s\ngot:  %s",
+			t.Name(), `TRUE`, result)
+	}
+}
+
+func TestIA5String_codecov(t *testing.T) {
+	_ = iA5String("HELLO.")
+	_ = iA5String("jesse.coretta@icloud.com")
+	if err := checkIA5String(`jesse.coretta@icloud.com`); err != nil {
+		t.Errorf("%s failed: %v", t.Name(), err)
+		return
+	}
+
+	_, _ = caseBasedIA5Match(struct{}{}, `werd`, true)
+	_, _ = caseBasedIA5Match(`werd`, struct{}{}, false)
+
+	runes := []rune{rune(0xFFFF), 'ñ'}
+	_, _ = marshalIA5String(string(runes))
+}

@@ -83,8 +83,10 @@ func (r FacsimileTelephoneNumber) isSet(bit uint) bool {
 	return r.G3FacsimileNonBasicParameters.Bytes[index]&(1<<pos) != 0
 }
 
+func (r *FacsimileTelephoneNumber) IsZero() bool { return &r == nil }
+
 func (r *FacsimileTelephoneNumber) set(bit uint) {
-	if bit > 31 || r == nil {
+	if bit > 31 || r.IsZero() {
 		return
 	}
 
@@ -134,7 +136,7 @@ func marshalFacsimileTelephoneNumber(x any) (ftn FacsimileTelephoneNumber, err e
 
 	raws := splitUnescaped(raw, `$`, `\`)
 
-	if len(raws) == 0 {
+	if len(raws) <= 1 {
 		err = errorTxt("Invalid Facsimile Telephone Number")
 		return
 	} else if ftn.TelephoneNumber, err = marshalPrintableString(raws[0]); err != nil || len(raws) == 1 {
@@ -213,12 +215,10 @@ func marshalTelephoneNumber(x any) (tn TelephoneNumber, err error) {
 		return
 	}
 
-	runes := []rune{'\'', '\\', '"', '(', ')', '+', ',', '-', '.', '/', ':', '?', ' '}
-
 	// TODO: conform more closely to E.123.
 	for _, ch := range raw {
 		char := rune(ch)
-		if !(isAlphaNumeric(char) || runeInSlice(char, runes)) {
+		if !isTelephoneNumberChar(char) {
 			err = errorBadType("Invalid Telephone Number character: " + string(char))
 			return
 		}
@@ -506,6 +506,27 @@ func marshalTeletex(_raws []string) (raws, vals []string, err error) {
 	return
 }
 
+// RFC 4518 § 2.6.3
+func prepareTelephoneNumberAssertion(a, b any) (str1, str2 string, err error) {
+	if str1, err = assertString(a, 0, "numericString"); err != nil {
+		return
+	}
+
+	if str2, err = assertString(b, 0, "numericString"); err != nil {
+		return
+	}
+
+	for _, roon := range []rune{
+		'\u002d', '\u058a', '\u2010', '\u2011',
+		'\u2212', '\ufe63', '\uff0d', '\u0020',
+	} {
+		str1 = repAll(str1, string(roon), ``)
+		str2 = repAll(str2, string(roon), ``)
+	}
+
+	return
+}
+
 func teletexSuffixValue(x string) (err error) {
 	var last rune
 	for _, ch := range x {
@@ -520,6 +541,29 @@ func teletexSuffixValue(x string) (err error) {
 	}
 
 	return
+}
+
+func telephoneNumberSubstringsMatch(a, b any) (result Boolean, err error) {
+	var str1, str2 string
+	if str1, str2, err = prepareTelephoneNumberAssertion(a, b); err == nil {
+		result, err = caseIgnoreSubstringsMatch(str1, str2)
+	}
+
+	return
+}
+
+func telephoneNumberMatch(a, b any) (result Boolean, err error) {
+	var str1, str2 string
+	if str1, str2, err = prepareTelephoneNumberAssertion(a, b); err == nil {
+		result.Set(streqf(str1, str2))
+	}
+
+	return
+}
+
+func isTelephoneNumberChar(x rune) bool {
+	return isAlphaNumeric(x) ||
+		runeInSlice(x, telephoneNumberRunes)
 }
 
 func init() {

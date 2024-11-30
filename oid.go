@@ -67,7 +67,6 @@ func (r RFC4512) OID(x any) (err error) {
 	}
 
 	err = errorTxt("Input conforms to neither Descriptor nor Numeric OID form")
-
 	return
 }
 
@@ -175,6 +174,58 @@ func marshalDescriptor(x any) (descr Descriptor, err error) {
 	if err == nil {
 		descr = Descriptor(raw)
 	}
+
+	return
+}
+
+func objectIdentifierMatch(a, b any) (result Boolean, err error) {
+	var str1, str2 string
+
+	// Assertion OID (num or descr)
+	if str1, err = assertString(a, 1, "oid"); err != nil {
+		return
+	}
+
+	if str2, err = assertString(b, 1, "oid"); err != nil {
+		return
+	}
+
+	result.Set(oID(str2).True() && streqf(str1, str2))
+
+	return
+}
+
+func objectIdentifierFirstComponentMatch(a, b any) (result Boolean, err error) {
+
+	// Use reflection to handle the attribute value.
+	// This value MUST be a struct (SEQUENCE).
+	realValue := assertFirstStructField(a)
+	if realValue == nil {
+		result.Set(false)
+		return
+	}
+
+	field, ok := realValue.(string)
+	if !ok {
+		err = errorTxt("first component is not an OID")
+		return
+	}
+
+	// Don't bother going any further if the input
+	// realValue is a DITStructureRuleDescription,
+	// as those don't use OIDs.
+	if _, ok := a.(DITStructureRuleDescription); ok {
+		return
+	}
+
+	var str2 string
+	if str2, err = assertString(b, 1, "oid"); err != nil {
+		return
+	} else if res := oID(str2); !res.True() {
+		return
+	}
+
+	result.Set(streqf(field, str2))
 
 	return
 }

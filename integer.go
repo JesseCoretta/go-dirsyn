@@ -179,6 +179,10 @@ func assertNumber(x any) (i *big.Int, err error) {
 		i, err = assertInt(tv)
 	case uint, uint8, uint16, uint32, uint64:
 		i, err = assertUint(tv)
+	case Integer:
+		i = tv.Cast()
+	case *big.Int:
+		i = tv
 	case string:
 		if len(tv) == 0 {
 			err = errorBadLength("Integer", 0)
@@ -260,5 +264,92 @@ func castUint64(x any) (i uint64, err error) {
 		err = errorBadType("any2uint64")
 	}
 
+	return
+}
+
+/*
+integerMatch implements [§ 4.2.19 of RFC 4517].
+
+OID: 2.5.13.14
+
+[§ 4.2.19 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-4.2.19
+*/
+func integerMatch(a, b any) (Boolean, error) {
+	return integerMatchingRule(a, b, true)
+}
+
+/*
+integerOrderingMatch implements [§ 4.2.20 of RFC 4517].
+
+OID: 2.5.13.15
+
+[§ 4.2.20 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-4.2.20
+*/
+func integerOrderingMatch(a, b any) (Boolean, error) {
+	return integerMatchingRule(a, b, false)
+}
+
+/*
+integerFirstComponentMatch implements [§ 4.2.18 of RFC 4517].
+
+OID: 2.5.13.29
+
+[§ 4.2.18 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-4.2.18
+*/
+func integerFirstComponentMatch(a, b any) (result Boolean, err error) {
+
+	// Use reflection to handle the attribute value.
+	// This value MUST be a struct (SEQUENCE).
+	realValue := assertFirstStructField(a)
+	if realValue == nil {
+		result.Set(false)
+		return
+	}
+
+	field, nerr := assertNumber(realValue)
+	if nerr != nil {
+		err = nerr
+		return
+	}
+
+	if assertValue := assertFirstStructField(b); assertValue == nil {
+		assert, aerr := assertNumber(b)
+		err = aerr
+		result.Set(streq(field.String(), assert.String()))
+	} else {
+		assert, aerr := assertNumber(assertValue)
+		err = aerr
+		result.Set(streq(field.String(), assert.String()))
+	}
+
+	return
+}
+
+func integerMatchingRule(a, b any, equality bool) (Boolean, error) {
+	var result Boolean
+
+	bint1, err1 := assertNumber(a)
+	if err1 != nil {
+		return result, err1
+	}
+	i1 := Integer(*bint1)
+
+	bint2, err2 := assertNumber(b)
+	if err2 != nil {
+		return result, err2
+	}
+	i2 := Integer(*bint2)
+
+	result.Set(compareIntegerInteger(i1, i2, equality))
+
+	return result, nil
+}
+
+func compareIntegerInteger(i, tv Integer, equality bool) (is bool) {
+	is = i.Cast().Cmp(tv.Cast()) == 0
+	if !equality {
+		is = i.Cast().Cmp(tv.Cast()) == 0 ||
+			i.Cast().Cmp(tv.Cast()) == -1
+	}
 	return
 }

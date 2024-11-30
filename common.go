@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var (
@@ -55,6 +56,7 @@ var (
 	valOf      func(any) reflect.Value                   = reflect.ValueOf
 	typeOf     func(any) reflect.Type                    = reflect.TypeOf
 	regexMatch func(string, string) (bool, error)        = regexp.MatchString
+	now        func() time.Time                          = time.Now
 )
 
 func streq(a, b string) bool {
@@ -62,11 +64,30 @@ func streq(a, b string) bool {
 }
 
 /*
+for firstComponent matches
+*/
+func assertFirstStructField(x any) (first any) {
+	value := valOf(x)
+	if isStruct(x) {
+		typ := typeOf(x)
+		if typ.NumField() > 0 {
+			first = value.Field(0).Interface()
+		}
+	}
+
+	return
+}
+
+/*
 isStruct returns a boolean value indicative of whether
 kind reflection revealed the presence of a struct type.
 */
-func isStruct(x any) bool {
-	return typeOf(x).Kind() == reflect.Struct
+func isStruct(x any) (is bool) {
+	if x != nil {
+		is = typeOf(x).Kind() == reflect.Struct
+	}
+
+	return
 }
 
 func newStrBuilder() strings.Builder {
@@ -196,6 +217,10 @@ func strInSlice(r string, slice []string, cEM ...bool) (match bool) {
 	return
 }
 
+func isUnsignedNumber(x string) bool {
+	return isNumber(x) && !hasPfx(x, `-`)
+}
+
 func isNumber(x string) bool {
 	x = trimL(x, `-`)
 	for _, c := range x {
@@ -205,4 +230,162 @@ func isNumber(x string) bool {
 	}
 
 	return true
+}
+
+func assertString(x any, min int, name string) (str string, err error) {
+	switch tv := x.(type) {
+	case []byte:
+		str, err = assertString(string(tv), min, name)
+	case string:
+		if len(tv) < min && min != 0 {
+			err = errorBadLength(name, 0)
+			break
+		}
+		str = tv
+	default:
+		err = errorBadType(name)
+	}
+
+	return
+}
+
+func caseIgnoreMatch(a, b any) (result Boolean, err error) {
+	result, err = caseBasedMatch(a, b, false)
+	return
+}
+
+func caseExactMatch(a, b any) (result Boolean, err error) {
+	result, err = caseBasedMatch(a, b, true)
+	return
+}
+
+func caseBasedMatch(a, b any, caseExact bool) (result Boolean, err error) {
+	var str1, str2 string
+	str1, err = assertString(a, 1, "string")
+	if err != nil {
+		return
+	}
+
+	str2, err = assertString(b, 1, "string")
+	if err != nil {
+		return
+	}
+
+	if caseExact {
+		result.Set(streq(str1, str2))
+	} else {
+		result.Set(streqf(str1, str2))
+	}
+
+	return
+}
+
+func caseIgnoreOrderingMatch(a, b any) (Boolean, error) {
+	return caseBasedOrderingMatch(a, b, false)
+}
+
+func caseExactOrderingMatch(a, b any) (Boolean, error) {
+	return caseBasedOrderingMatch(a, b, true)
+}
+
+func caseBasedOrderingMatch(a, b any, caseExact bool) (result Boolean, err error) {
+	var str1, str2 string
+	if str1, str2, err = prepareNumericStringAssertion(a, b); err == nil {
+		if caseExact {
+			result.Set(str1 < str2)
+		} else {
+			result.Set(lc(str1) < lc(str2))
+		}
+	}
+
+	return
+}
+
+/*
+SyntaxVerification implements a closure function signature meant to be
+honored by functions or methods intended to verify the syntax of a value.
+*/
+type SyntaxVerification func(any) Boolean
+
+var syntaxVerifiers map[string]SyntaxVerification = map[string]SyntaxVerification{
+	`1.3.6.1.4.1.1466.115.121.1.3`:  attributeTypeDescription,
+	`1.3.6.1.4.1.1466.115.121.1.6`:  bitString,
+	`1.3.6.1.4.1.1466.115.121.1.7`:  boolean,
+	`1.3.6.1.4.1.1466.115.121.1.11`: countryString,
+	`1.3.6.1.4.1.1466.115.121.1.14`: deliveryMethod,
+	`1.3.6.1.4.1.1466.115.121.1.15`: directoryString,
+	`1.3.6.1.4.1.1466.115.121.1.16`: dITContentRuleDescription,
+	`1.3.6.1.4.1.1466.115.121.1.17`: dITStructureRuleDescription,
+	`1.3.6.1.4.1.1466.115.121.1.12`: dN,
+	`1.3.6.1.4.1.1466.115.121.1.21`: enhancedGuide,
+	`1.3.6.1.4.1.1466.115.121.1.22`: facsimileTelephoneNumber,
+	`1.3.6.1.4.1.1466.115.121.1.23`: fax,
+	`1.3.6.1.4.1.1466.115.121.1.24`: generalizedTime,
+	`1.3.6.1.4.1.1466.115.121.1.25`: guide,
+	`1.3.6.1.4.1.1466.115.121.1.26`: iA5String,
+	`1.3.6.1.4.1.1466.115.121.1.27`: integer,
+	`1.3.6.1.4.1.1466.115.121.1.28`: jPEG,
+	`1.3.6.1.4.1.1466.115.121.1.54`: lDAPSyntaxDescription,
+	`1.3.6.1.4.1.1466.115.121.1.30`: matchingRuleDescription,
+	`1.3.6.1.4.1.1466.115.121.1.31`: matchingRuleUseDescription,
+	`1.3.6.1.4.1.1466.115.121.1.34`: nameAndOptionalUID,
+	`1.3.6.1.4.1.1466.115.121.1.35`: nameFormDescription,
+	`1.3.6.1.4.1.1466.115.121.1.36`: numericString,
+	`1.3.6.1.4.1.1466.115.121.1.37`: objectClassDescription,
+	`1.3.6.1.4.1.1466.115.121.1.40`: octetString,
+	`1.3.6.1.4.1.1466.115.121.1.38`: oID,
+	`1.3.6.1.4.1.1466.115.121.1.39`: otherMailbox,
+	`1.3.6.1.4.1.1466.115.121.1.41`: postalAddress,
+	`1.3.6.1.4.1.1466.115.121.1.44`: printableString,
+	`1.3.6.1.4.1.1466.115.121.1.58`: substringAssertion,
+	`1.3.6.1.4.1.1466.115.121.1.50`: telephoneNumber,
+	`1.3.6.1.4.1.1466.115.121.1.51`: teletexTerminalIdentifier,
+	`1.3.6.1.4.1.1466.115.121.1.52`: telexNumber,
+	`1.3.6.1.4.1.1466.115.121.1.53`: uTCTime,
+}
+
+/*
+MatchingRuleAssertion defines a closure signature held by qualifying
+function instances intended to implement a particular Matching Rule.
+
+The semantics of the MatchingRuleAssertion are discussed in [§ 4.1 of
+RFC 4517].
+
+[§ 4.1 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-4.1
+*/
+type MatchingRuleAssertion func(any, any) (Boolean, error)
+
+var matchingRuleAssertions map[string]MatchingRuleAssertion = map[string]MatchingRuleAssertion{
+	"2.5.13.0":                   objectIdentifierMatch,
+	"2.5.13.1":                   distinguishedNameMatch,
+	"2.5.13.2":                   caseIgnoreMatch,
+	"2.5.13.3":                   caseIgnoreOrderingMatch,
+	"2.5.13.4":                   caseIgnoreSubstringsMatch,
+	"2.5.13.5":                   caseExactMatch,
+	"2.5.13.6":                   caseExactOrderingMatch,
+	"2.5.13.7":                   caseExactSubstringsMatch,
+	"2.5.13.8":                   numericStringMatch,
+	"2.5.13.9":                   numericStringOrderingMatch,
+	"2.5.13.10":                  numericStringSubstringsMatch,
+	"2.5.13.11":                  caseIgnoreListMatch,
+	"2.5.13.12":                  caseIgnoreListSubstringsMatch,
+	"2.5.13.13":                  booleanMatch,
+	"2.5.13.14":                  integerMatch,
+	"2.5.13.15":                  integerOrderingMatch,
+	"2.5.13.16":                  bitStringMatch,
+	"2.5.13.17":                  octetStringMatch,
+	"2.5.13.18":                  octetStringOrderingMatch,
+	"2.5.13.20":                  telephoneNumberMatch,
+	"2.5.13.21":                  telephoneNumberSubstringsMatch,
+	"2.5.13.23":                  uniqueMemberMatch,
+	"2.5.13.27":                  generalizedTimeMatch,
+	"2.5.13.28":                  generalizedTimeOrderingMatch,
+	"2.5.13.29":                  integerFirstComponentMatch,
+	"2.5.13.30":                  objectIdentifierFirstComponentMatch,
+	"2.5.13.31":                  directoryStringFirstComponentMatch,
+	"2.5.13.32":                  wordMatch,
+	"2.5.13.33":                  keywordMatch,
+	"1.3.6.1.4.1.1466.109.114.1": caseExactIA5Match,
+	"1.3.6.1.4.1.1466.109.114.2": caseIgnoreIA5Match,
+	"1.3.6.1.4.1.1466.109.114.3": caseIgnoreIA5SubstringsMatch,
 }

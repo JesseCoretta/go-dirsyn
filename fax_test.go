@@ -25,4 +25,6 @@ func TestFax_codecov(t *testing.T) {
 	var g3 G3FacsimileNonBasicParameters
 	g3.Bytes = []byte{0x1, 0x2, 0x3}
 	g3.Shift(8)
+
+	fax([]byte{0x1, 0x2, 0x3})
 }

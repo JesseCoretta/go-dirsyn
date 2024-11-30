@@ -5,50 +5,36 @@ import (
 )
 
 func TestUnicode_codecov(t *testing.T) {
-	utf4Fallback('\U00000061', '\U00100061', '\U000000A9', '\U0000003F')
-	utf4Fallback('\U0010FFFD', '\U0010FFFA', '\U0010FFFB', '\U0010FFFC')
-	isUTF2(rune(10000))
-	isUTF3('\u7FFF')
-	isUTF2('í')
-	isUTF2('°')
-	isUTF2('\u00a0')
-	isUTF2('ð')
-	isUTF2('à')
-	isUTF3('\U0010AAAA')
-	isUTF3('\U0010AFFA')
-	isUTF3('\U0010FFFA')
-	isUTF3('\U0010FFFB')
-	isUTF3('\U0010FFFD')
-	isUTF3('\U0010FFFF')
-	isUTF3('\U0010FF3B')
-	isUTF4('\U0010FFFA')
-	isUTF4('\U0010FFFB')
-	isUTF4('\U0010FFFD')
-	isUTF4('\U0010FFFF')
-	isUTF4('\U0010FF3B')
-	isUTF4(rune(90000))
-
-	for _, roon := range []rune{
+	runes := []rune{
+		'\U00100041',
+		'\U0010FFFD',
+		'\U0010FFFA',
+		'\U00000062',
+		'\U0010FFFB',
+		'\U0010FFFC',
+		'\U0010FFFF',
+		'\U0010FFF1',
+		'\U0000E000',
+		'\U0000F400',
+		rune(224), '\u00F3', '\u00F4',
 		'\u00D8', '\u0465', '\u38FE',
-		'\uEAFE', '👩', 'A', '\u200D',
-		'\u00f0', '\u00f4', '\u00e0',
-		'界', '世',
-	} {
-		switch runeLen(roon) {
-		case 1:
-			isUTF0(roon)
-		case 2:
-			isUTF2(roon)
-		case 3:
-			isUTF3(roon)
-		case 4:
-			isUTF4(roon)
-		}
-		uTFMB(roon)
+		'\uEAFE', '👩', '\u200D',
+		'\u00F0', '\u00F4', '\u00E0',
+		'界', '世', 'こ', 'ん', 'に',
+		'ち', 'は', '世', '界', 'í',
+		'°', '\u00a0', 'ð', 'à',
 	}
 
-	uTFMB(rune(0))
-	uTFMB(`a289fhjk`)
+	if _, err := uTF8(runes); err != nil {
+		t.Errorf("%s failed: %v", t.Name(), err)
+		t.Logf("%#v\n", runes)
+	}
+
+	assertUTF8String([]byte{0x62, 0x77})
+
+	uTF8(struct{}{})
+	assertRunes(byte(0x31))
+	assertRunes([]byte{0x31})
 
 	isSafeUTF1(`界`)
 	isSafeUTF1(`1234`)
@@ -60,17 +46,15 @@ func TestUnicode_codecov(t *testing.T) {
 	isSafeUTF8(`"""""`)
 	isSafeUTF8(nil)
 
-	str2rune(`#`)
-	str2rune(`#8747832`)
-	str2rune(`abcDEF`)
-	assertRunes(``)
-	uTFMB(`界界界`)
-	uTFMB(nil)
-	uTF8(nil, true)
-	uTF8(nil, false)
-	uTF8(`界`, false)
-	uTF8(`界👩`, true)
+	badRunes := []rune{
+		'A', 'c', 'd', 'g', '?', rune(0),
+	}
 
-	_ = assertionValueRunes([]rune{}, false)
+	for _, bad := range badRunes {
+		if err := uTFMB(bad); err == nil {
+			t.Errorf("%s failed: expected error, got nothing", t.Name())
+		}
+	}
 
+	_ = uTFMB([]rune{0xE0, 0x41})
 }

@@ -49,9 +49,11 @@ func TestFacsimileTelephoneNumber(t *testing.T) {
 	} {
 		if f, err := r.FacsimileTelephoneNumber(raw); err != nil {
 			t.Errorf("%s failed: %v", t.Name(), err)
+			return
 		} else if got := f.String(); len(got) != len(raw) {
 			t.Errorf("%s failed:\n\twant:%s\n\tgot: %s\n",
 				t.Name(), raw, got)
+			return
 		}
 	}
 
@@ -66,8 +68,25 @@ func TestFacsimileTelephoneNumber(t *testing.T) {
 
 	tel, _ = r.FacsimileTelephoneNumber(`+1 555 555 0280$b4Length$uncompressed$twoDimensional`)
 	_ = tel.String()
-	tel.set(uint(2))
 	tel.set(uint(32))
+	tel.set(uint(2))
+}
+
+func TestTelephoneNumber_SubstringMatch(t *testing.T) {
+	for key, value := range map[string][]string{
+		`+1 555 555 FILK`: {
+			`+1*55555F*LK`,
+		},
+	} {
+		for _, val := range value {
+			if result, err := telephoneNumberSubstringsMatch(key, val); err != nil {
+				t.Errorf("%s failed: %v", t.Name(), err)
+			} else if !result.True() {
+				t.Errorf("%s failed:\nwant: %s\ngot:  %s",
+					t.Name(), `TRUE`, result)
+			}
+		}
+	}
 }
 
 func TestTelephoneNumber(t *testing.T) {
@@ -103,6 +122,25 @@ func TestTelephony_codecov(t *testing.T) {
 	_, _ = r.FacsimileTelephoneNumber(` $ `)
 	_, _ = r.FacsimileTelephoneNumber(`twoDimensional$twoDimensional$`)
 
+	_, _ = telephoneNumberMatch(`+1 555 555 FILK`, `+1 555 555 FILM`)
+
+	_, _, _ = prepareTelephoneNumberAssertion(`+1 555 555 FILK`, `fh`)
+	_, _, _ = prepareTelephoneNumberAssertion(`+1 555 555 FILK`, struct{}{})
+	_, _, _ = prepareTelephoneNumberAssertion(nil, struct{}{})
+	_, _, _ = prepareTelephoneNumberAssertion(struct{}{}, nil)
+
 	_, _ = r.TelephoneNumber(nil)
 	_, _ = r.TelephoneNumber(`naïve§`)
+
+	_ = facsimileTelephoneNumber(`+1 555 555 FILK$twoDimensional$twoDimensional`)
+	_ = facsimileTelephoneNumber(`@K$twoDimensional$twoDimensional`)
+	_ = telephoneNumber(`+1 555 555 FILK`)
+	_ = telexNumber(`+1 555 555 FILK`)
+	_ = teletexTerminalIdentifier(`+1 555 555 FILK`)
+
+	_, _ = marshalTelephoneNumber(`+@@@AX`)
+	_, _ = marshalTelexNumber(`+12345US$getrac`)
+	teletexSuffixValue(`$$`)
+	teletexSuffixValue(`@_+`)
+	teletexSuffixValue(`\\\\\`)
 }

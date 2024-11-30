@@ -148,3 +148,69 @@ func verifyBitStringContents(raw []byte) ([]byte, error) {
 
 	return raw, err
 }
+
+/*
+bitStringMatch returns a Boolean value indicative of a BitStringMatch
+as described in [§ 4.2.1 of RFC 4517].
+
+OID: 2.5.13.16
+
+[§ 4.2.1 of RFC 4517]: https://www.rfc-editor.org/rfc/rfc4517#section-4.2.1
+*/
+func bitStringMatch(a, b any) (result Boolean, err error) {
+	var abs, bbs BitString
+
+	if abs, err = marshalBitString(a); err != nil {
+		return
+	}
+
+	abytes := abs.Bytes
+	abits := abs.BitLength
+
+	if bbs, err = marshalBitString(b); err != nil {
+		return
+	}
+
+	bbytes := bbs.Bytes
+	bbits := bbs.BitLength
+
+	// TODO
+	//if namedBitList {
+	//        // Remove trailing zero bits
+	//        abits = stripTrailingZeros(abytes, abits)
+	//        bbits = stripTrailingZeros(bbytes, bbits)
+	//}
+
+	// Check if both bit strings have the same number of bits
+	if abits != bbits {
+		result.Set(false)
+		return
+	}
+
+	// Compare bit strings bitwise
+	for i := 0; i < len(abytes); i++ {
+		if abytes[i] != bbytes[i] {
+			result.Set(false)
+			return
+		}
+	}
+
+	result.Set(true)
+
+	return
+}
+
+// stripTrailingZeros removes trailing zero bits and returns the new bit length
+func stripTrailingZeros(bytes []byte, bitLength int) (blen int) {
+	blen = bitLength
+	for i := len(bytes) - 1; i >= 0; i-- {
+		for bit := 0; bit < 8; bit++ {
+			if (bytes[i] & (1 << bit)) != 0 {
+				return blen
+			}
+			blen--
+		}
+	}
+
+	return
+}

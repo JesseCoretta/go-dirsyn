@@ -10,6 +10,58 @@ import (
 	"unicode/utf8"
 )
 
+/*
+UTF8String implements the UTF8 String syntax and abstraction.
+
+From [§ 1.4 of RFC 4512]:
+
+	UTF8    = UTF1 / UTFMB
+	UTFMB   = UTF2 / UTF3 / UTF4
+	UTF0    = %x80-BF
+	UTF1    = %x00-7F
+	UTF2    = %xC2-DF UTF0
+	UTF3    = %xE0 %xA0-BF UTF0 / %xE1-EC 2(UTF0) /
+	          %xED %x80-9F UTF0 / %xEE-EF 2(UTF0)
+	UTF4    = %xF0 %x90-BF 2(UTF0) / %xF1-F3 3(UTF0) /
+	          %xF4 %x80-8F 2(UTF0)
+
+[§ 1.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-1.4
+*/
+type UTF8String string
+
+/*
+UTF8String returns an instance of [UTF8String] alongside an error
+following an analysis of x in the context of a UTF8-compliant string.
+*/
+func (r RFC4512) UTF8String(x any) (UTF8String, error) {
+	return assertUTF8String(x)
+}
+
+func assertUTF8String(x any) (u UTF8String, err error) {
+	var raw string
+
+	switch tv := x.(type) {
+	case UTF8String:
+		raw = string(tv)
+	case []byte:
+		raw = string(tv)
+	case string:
+		raw = tv
+	default:
+		err = errorBadType("UTF8String")
+		return
+	}
+
+	u, err = uTF8(raw)
+	return
+}
+
+/*
+String returns the string representation of the receiver instance.
+*/
+func (r UTF8String) String() string { return string(r) }
+func (r UTF8String) IsZero() bool   { return len(r) == 0 }
+
 var (
 	runeLen  func(rune) int                         = utf8.RuneLen
 	decRune  func([]byte) (rune, int)               = utf8.DecodeRune
@@ -56,6 +108,9 @@ var (
 	utf4cRange *unicode.RangeTable
 )
 
+var telephoneNumberRunes []rune
+var printableStringRunes []rune
+
 func isDigit(r rune) bool {
 	return '0' <= r && r <= '9'
 }
@@ -84,14 +139,6 @@ func runeInSlice(r rune, slice []rune) bool {
 	}
 
 	return false
-}
-
-func str2rune(str string) (r []rune) {
-	for i := 0; i < len(str); i++ {
-		r = append(r, rune(str[i]))
-	}
-
-	return
 }
 
 func isAlphaNumeric(r rune) bool {
@@ -248,6 +295,8 @@ func assertRunes(x any, zok ...bool) (runes []rune, err error) {
 		zerook = zok[0]
 	}
 	switch tv := x.(type) {
+	case []rune:
+		runes = tv
 	case rune:
 		runes = append(runes, tv)
 	case byte:
@@ -259,9 +308,7 @@ func assertRunes(x any, zok ...bool) (runes []rune, err error) {
 			err = errorBadLength("Zero length rune", 0)
 			break
 		}
-		for i := 0; i < len(tv); i++ {
-			runes = append(runes, rune(tv[i]))
-		}
+		runes = []rune(tv)
 	default:
 		err = errorBadType("Not rune compatible")
 	}
@@ -309,155 +356,69 @@ one (1) or more UTFMB characters.
 */
 func uTFMB(x any) (err error) {
 	var raw []rune
-	if raw, err = assertRunes(x); err != nil {
-		return
-	}
-
-	funcs := map[int]func(rune) error{
-		1: isUTF0,
-		2: isUTF2,
-		3: isUTF3,
-		4: isUTF4,
-	}
-
-	for i := 0; i < len(raw) && err == nil; i++ {
-		r := raw[i]
-		if funk, found := funcs[runeLen(r)]; found {
-			err = funk(r)
-			//continue
-		}
-		//err = errorTxt("Incompatible rune length for UTFMB")
-	}
-
-	return
-}
-
-// UTF0
-func isUTF0(r rune) (err error) {
-	if !ucIs(utf0Range, r) {
-		err = errorTxt("Incompatible char for UTF0 (in UTFMB):" + string(r))
-	}
-
-	return
-}
-
-// UTF2
-func isUTF2(r rune) (err error) {
-	z := []byte(string(r))
-	ch1 := rune(z[0])
-	ch2 := rune(z[1])
-
-	if !ucIs(utf2Range, ch1) || !ucIs(utf0Range, ch2) {
-		err = errorTxt("Incompatible char for UTF2 (in UTFMB):" + string(r))
-	}
-
-	return
-}
-
-// UTF3
-func isUTF3(r rune) (err error) {
-	z := []byte(string(r))
-	z0 := rune(z[0])
-	z1 := rune(z[1])
-	z2 := rune(z[2])
-
-	switch z0 {
-	case '\u00e0':
-		cm := map[rune]bool{
-			z1: ucIs(utf3aRange, z1),
-			z2: ucIs(utf0Range, z2),
-		}
-		for _, roon := range []rune{z1, z2} {
-			if !cm[roon] {
-				err = errorTxt("Incompatible char for UTF3 (in UTFMB):" + string(roon))
+	if raw, err = assertRunes(x); err == nil {
+		for i := 0; i < len(raw) && err == nil; i++ {
+			r := rune(raw[i])
+			var valid bool
+			if valid, err = isUTFMB(r); !valid {
+				err = errorTxt("Invalid UTFMB char: " + string(r))
 				break
 			}
 		}
-	case '\u00ed':
-		cm := map[rune]bool{
-			z1: ucIs(utf3cRange, z1),
-			z2: ucIs(utf0Range, z2),
-		}
-		for _, roon := range []rune{z1, z2} {
-			if !cm[roon] {
-				err = errorTxt("Incompatible char for UTF3 (in UTFMB):" + string(roon))
-				break
-			}
-		}
-	default:
-		var ok bool
-		for _, ok = range []bool{
-			ucIs(utf3bRange, z0),
-			ucIs(utf3dRange, z0),
-			ucIs(utf0Range, z1),
-			ucIs(utf0Range, z2),
-		} {
-			if ok {
-				return
-			}
-		}
-
-		err = errorTxt("Incompatible char for UTF3 (in UTFMB): '" +
-			string(z0) + "', '" + string(z1) + "', or '" + string(z2) + "'")
 	}
 
 	return
 }
 
-// UTF4
-func isUTF4(r rune) (err error) {
-	z := []byte(string(r))
-	z0 := rune(z[0])
-	z1 := rune(z[1])
-	z2 := rune(z[2])
-	z3 := rune(z[3])
+func isUTF0(b byte) bool {
+	return b >= 0x80 && b <= 0xBF
+}
 
-	switch z0 {
-	case '\u00f0':
-		cm := map[rune]bool{
-			z1: ucIs(utf4aRange, z1),
-			z2: ucIs(utf0Range, z2),
-			z3: ucIs(utf0Range, z3),
-		}
-		for _, roon := range []rune{z1, z2, z3} {
-			if !cm[roon] {
-				err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(roon))
-				break
-			}
-		}
-	case '\u00f4':
-		cm := map[rune]bool{
-			z1: ucIs(utf4cRange, z1),
-			z2: ucIs(utf0Range, z2),
-			z3: ucIs(utf0Range, z3),
-		}
+func isUTF2(ub []byte) bool {
+	return ub[0] >= 0xC2 && ub[0] <= 0xDF && isUTF0(ub[1])
+}
 
-		for _, roon := range []rune{z1, z2, z3} {
-			if !cm[roon] {
-				err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(roon))
-				break
-			}
-		}
-	default:
-		err = utf4Fallback(z0, z1, z2, z3)
+func isUTF3(ub []byte) (b bool) {
+	switch ub[0] {
+	case 0xE0:
+		b = ucIs(utf3aRange, rune(ub[1])) && isUTF0(ub[2])
+	case 0xED:
+		b = ucIs(utf3cRange, rune(ub[1])) && isUTF0(ub[2])
+	case 0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA, 0xEB, 0xEC, 0xEE, 0xEF:
+		b = isUTF0(ub[1]) && isUTF0(ub[2])
 	}
 
 	return
 }
 
-func utf4Fallback(z0, z1, z2, z3 rune) (err error) {
-	cm := map[rune]bool{
-		z0: ucIs(utf4bRange, z0),
-		z1: ucIs(utf0Range, z1),
-		z2: ucIs(utf0Range, z2),
-		z3: ucIs(utf0Range, z3),
+func isUTF4(ub []byte) (b bool) {
+	switch ub[0] {
+	case 0xF0:
+		b = ub[1] >= 0x90 && ub[1] <= 0xBF && isUTF0(ub[2]) && isUTF0(ub[3])
+	case 0xF1, 0xF2, 0xF3:
+		b = isUTF0(ub[1]) && isUTF0(ub[2]) && isUTF0(ub[3])
+	case 0xF4:
+		b = ucIs(utf4cRange, rune(ub[1])) && isUTF0(ub[2]) && isUTF0(ub[3])
 	}
 
-	for _, roon := range []rune{z0, z1, z2, z3} {
-		if !cm[roon] {
-			err = errorTxt("Incompatible char for UTF4 (in UTFMB):" + string(roon))
-			break
-		}
+	return
+}
+
+func isUTFMB(r rune) (b bool, err error) {
+	ub := make([]byte, 4)
+	n := utf8.EncodeRune(ub, r)
+
+	switch n {
+	case 2:
+		b = isUTF2(ub)
+	case 3:
+		b = isUTF3(ub)
+	case 4:
+		b = isUTF4(ub)
+	}
+
+	if !b {
+		err = errorTxt("invalid leading byte for " + itoa(n) + "-byte sequence, or bad length")
 	}
 
 	return
@@ -534,6 +495,37 @@ func init() {
 		'\u2126',
 		'\u013F',
 		'\u014B',
+	}
+
+	printableStringRunes = []rune{
+		'\'',
+		'(',
+		')',
+		'+',
+		',',
+		'-',
+		'.',
+		'=',
+		'/',
+		':',
+		'?',
+		' ',
+	}
+
+	telephoneNumberRunes = []rune{
+		'\'',
+		'\\',
+		'"',
+		'(',
+		')',
+		'+',
+		',',
+		'-',
+		'.',
+		'/',
+		':',
+		'?',
+		' ',
 	}
 
 	/*

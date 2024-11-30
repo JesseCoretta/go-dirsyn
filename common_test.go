@@ -25,6 +25,32 @@ func TestMisc_codecov(t *testing.T) {
 	hexDecode(`\u00XH`)
 	hexDecode(`\zz`)
 	hexDecode(`##`)
+
+	isStruct(struct{}{})
+	isStruct(struct{ A string }{A: ``})
+
+	strInSlice(`this`, []string{`is`, `data`}, true)
+	strInSlice(`this`, []string{`is`, `data`}, false)
+
+	isNumber(``)
+	isNumber(`01A`)
+	isNumber(`01999`)
+
+	_, _ = assertString(``, 0, "name")
+	_, _ = assertString([]byte{0x0}, 1, "name")
+
+	_, _ = caseIgnoreMatch(`this`, `That`)
+	_, _ = caseExactMatch(`That`, `That`)
+	_, _ = caseExactMatch(`That`, struct{}{})
+	_, _ = caseExactMatch(struct{}{}, nil)
+	_, _ = caseIgnoreOrderingMatch(`abc`, `xyz`)
+	_, _ = caseIgnoreOrderingMatch(`abc`, `abc`)
+	_, _ = caseIgnoreOrderingMatch(`abc`, nil)
+	_, _ = caseIgnoreOrderingMatch(nil, `xyz`)
+	_, _ = caseExactOrderingMatch(`abc`, `xyz`)
+	_, _ = caseExactOrderingMatch(`abc`, `abc`)
+	_, _ = caseExactOrderingMatch(`abc`, nil)
+	_, _ = caseExactOrderingMatch(nil, `xyz`)
 }
 
 func writeTemporaryFile(name string, content []byte) (file *os.File, err error) {
