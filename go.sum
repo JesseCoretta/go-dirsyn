@@ -1,7 +1,5 @@
 github.com/JesseCoretta/go-objectid v1.0.4 h1:JhQTcKXc5yrr3nCuLOVaG16K5Bgf8hZOwYsmDWz81zw=
 github.com/JesseCoretta/go-objectid v1.0.4/go.mod h1:dOPQhGxLieMBl4WF1gq0Z3yb3KppfNGV/XrPrudjyuw=
-github.com/JesseCoretta/go-stackage v1.0.3 h1:NhLG5LaRo8uFYjpWW/36Rpg2RVJS50KCgkmo5yenk5U=
-github.com/JesseCoretta/go-stackage v1.0.3/go.mod h1:QnPSyIRAMp4VWZNwBOOF7IcBGu+rWVUMDcAeATlRikI=
 github.com/go-asn1-ber/asn1-ber v1.5.5 h1:MNHlNMBDgEKD4TcKr36vQN68BA00aDfjIt3/bD50WnA=
 github.com/go-asn1-ber/asn1-ber v1.5.5/go.mod h1:hEBeB/ic+5LoWskz+yKT7vGhhPYkProFKoKdwZRWMe0=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
