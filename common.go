@@ -59,6 +59,10 @@ var (
 	now        func() time.Time                          = time.Now
 )
 
+func removeWHSP(a string) string {
+	return repAll(a, ` `, ``)
+}
+
 func streq(a, b string) bool {
 	return a == b
 }
@@ -112,6 +116,17 @@ func escapeString(x string) (esc string) {
 	}
 
 	return
+}
+
+func uitoa(x any) (s string) {
+        switch tv := x.(type) {
+        case uint:
+                s = strconv.FormatUint(uint64(tv), 10)
+        case uint64:
+                s = strconv.FormatUint(tv, 10)
+        }
+
+        return
 }
 
 func hexEncode(x any) string {
@@ -300,6 +315,8 @@ func caseBasedOrderingMatch(a, b any, caseExact bool) (result Boolean, err error
 
 	return
 }
+
+type LDAPString OctetString
 
 /*
 SyntaxVerification implements a closure function signature meant to be

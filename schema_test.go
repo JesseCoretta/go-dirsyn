@@ -21,6 +21,16 @@ func ExampleSubschemaSubentry_LDAPSyntax() {
 	// Output: 1.3.6.1.4.1.1466.115.121.1.27
 }
 
+func ExampleMatchingRuleDescription_Match() {
+	def, idx := exampleSchema.MatchingRule(`2.5.13.2`)
+	if idx == -1 {
+		fmt.Println("No such definition found")
+		return
+	}
+	fmt.Println(def.Match(`caseIgnoreMatch`)) // or by numeric OID (2.5.13.2)
+	// Output: true
+}
+
 func ExampleLDAPSyntaxDescription_HumanReadable() {
 	def, idx := exampleSchema.LDAPSyntax(`1.3.6.1.1.15.5`) // X.509 Cert List Exact Assertion
 	if idx == -1 {
@@ -601,6 +611,10 @@ func TestSubschemaSubentry_codecov(t *testing.T) {
 		E-STRING 'BOGUS' )`)
 }
 
+// Certain assorted definitions to be loaded into the
+// "exampleSchema" instance for unit tests/examples.
+// Some are make-believe, others are distinguished,
+// such as "cn" or "objectClass".
 var testSchemaDefinitions []string = []string{
 	`attributeType: ( 2.5.4.0
 	        NAME 'objectClass'
@@ -690,6 +704,7 @@ var testSchemaDefinitions []string = []string{
 		SUP 1 )`,
 }
 
+// for unit tests and pkgsite examples.
 var exampleSchema *SubschemaSubentry
 
 func init() {

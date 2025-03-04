@@ -76,6 +76,28 @@ func (r Boolean) True() (v bool) {
 }
 
 /*
+Bytes returns []byte{0xFF} for TRUE and []byte{0x0} for any other state.
+*/
+func (r Boolean) Bytes() []byte {
+	b := byte(0x0)
+	if r.True() {
+		b = byte(0xFF)
+	}
+
+	return []byte{b}
+}
+
+/*
+SetBytes sets the receiver state to reflect the bytes provided.
+
+An instance of []byte containing a single value of 0xFF results in a state
+of TRUE, while a value of 0x0 results in a state of FALSE.
+*/
+func (r *Boolean) SetBytes() {
+	
+}
+
+/*
 False returns a Boolean value indicative of a false receiver state.
 */
 func (r Boolean) False() (v bool) {
@@ -89,8 +111,12 @@ func (r Boolean) False() (v bool) {
 /*
 Set assigns the indicated truthy input value to the receiver instance.
 
-Valid input types are string, *bool, bool or nil.  Case is not significant
-in the matching process involving strings.
+Valid input types are string, *bool, bool, byte, []byte or nil.  Case is
+not significant in the matching process involving strings.
+
+An instance of a single byte (or []byte of same size) with of 0xFF results
+in a state of TRUE, while a value of 0x0 results in a state of FALSE. There
+is no byte value to invoke a state of UNDEFINED (use nil).
 */
 func (r *Boolean) Set(b any) {
 	switch tv := b.(type) {
@@ -98,6 +124,18 @@ func (r *Boolean) Set(b any) {
 		r.bool = tv
 	case bool:
 		r.bool = &tv
+	case []byte:
+		if len(tv) > 0 {
+			r.Set(tv[0])
+		}
+	case byte:
+		var t bool
+		if tv == 0xFF {
+			t = true
+			r.bool = &t
+		} else if tv == 0x0 {
+			r.bool = &t
+		}
 	case nil:
 		r.bool = nil
 	case string:

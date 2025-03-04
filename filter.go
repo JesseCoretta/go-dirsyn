@@ -158,7 +158,7 @@ AttributeDescription implements [Section 2.5 of RFC4512].
 
 [Section 2.5 of RFC4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-2.5
 */
-type AttributeDescription string
+type AttributeDescription LDAPString
 
 /*
 AttributeOption implements [Section 2.5 of RFC4512].
@@ -191,6 +191,8 @@ type PresentFilter struct {
 	Desc AttributeDescription
 }
 
+type MatchingRuleID LDAPString
+
 /*
 ExtensibleMatchFilter aliases the [MatchingRuleAssertionFilter] to implement
 the "extensibleMatch" CHOICE of an instance of [Filter].
@@ -207,7 +209,7 @@ MatchingRuleAssertion implements the basis of [ExtensibleMatchFilter].
 	    dnAttributes    [4] BOOLEAN DEFAULT FALSE }
 */
 type MatchingRuleAssertionFilter struct {
-	MatchingRule string               `asn1:"tag:1,optional"`
+	MatchingRule MatchingRuleID       `asn1:"tag:1,optional"`
 	Type         AttributeDescription `asn1:"tag:2,optional"`
 	MatchValue   AssertionValue       `asn1:"tag:3"`
 	DNAttributes bool                 `asn1:"tag:4,default:false"`
@@ -220,6 +222,11 @@ type SubstringsFilter struct {
 	Type       AttributeDescription
 	Substrings SubstringAssertion
 }
+
+/*
+String returns the string representation of the receiver instance.
+*/
+func (r MatchingRuleID) String() string { return string(r) }
 
 /*
 Kind returns the string literal "tag" to describe the kind of [AttributeOption]
@@ -267,7 +274,7 @@ func (r NotFilter) IsZero() bool { return r.Filter == nil }
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r EqualityMatchFilter) IsZero() bool {
-	return r.Desc == "" &&
+	return r.Desc.String() == "" &&
 		r.Value == nil
 }
 
@@ -275,7 +282,7 @@ func (r EqualityMatchFilter) IsZero() bool {
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r GreaterOrEqualFilter) IsZero() bool {
-	return r.Desc == "" &&
+	return r.Desc.String() == "" &&
 		r.Value == nil
 }
 
@@ -283,7 +290,7 @@ func (r GreaterOrEqualFilter) IsZero() bool {
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r LessOrEqualFilter) IsZero() bool {
-	return r.Desc == "" &&
+	return r.Desc.String() == "" &&
 		r.Value == nil
 }
 
@@ -291,20 +298,20 @@ func (r LessOrEqualFilter) IsZero() bool {
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r ApproximateMatchFilter) IsZero() bool {
-	return r.Desc == "" &&
+	return r.Desc.String() == "" &&
 		r.Value == nil
 }
 
 /*
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
-func (r PresentFilter) IsZero() bool { return len(r.Desc) == 0 }
+func (r PresentFilter) IsZero() bool { return r.Desc.String() == "" }
 
 /*
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r SubstringsFilter) IsZero() bool {
-	return r.Type == "" &&
+	return r.Type.String() == "" &&
 		r.Substrings.IsZero()
 }
 
@@ -312,8 +319,8 @@ func (r SubstringsFilter) IsZero() bool {
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r ExtensibleMatchFilter) IsZero() bool {
-	return r.MatchingRule == "" &&
-		r.Type == "" &&
+	return r.MatchingRule.String() == "" &&
+		r.Type.String() == "" &&
 		r.MatchValue == nil &&
 		!r.DNAttributes
 }
@@ -678,7 +685,7 @@ func (r ExtensibleMatchFilter) String() (s string) {
 
 		value := r.MatchValue.String()
 		typ := r.Type.String()
-		mr := r.MatchingRule
+		mr := r.MatchingRule.String()
 		dna := r.DNAttributes
 
 		if typ != "" && mr == "" {
@@ -993,7 +1000,7 @@ func parseExtensibleMatch(a, b string) (filter Filter, err error) {
 				mr := trim(a[idx+1:], `:`)
 				err = checkFilterOIDs(a[:idx], mr)
 				_filter.Type = AttributeDescription(a[:idx])
-				_filter.MatchingRule = mr
+				_filter.MatchingRule = MatchingRuleID(mr)
 			}
 		} else {
 			_filter.DNAttributes = true
@@ -1002,7 +1009,7 @@ func parseExtensibleMatch(a, b string) (filter Filter, err error) {
 				err = checkFilterOIDs(c[0], mr)
 				if len(c[0]) > 0 && len(c[1]) > 0 {
 					_filter.Type = AttributeDescription(c[0])
-					_filter.MatchingRule = mr
+					_filter.MatchingRule = MatchingRuleID(mr)
 				} else if len(c[0]) > 0 {
 					_filter.Type = AttributeDescription(c[0])
 					//} else if mr != "" {
@@ -1014,11 +1021,11 @@ func parseExtensibleMatch(a, b string) (filter Filter, err error) {
 	} else if scol {
 		if sdn {
 			_filter.DNAttributes = true
-			_filter.MatchingRule = a[4 : len(a)-1]
+			_filter.MatchingRule = MatchingRuleID(a[4 : len(a)-1])
 		} else {
-			_filter.MatchingRule = a[1 : len(a)-1]
+			_filter.MatchingRule = MatchingRuleID(a[1 : len(a)-1])
 		}
-		err = checkFilterOIDs(``, _filter.MatchingRule)
+		err = checkFilterOIDs(``, _filter.MatchingRule.String())
 		_filter.MatchValue = val
 	}
 
@@ -1373,7 +1380,7 @@ func unmarshalExtensibleFilterBER(packet *ber.Packet) (item Filter, err error) {
 		var ok bool
 		switch uint64(child.Tag) {
 		case 1:
-			if _item.MatchingRule, ok = child.Value.(string); !ok {
+			if _item.MatchingRule, ok = child.Value.(MatchingRuleID); !ok {
 				err = errorTxt("Invalid MatchingRule for extensible filter (want:string)")
 			}
 		case 2:
@@ -1486,7 +1493,7 @@ func (r ExtensibleMatchFilter) BER() (*ber.Packet, error) {
 	packet := ber.NewSequence(r.Choice())
 
 	if len(r.MatchValue) > 0 {
-		packet.AppendChild(ber.NewString(
+		packet.AppendChild(ber.Encode(
 			ber.ClassContext,
 			ber.TypePrimitive,
 			ber.Tag(1),

@@ -22,6 +22,13 @@ func (r OctetString) String() string {
 }
 
 /*
+Size returns the integer length of the receiver instance.
+*/
+func (r OctetString) Len() int {
+	return len(r)
+}
+
+/*
 OctetString returns an instance of [OctetString] alongside an error
 following an analysis of x in the context of an Octet String.
 */

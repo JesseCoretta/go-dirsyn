@@ -83,10 +83,8 @@ func marshalBitString(x any) (bs BitString, err error) {
 			}
 
 			if err == nil {
-				if _, err = asn1m(bss); err == nil {
-					bss.BitLength = len(bss.Bytes) * 8
-					bs = BitString(bss)
-				}
+				bss.BitLength = len(bss.Bytes) * 8
+				bs = BitString(bss)
 			}
 		}
 	}

@@ -602,6 +602,9 @@ Collection indices are as follows:
   - 6 - "nameForms"
   - 7 - "dITStructureRules"
   - 8 - "total"
+
+As the return type is fixed, there is no risk of panic when calling
+indices 0 through 8 in any circumstance.
 */
 func (r SubschemaSubentry) Counters() (counters [9]uint) {
 	counters[0] = uint(r.ldapSyntaxes.Len())
@@ -612,6 +615,8 @@ func (r SubschemaSubentry) Counters() (counters [9]uint) {
 	counters[5] = uint(r.dITContentRules.Len())
 	counters[6] = uint(r.nameForms.Len())
 	counters[7] = uint(r.dITStructureRules.Len())
+
+	// Perform summation of all of the above.
 	counters[8] = uint(counters[0] +
 		counters[1] +
 		counters[2] +
@@ -1029,8 +1034,8 @@ func (r LDAPSyntaxDescription) xPattern() (xpat string) {
 }
 
 /*
-XOrigin returns slices of standards citations, each being the name of an
-RFC or ITU-T document from which the receiver originates.
+XOrigin returns slices of standards citations, each being the name of an RFC,
+Internet-Draft or ITU-T Recommendation from which the receiver definition
 
 This method is merely a convenient alternative to manually checking the
 underlying Extensions field instance for the presence of an [Extension]
@@ -1045,6 +1050,17 @@ func (r LDAPSyntaxDescription) XOrigin() (origins []string) {
 	}
 
 	return
+}
+
+/*
+Match returns a Boolean value indicative of a match between the input string
+term value and the receiver's NumericOID or Description value.
+
+Case is not significant in the matching process, and whitespace is disregarded
+where a Description value is concerned.
+*/
+func (r LDAPSyntaxDescription) Match(term string) bool {
+        return term == r.NumericOID || streqf(removeWHSP(term), removeWHSP(r.Description))
 }
 
 /*
@@ -1170,6 +1186,12 @@ type MatchingRuleDescription struct {
 	Extensions  map[int]Extension
 }
 
+/*
+EqualityMatch performs an equality match between the actual and assertion input
+values. The actual value represents the value that would ostensibly be derived
+from an LDAP DIT entry, while the assertion value represents the test value that
+would be input by a requesting user.
+*/
 func (r MatchingRuleDescription) EqualityMatch(actual, assertion any) (result Boolean) {
 	if funk, found := matchingRuleAssertions[r.NumericOID]; found {
 		result, _ = funk(actual, assertion)
@@ -1179,8 +1201,9 @@ func (r MatchingRuleDescription) EqualityMatch(actual, assertion any) (result Bo
 }
 
 /*
-XOrigin returns slices of standards citations, each being the name of an
-RFC or ITU-T document from which the receiver originates.
+XOrigin returns slices of standards citations, each being the name of an RFC,
+Internet-Draft or ITU-T Recommendation from which the receiver definition
+originates.
 
 This method is merely a convenient alternative to manually checking the
 underlying Extensions field instance for the presence of an [Extension]
@@ -1195,6 +1218,16 @@ func (r MatchingRuleDescription) XOrigin() (origins []string) {
 	}
 
 	return
+}
+
+/*
+Match returns a Boolean value indicative of a match between the input string
+term value and the receiver's NumericOID or Name value.
+
+Case is not significant in the matching process.
+*/
+func (r MatchingRuleDescription) Match(term string) bool {
+        return term == r.NumericOID || strInSlice(term, r.Name)
 }
 
 /*
@@ -1228,8 +1261,8 @@ func (r MatchingRuleDescription) newMatchingRuleUse() (mru MatchingRuleUseDescri
 }
 
 /*
-Valid returns a Boolean value indicative of a syntactically valid receiver
-instance. Note this does not verify the presence of dependency schema elements.
+Valid returns a Boolean value indicative of a syntactically valid receiver instance.
+Note this does not verify the presence of dependency schema elements.
 */
 func (r MatchingRuleDescription) Valid() bool {
 	_, oerr := marshalNumericOID(r.NumericOID)
@@ -1323,8 +1356,8 @@ func (r AttributeTypeDescription) String() (def string) {
 }
 
 /*
-XOrigin returns slices of standards citations, each being the name of an
-RFC or ITU-T document from which the receiver originates.
+XOrigin returns slices of standards citations, each being the name of an RFC,
+Internet-Draft or ITU-T Recommendation from which the receiver definition
 
 This method is merely a convenient alternative to manually checking the
 underlying Extensions field instance for the presence of an [Extension]
@@ -1339,6 +1372,16 @@ func (r AttributeTypeDescription) XOrigin() (origins []string) {
 	}
 
 	return
+}
+
+/*
+Match returns a Boolean value indicative of a match between the input string
+term value and the receiver's NumericOID or Name value.
+
+Case is not significant in the matching process.
+*/
+func (r AttributeTypeDescription) Match(term string) bool {
+        return term == r.NumericOID || strInSlice(term, r.Name)
 }
 
 func (r AttributeTypeDescription) mutexBooleanString() (clause string) {
@@ -1449,8 +1492,8 @@ func (r MatchingRuleUseDescription) String() (def string) {
 }
 
 /*
-XOrigin returns slices of standards citations, each being the name of an
-RFC or ITU-T document from which the receiver originates.
+XOrigin returns slices of standards citations, each being the name of an RFC,
+Internet-Draft or ITU-T Recommendation from which the receiver definition
 
 This method is merely a convenient alternative to manually checking the
 underlying Extensions field instance for the presence of an [Extension]
@@ -1465,6 +1508,16 @@ func (r MatchingRuleUseDescription) XOrigin() (origins []string) {
 	}
 
 	return
+}
+
+/*
+Match returns a Boolean value indicative of a match between the input string
+term value and the receiver's NumericOID or Name value.
+
+Case is not significant in the matching process.
+*/
+func (r MatchingRuleUseDescription) Match(term string) bool {
+        return term == r.NumericOID || strInSlice(term, r.Name)
 }
 
 /*
@@ -1564,8 +1617,8 @@ func (r ObjectClassDescription) String() (def string) {
 }
 
 /*
-XOrigin returns slices of standards citations, each being the name of an
-RFC or ITU-T document from which the receiver originates.
+XOrigin returns slices of standards citations, each being the name of an RFC,
+Internet-Draft or ITU-T Recommendation from which the receiver definition
 
 This method is merely a convenient alternative to manually checking the
 underlying Extensions field instance for the presence of an [Extension]
@@ -1580,6 +1633,16 @@ func (r ObjectClassDescription) XOrigin() (origins []string) {
 	}
 
 	return
+}
+
+/*
+Match returns a Boolean value indicative of a match between the input string
+term value and the receiver's NumericOID or Name value.
+
+Case is not significant in the matching process.
+*/
+func (r ObjectClassDescription) Match(term string) bool {
+        return term == r.NumericOID || strInSlice(term, r.Name)
 }
 
 func stringClassKind(kind uint8) (k string) {
@@ -1730,8 +1793,8 @@ func (r DITContentRuleDescription) String() (def string) {
 }
 
 /*
-XOrigin returns slices of standards citations, each being the name of an
-RFC or ITU-T document from which the receiver originates.
+XOrigin returns slices of standards citations, each being the name of an RFC,
+Internet-Draft or ITU-T Recommendation from which the receiver definition
 
 This method is merely a convenient alternative to manually checking the
 underlying Extensions field instance for the presence of an [Extension]
@@ -1746,6 +1809,16 @@ func (r DITContentRuleDescription) XOrigin() (origins []string) {
 	}
 
 	return
+}
+
+/*
+Match returns a Boolean value indicative of a match between the input string
+term value and the receiver's NumericOID or Name value.
+
+Case is not significant in the matching process.
+*/
+func (r DITContentRuleDescription) Match(term string) bool {
+        return term == r.NumericOID || strInSlice(term, r.Name)
 }
 
 /*
@@ -1862,8 +1935,8 @@ func (r NameFormDescription) String() (def string) {
 }
 
 /*
-XOrigin returns slices of standards citations, each being the name of an
-RFC or ITU-T document from which the receiver originates.
+XOrigin returns slices of standards citations, each being the name of an RFC,
+Internet-Draft or ITU-T Recommendation from which the receiver definition
 
 This method is merely a convenient alternative to manually checking the
 underlying Extensions field instance for the presence of an [Extension]
@@ -1878,6 +1951,16 @@ func (r NameFormDescription) XOrigin() (origins []string) {
 	}
 
 	return
+}
+
+/*
+Match returns a Boolean value indicative of a match between the input string
+term value and the receiver's NumericOID or Name value.
+
+Case is not significant in the matching process.
+*/
+func (r NameFormDescription) Match(term string) bool {
+        return term == r.NumericOID || strInSlice(term, r.Name)
 }
 
 /*
@@ -1987,8 +2070,8 @@ func (r DITStructureRuleDescription) String() (def string) {
 }
 
 /*
-XOrigin returns slices of standards citations, each being the name of an
-RFC or ITU-T document from which the receiver originates.
+XOrigin returns slices of standards citations, each being the name of an RFC,
+Internet-Draft or ITU-T Recommendation from which the receiver definition
 
 This method is merely a convenient alternative to manually checking the
 underlying Extensions field instance for the presence of an [Extension]
@@ -2003,6 +2086,16 @@ func (r DITStructureRuleDescription) XOrigin() (origins []string) {
 	}
 
 	return
+}
+
+/*
+Match returns a Boolean value indicative of a match between the input string
+term value and the receiver's integer rule identifier (RuleID) or Name value.
+
+Case is not significant in the matching process.
+*/
+func (r DITStructureRuleDescription) Match(term string) bool {
+        return term == uitoa(r.RuleID) || strInSlice(term, r.Name)
 }
 
 /*
@@ -2055,9 +2148,9 @@ func marshalLDAPSyntaxDescription(input string) (def LDAPSyntaxDescription, err 
 		case "DESC":
 			def.Description = parseSingleVal(tkz)
 		default:
-			if hasPfx(token, "X-") {
+			if tpfx := uc(token); hasPfx(tpfx, "X-") {
 				def.Extensions[len(def.Extensions)] = Extension{
-					XString: token,
+					XString: tpfx,
 					Values:  parseMultiVal(tkz),
 				}
 			} else {
@@ -2108,9 +2201,9 @@ func marshalMatchingRuleDescription(input string) (def MatchingRuleDescription, 
 		case "SYNTAX":
 			def.Syntax = tkz.nextToken()
 		default:
-			if hasPfx(token, "X-") {
+			if tpfx := uc(token); hasPfx(tpfx, "X-") {
 				def.Extensions[len(def.Extensions)] = Extension{
-					XString: token,
+					XString: tpfx,
 					Values:  parseMultiVal(tkz),
 				}
 			} else {
@@ -2161,9 +2254,9 @@ func marshalMatchingRuleUseDescription(input string) (def MatchingRuleUseDescrip
 		case "APPLIES":
 			def.Applies = parseMultiVal(tkz)
 		default:
-			if hasPfx(token, "X-") {
+			if tpfx := uc(token); hasPfx(tpfx, "X-") {
 				def.Extensions[len(def.Extensions)] = Extension{
-					XString: token,
+					XString: tpfx,
 					Values:  parseMultiVal(tkz),
 				}
 			} else {
@@ -2219,9 +2312,9 @@ func marshalAttributeTypeDescription(input string) (def AttributeTypeDescription
 		case "USAGE":
 			def.Usage = tkz.nextToken()
 		default:
-			if hasPfx(token, "X-") {
+			if tpfx := uc(token); hasPfx(tpfx, "X-") {
 				def.Extensions[len(def.Extensions)] = Extension{
-					XString: token,
+					XString: tpfx,
 					Values:  parseMultiVal(tkz),
 				}
 			} else {
@@ -2330,9 +2423,9 @@ func marshalObjectClassDescription(input string) (def ObjectClassDescription, er
 		case "MAY":
 			def.May = parseMultiVal(tkz)
 		default:
-			if hasPfx(token, "X-") {
+			if tpfx := uc(token); hasPfx(tpfx, "X-") {
 				def.Extensions[len(def.Extensions)] = Extension{
-					XString: token,
+					XString: tpfx,
 					Values:  parseMultiVal(tkz),
 				}
 			} else {
@@ -2398,9 +2491,9 @@ func marshalDITContentRuleDescription(input string) (def DITContentRuleDescripti
 		case "NOT":
 			def.Not = parseMultiVal(tkz)
 		default:
-			if hasPfx(token, "X-") {
+			if tpfx := uc(token); hasPfx(tpfx, "X-") {
 				def.Extensions[len(def.Extensions)] = Extension{
-					XString: token,
+					XString: tpfx,
 					Values:  parseMultiVal(tkz),
 				}
 			} else {
@@ -2455,9 +2548,9 @@ func marshalNameFormDescription(input string) (def NameFormDescription, err erro
 		case "MAY":
 			def.May = parseMultiVal(tkz)
 		default:
-			if hasPfx(token, "X-") {
+			if tpfx := uc(token); hasPfx(tpfx, "X-") {
 				def.Extensions[len(def.Extensions)] = Extension{
-					XString: token,
+					XString: tpfx,
 					Values:  parseMultiVal(tkz),
 				}
 			} else {
@@ -2509,9 +2602,9 @@ func marshalDITStructureRuleDescription(input string) (def DITStructureRuleDescr
 		case "SUP":
 			def.SuperRules = parseMultiVal(tkz)
 		default:
-			if hasPfx(token, "X-") {
+			if tpfx := uc(token); hasPfx(tpfx, "X-") {
 				def.Extensions[len(def.Extensions)] = Extension{
-					XString: token,
+					XString: tpfx,
 					Values:  parseMultiVal(tkz),
 				}
 			} else {
