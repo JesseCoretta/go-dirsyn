@@ -94,7 +94,7 @@ An instance of []byte containing a single value of 0xFF results in a state
 of TRUE, while a value of 0x0 results in a state of FALSE.
 */
 func (r *Boolean) SetBytes() {
-	
+
 }
 
 /*

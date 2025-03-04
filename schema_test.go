@@ -10,6 +10,43 @@ func ExampleSubschemaSubentry_Counters() {
 	// Output: [67 44 10 44 3 0 1 2 171]
 }
 
+func ExampleAttributeTypeDescription_SuperChain() {
+	child, _ := exampleSchema.AttributeType(`cn`)
+	supers := child.SuperChain(exampleSchema.AttributeTypeDescriptions)
+	fmt.Println(supers)
+	// Output: attributeTypes: ( 2.5.4.41  NAME 'name' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC4519' )
+}
+
+func ExampleObjectClassDescription_SuperChain() {
+	child, _ := exampleSchema.ObjectClass(`subentry`)
+	supers := child.SuperChain(exampleSchema.ObjectClassDescriptions)
+	fmt.Println(supers)
+	// Output: objectClasses: ( 2.5.6.0  NAME 'top' STRUCTURAL MUST objectClass X-ORIGIN 'RFC4512' )
+}
+
+func ExampleObjectClassDescription_AllMust() {
+	child, _ := exampleSchema.ObjectClass(`subentry`)
+	musts := child.AllMust(exampleSchema.AttributeTypeDescriptions,
+		exampleSchema.ObjectClassDescriptions)
+	fmt.Println(musts)
+	// Output:
+	// attributeTypes: ( 2.5.4.0  NAME 'objectClass' EQUALITY objectIdentifierMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.38 X-ORIGIN 'RFC4512' )
+	// attributeTypes: ( 2.5.4.3  NAME ( 'cn' 'commonName' ) DESC 'RFC4519: common name(s) for which the entity is known by' SUP name X-ORIGIN 'RFC4519' )
+	// attributeTypes: ( 2.5.18.6  NAME 'subtreeSpecification' SYNTAX 1.3.6.1.4.1.1466.115.121.1.45 SINGLE-VALUE USAGE directoryOperation X-ORIGIN 'RFC3672' )
+}
+
+func ExampleObjectClassDescription_AllMay() {
+	child, _ := exampleSchema.ObjectClass(`applicationProcess`)
+	musts := child.AllMay(exampleSchema.AttributeTypeDescriptions,
+		exampleSchema.ObjectClassDescriptions)
+	fmt.Println(musts)
+	// Output:
+	// attributeTypes: ( 2.5.4.13  NAME 'description' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC4519' )
+	// attributeTypes: ( 2.5.4.7  NAME ( 'l' 'localityName' ) SUP name X-ORIGIN 'RFC4519' )
+	// attributeTypes: ( 2.5.4.11  NAME ( 'ou' 'organizationalUnitName' ) SUP name X-ORIGIN 'RFC4519' )
+	// attributeTypes: ( 2.5.4.34  NAME 'seeAlso' SUP distinguishedName X-ORIGIN 'RFC4519' )
+}
+
 func ExampleSubschemaSubentry_LDAPSyntax() {
 	def, idx := exampleSchema.LDAPSyntax(`INTEGER`)
 	if idx == -1 {
@@ -300,22 +337,22 @@ func TestSubschemaSubentry_codecov(t *testing.T) {
 
 	_ = exampleSchema.OID()
 	_ = exampleSchema.String()
-	_ = exampleSchema.ldapSyntaxes.OID()
-	_ = exampleSchema.ldapSyntaxes.Len()
-	_ = exampleSchema.matchingRules.OID()
-	_ = exampleSchema.matchingRules.Len()
-	_ = exampleSchema.attributeTypes.OID()
-	_ = exampleSchema.attributeTypes.Len()
-	_ = exampleSchema.matchingRuleUses.OID()
-	_ = exampleSchema.matchingRuleUses.Len()
-	_ = exampleSchema.objectClasses.OID()
-	_ = exampleSchema.objectClasses.Len()
-	_ = exampleSchema.dITContentRules.OID()
-	_ = exampleSchema.dITContentRules.Len()
-	_ = exampleSchema.nameForms.OID()
-	_ = exampleSchema.nameForms.Len()
-	_ = exampleSchema.dITStructureRules.OID()
-	_ = exampleSchema.dITStructureRules.Len()
+	_ = exampleSchema.LDAPSyntaxDescriptions.OID()
+	_ = exampleSchema.LDAPSyntaxDescriptions.Len()
+	_ = exampleSchema.MatchingRuleDescriptions.OID()
+	_ = exampleSchema.MatchingRuleDescriptions.Len()
+	_ = exampleSchema.AttributeTypeDescriptions.OID()
+	_ = exampleSchema.AttributeTypeDescriptions.Len()
+	_ = exampleSchema.MatchingRuleUseDescriptions.OID()
+	_ = exampleSchema.MatchingRuleUseDescriptions.Len()
+	_ = exampleSchema.ObjectClassDescriptions.OID()
+	_ = exampleSchema.ObjectClassDescriptions.Len()
+	_ = exampleSchema.DITContentRuleDescriptions.OID()
+	_ = exampleSchema.DITContentRuleDescriptions.Len()
+	_ = exampleSchema.NameFormDescriptions.OID()
+	_ = exampleSchema.NameFormDescriptions.Len()
+	_ = exampleSchema.DITStructureRuleDescriptions.OID()
+	_ = exampleSchema.DITStructureRuleDescriptions.Len()
 
 	_ = exampleSchema.LDAPSyntaxByIndex(0)
 	_ = exampleSchema.MatchingRuleByIndex(0)
@@ -429,7 +466,7 @@ func TestSubschemaSubentry_codecov(t *testing.T) {
 
 	_ = exampleSchema.SuperiorStructureRules(`2`)
 
-	_ = exampleSchema.dITContentRules.Type()
+	_ = exampleSchema.DITContentRuleDescriptions.Type()
 
 	stringBooleanClause(`test`, true)
 	stringBooleanClause(`test`, false)
@@ -445,7 +482,7 @@ func TestSubschemaSubentry_codecov(t *testing.T) {
 
 	exampleSchema.RegisterDITContentRule(`()`)
 
-	var mru matchingRuleUses
+	var mru MatchingRuleUseDescriptions
 	mru = append(mru, MatchingRuleUseDescription{
 		NumericOID:  `2.5.13.15`,
 		Description: `this is text`,
@@ -455,25 +492,25 @@ func TestSubschemaSubentry_codecov(t *testing.T) {
 	_ = mru.String()
 	mru.isDefinitions()
 
-	var lss ldapSyntaxes
+	var lss LDAPSyntaxDescriptions
 	lss.isDefinitions()
 
-	var mrs matchingRules
+	var mrs MatchingRuleDescriptions
 	mrs.isDefinitions()
 
-	var ats attributeTypes
+	var ats AttributeTypeDescriptions
 	ats.isDefinitions()
 
-	var ocs objectClasses
+	var ocs ObjectClassDescriptions
 	ocs.isDefinitions()
 
-	var nfs nameForms
+	var nfs NameFormDescriptions
 	nfs.isDefinitions()
 
-	var dcs dITContentRules
+	var dcs DITContentRuleDescriptions
 	dcs.isDefinitions()
 
-	var dss dITStructureRules
+	var dss DITStructureRuleDescriptions
 	dss.isDefinitions()
 
 	var atd AttributeTypeDescription
@@ -686,7 +723,8 @@ var testSchemaDefinitions []string = []string{
 	        X-ORIGIN 'RFC4519' )`,
 	`objectClass: ( 2.5.17.0
 		NAME 'subentry'
-           	SUP top STRUCTURAL
+           	SUP top
+		STRUCTURAL
            	MUST ( cn
 		     $ subtreeSpecification )
 		X-ORIGIN 'RFC3672' )`,

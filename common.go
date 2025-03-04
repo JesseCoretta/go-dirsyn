@@ -119,14 +119,14 @@ func escapeString(x string) (esc string) {
 }
 
 func uitoa(x any) (s string) {
-        switch tv := x.(type) {
-        case uint:
-                s = strconv.FormatUint(uint64(tv), 10)
-        case uint64:
-                s = strconv.FormatUint(tv, 10)
-        }
+	switch tv := x.(type) {
+	case uint:
+		s = strconv.FormatUint(uint64(tv), 10)
+	case uint64:
+		s = strconv.FormatUint(tv, 10)
+	}
 
-        return
+	return
 }
 
 func hexEncode(x any) string {

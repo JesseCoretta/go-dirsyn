@@ -33,26 +33,28 @@ following types:
 */
 type Definition interface {
 	OID() string
+	Identifier() string
 	Type() string
+	Valid() bool
 	String() string
 	XOrigin() []string
 	isDefinition()
 }
 
 /*
-definitions is an interface type qualified through instances of the
+Definitions is an interface type qualified through instances of the
 following types:
 
-  - [ldapSyntaxes]
-  - [matchingRules]
-  - [attributeTypes]
-  - [matchingRuleUses]
-  - [objectClasses]
-  - [dITContentRules]
-  - [nameForms]
-  - [dITStructureRules]
+  - [LDAPSyntaxDescriptions]
+  - [MatchingRuleDescriptions]
+  - [AttributeTypeDescriptions]
+  - [MatchingRuleUseDescriptions]
+  - [ObjectClassDescriptions]
+  - [DITContentRuleDescriptions]
+  - [NameFormDescriptions]
+  - [DITStructureRuleDescriptions]
 */
-type definitions interface {
+type Definitions interface {
 	Len() int
 	OID() string
 	Type() string
@@ -68,14 +70,14 @@ of various definition types.
 [§ 4.2 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2
 */
 type SubschemaSubentry struct {
-	ldapSyntaxes
-	matchingRules
-	attributeTypes
-	matchingRuleUses
-	objectClasses
-	dITContentRules
-	nameForms
-	dITStructureRules
+	LDAPSyntaxDescriptions
+	MatchingRuleDescriptions
+	AttributeTypeDescriptions
+	MatchingRuleUseDescriptions
+	ObjectClassDescriptions
+	DITContentRuleDescriptions
+	NameFormDescriptions
+	DITStructureRuleDescriptions
 
 	lock *sync.Mutex
 }
@@ -105,14 +107,14 @@ String returns the string representation of the receiver instance.
 */
 func (r SubschemaSubentry) String() (ssse string) {
 
-	ssse += r.ldapSyntaxes.String()
-	ssse += r.matchingRules.String()
-	ssse += r.attributeTypes.String()
-	ssse += r.matchingRuleUses.String()
-	ssse += r.objectClasses.String()
-	ssse += r.dITContentRules.String()
-	ssse += r.nameForms.String()
-	ssse += r.dITStructureRules.String()
+	ssse += r.LDAPSyntaxDescriptions.String()
+	ssse += r.MatchingRuleDescriptions.String()
+	ssse += r.AttributeTypeDescriptions.String()
+	ssse += r.MatchingRuleUseDescriptions.String()
+	ssse += r.ObjectClassDescriptions.String()
+	ssse += r.DITContentRuleDescriptions.String()
+	ssse += r.NameFormDescriptions.String()
+	ssse += r.DITStructureRuleDescriptions.String()
 
 	// remove final newline
 	ssse = trim(ssse, string(rune(10)))
@@ -156,7 +158,7 @@ func (r *SubschemaSubentry) RegisterLDAPSyntax(input any) (err error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	r.ldapSyntaxes = append(r.ldapSyntaxes, def)
+	r.LDAPSyntaxDescriptions = append(r.LDAPSyntaxDescriptions, def)
 
 	return
 }
@@ -209,9 +211,9 @@ func (r *SubschemaSubentry) RegisterMatchingRule(input any) (err error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	r.matchingRules = append(r.matchingRules, def)
+	r.MatchingRuleDescriptions = append(r.MatchingRuleDescriptions, def)
 	if mru.NumericOID != "" {
-		r.matchingRuleUses = append(r.matchingRuleUses, mru)
+		r.MatchingRuleUseDescriptions = append(r.MatchingRuleUseDescriptions, mru)
 	}
 
 	return
@@ -294,7 +296,7 @@ func (r *SubschemaSubentry) RegisterAttributeType(input any) (err error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	r.attributeTypes = append(r.attributeTypes, def)
+	r.AttributeTypeDescriptions = append(r.AttributeTypeDescriptions, def)
 	r.updateMatchingRuleUse(def, mrups)
 
 	return
@@ -310,8 +312,9 @@ func (r *SubschemaSubentry) updateMatchingRuleUse(def AttributeTypeDescription, 
 	// Update appropriate MRUs to include new attr OID
 	for _, v := range mrups {
 		if _, idx := r.MatchingRuleUse(v); idx != -1 {
-			if found := strInSlice(name, r.matchingRuleUses[idx].Applies); !found {
-				r.matchingRuleUses[idx].Applies = append(r.matchingRuleUses[idx].Applies, name)
+			if found := strInSlice(name, r.MatchingRuleUseDescriptions[idx].Applies); !found {
+				r.MatchingRuleUseDescriptions[idx].Applies =
+					append(r.MatchingRuleUseDescriptions[idx].Applies, name)
 			}
 		}
 	}
@@ -379,7 +382,7 @@ func (r *SubschemaSubentry) RegisterObjectClass(input any) (err error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	r.objectClasses = append(r.objectClasses, def)
+	r.ObjectClassDescriptions = append(r.ObjectClassDescriptions, def)
 
 	return
 }
@@ -440,7 +443,7 @@ func (r *SubschemaSubentry) RegisterDITContentRule(input any) (err error) {
 			err = errorTxt("dITContentRule: Unknown AUX (auxiliary class): '" +
 				def.Aux[i] + "'")
 			return
-		} else if r.objectClasses[idx].Kind != 1 {
+		} else if r.ObjectClassDescriptions[idx].Kind != 1 {
 			err = errorTxt("dITContentRule: non-AUXILIARY class in AUX clause: '" +
 				def.Aux[i] + "'")
 			return
@@ -455,7 +458,7 @@ func (r *SubschemaSubentry) RegisterDITContentRule(input any) (err error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	r.dITContentRules = append(r.dITContentRules, def)
+	r.DITContentRuleDescriptions = append(r.DITContentRuleDescriptions, def)
 
 	return
 }
@@ -520,7 +523,7 @@ func (r *SubschemaSubentry) RegisterNameForm(input any) (err error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	r.nameForms = append(r.nameForms, def)
+	r.NameFormDescriptions = append(r.NameFormDescriptions, def)
 
 	return
 }
@@ -581,40 +584,40 @@ func (r *SubschemaSubentry) RegisterDITStructureRule(input any) (err error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	r.dITStructureRules = append(r.dITStructureRules, def)
+	r.DITStructureRuleDescriptions = append(r.DITStructureRuleDescriptions, def)
 
 	return
 }
 
 /*
 Counters returns an instance of [9]uint, each slice representing the
-current number of definitions of a particular collection, while the
-final slice represents the sum total of the previous eight (8).
+current number of [Definition] instances of a particular collection,
+while the final slice represents the sum total of the previous eight (8).
 
 Collection indices are as follows:
 
-  - 0 - "ldapSyntaxes"
-  - 1 - "matchingRules"
-  - 2 - "attributeTypes"
-  - 3 - "matchingRuleUses"
-  - 4 - "objectClasses"
-  - 5 - "dITContentRules"
-  - 6 - "nameForms"
-  - 7 - "dITStructureRules"
+  - 0 - "LDAPSyntaxDescriptions"
+  - 1 - "MatchingRuleDescriptions"
+  - 2 - "AttributeTypeDescriptions"
+  - 3 - "MatchingRuleUseDescriptions"
+  - 4 - "ObjectClassDescriptions"
+  - 5 - "DITContentRuleDescriptions"
+  - 6 - "NameFormDescriptions"
+  - 7 - "DITStructureRuleDescriptions"
   - 8 - "total"
 
 As the return type is fixed, there is no risk of panic when calling
 indices 0 through 8 in any circumstance.
 */
 func (r SubschemaSubentry) Counters() (counters [9]uint) {
-	counters[0] = uint(r.ldapSyntaxes.Len())
-	counters[1] = uint(r.matchingRules.Len())
-	counters[2] = uint(r.attributeTypes.Len())
-	counters[3] = uint(r.matchingRuleUses.Len())
-	counters[4] = uint(r.objectClasses.Len())
-	counters[5] = uint(r.dITContentRules.Len())
-	counters[6] = uint(r.nameForms.Len())
-	counters[7] = uint(r.dITStructureRules.Len())
+	counters[0] = uint(r.LDAPSyntaxDescriptions.Len())
+	counters[1] = uint(r.MatchingRuleDescriptions.Len())
+	counters[2] = uint(r.AttributeTypeDescriptions.Len())
+	counters[3] = uint(r.MatchingRuleUseDescriptions.Len())
+	counters[4] = uint(r.ObjectClassDescriptions.Len())
+	counters[5] = uint(r.DITContentRuleDescriptions.Len())
+	counters[6] = uint(r.NameFormDescriptions.Len())
+	counters[7] = uint(r.DITStructureRuleDescriptions.Len())
 
 	// Perform summation of all of the above.
 	counters[8] = uint(counters[0] +
@@ -643,8 +646,8 @@ are significant in the matching process.
 func (r SubschemaSubentry) LDAPSyntax(id string) (ls LDAPSyntaxDescription, idx int) {
 	idx = -1
 	desc := trimS(repAll(id, ` `, ``))
-	for i := 0; i < r.ldapSyntaxes.Len(); i++ {
-		def := r.ldapSyntaxes[i]
+	for i := 0; i < r.LDAPSyntaxDescriptions.Len(); i++ {
+		def := r.LDAPSyntaxDescriptions[i]
 		ldesc := repAll(def.Description, ` `, ``)
 		fo := def.NumericOID == id
 		fn := streqf(ldesc, desc)
@@ -671,8 +674,8 @@ process.
 */
 func (r SubschemaSubentry) MatchingRule(id string) (mr MatchingRuleDescription, idx int) {
 	idx = -1
-	for i := 0; i < r.matchingRules.Len(); i++ {
-		def := r.matchingRules[i]
+	for i := 0; i < r.MatchingRuleDescriptions.Len(); i++ {
+		def := r.MatchingRuleDescriptions[i]
 		fo := def.NumericOID == id
 		fn := strInSlice(id, def.Name)
 		if fo || fn {
@@ -698,8 +701,8 @@ process.
 */
 func (r SubschemaSubentry) MatchingRuleUse(id string) (mr MatchingRuleUseDescription, idx int) {
 	idx = -1
-	for i := 0; i < r.matchingRuleUses.Len(); i++ {
-		def := r.matchingRuleUses[i]
+	for i := 0; i < r.MatchingRuleUseDescriptions.Len(); i++ {
+		def := r.MatchingRuleUseDescriptions[i]
 		fo := def.NumericOID == id
 		fn := strInSlice(id, def.Name)
 		if fo || fn {
@@ -725,8 +728,8 @@ process.
 */
 func (r SubschemaSubentry) AttributeType(id string) (at AttributeTypeDescription, idx int) {
 	idx = -1
-	for i := 0; i < r.attributeTypes.Len(); i++ {
-		def := r.attributeTypes[i]
+	for i := 0; i < r.AttributeTypeDescriptions.Len(); i++ {
+		def := r.AttributeTypeDescriptions[i]
 		fo := def.NumericOID == id
 		fn := strInSlice(id, def.Name)
 		if fo || fn {
@@ -752,8 +755,8 @@ process.
 */
 func (r SubschemaSubentry) ObjectClass(id string) (oc ObjectClassDescription, idx int) {
 	idx = -1
-	for i := 0; i < r.objectClasses.Len(); i++ {
-		def := r.objectClasses[i]
+	for i := 0; i < r.ObjectClassDescriptions.Len(); i++ {
+		def := r.ObjectClassDescriptions[i]
 		fo := def.NumericOID == id
 		fn := strInSlice(id, def.Name)
 		if fo || fn {
@@ -779,8 +782,8 @@ process.
 */
 func (r SubschemaSubentry) NameForm(id string) (nf NameFormDescription, idx int) {
 	idx = -1
-	for i := 0; i < r.nameForms.Len(); i++ {
-		def := r.nameForms[i]
+	for i := 0; i < r.NameFormDescriptions.Len(); i++ {
+		def := r.NameFormDescriptions[i]
 		fo := def.NumericOID == id
 		fn := strInSlice(id, def.Name)
 		if fo || fn {
@@ -806,8 +809,8 @@ process.
 */
 func (r SubschemaSubentry) DITContentRule(id string) (dc DITContentRuleDescription, idx int) {
 	idx = -1
-	for i := 0; i < r.dITContentRules.Len(); i++ {
-		def := r.dITContentRules[i]
+	for i := 0; i < r.DITContentRuleDescriptions.Len(); i++ {
+		def := r.DITContentRuleDescriptions[i]
 		fo := def.NumericOID == id
 		fn := strInSlice(id, def.Name)
 		if fo || fn {
@@ -833,8 +836,8 @@ matching process.
 */
 func (r SubschemaSubentry) DITStructureRule(id string) (ds DITStructureRuleDescription, idx int) {
 	idx = -1
-	for i := 0; i < r.dITStructureRules.Len(); i++ {
-		def := r.dITStructureRules[i]
+	for i := 0; i < r.DITStructureRuleDescriptions.Len(); i++ {
+		def := r.DITStructureRuleDescriptions[i]
 		fo := def.RuleID == id
 		fn := strInSlice(id, def.Name)
 		if fo || fn {
@@ -862,11 +865,11 @@ was not found, or that it has no subordinate rules of its own.
 */
 func (r SubschemaSubentry) SubordinateStructureRules(id string) (sub []DITStructureRuleDescription) {
 	if rule, idx := r.DITStructureRule(id); idx != -1 {
-		for i := 0; i < r.dITStructureRules.Len(); i++ {
+		for i := 0; i < r.DITStructureRuleDescriptions.Len(); i++ {
 			// NOTE - don't skip the superior rule itself,
 			// as it may be a recursive (self-referencing)
 			// structure rule.
-			dsr := r.dITStructureRules[i]
+			dsr := r.DITStructureRuleDescriptions[i]
 			if strInSlice(rule.RuleID, dsr.SuperRules) {
 				sub = append(sub, dsr)
 			}
@@ -954,19 +957,39 @@ func (r Extension) String() (ext string) {
 }
 
 /*
-ldapSyntaxes implements [§ 4.2.5 of RFC 4512] and contains slices of
+LDAPSyntaxDescriptions implements [§ 4.2.5 of RFC 4512] and contains slices of
 [LDAPSyntaxDescription].
 
 [§ 4.2.5 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.5
 */
-type ldapSyntaxes []LDAPSyntaxDescription
+type LDAPSyntaxDescriptions []LDAPSyntaxDescription
 
 /*
 String returns the string representation of the receiver instance.
 */
-func (r ldapSyntaxes) String() (s string) {
+func (r LDAPSyntaxDescriptions) String() (s string) {
 	for i := 0; i < r.Len(); i++ {
 		s += r.Type() + `: ` + r[i].String() + string(rune(10))
+	}
+
+	return
+}
+
+/*
+Get returns an instance of [LDAPSyntaxDescription] and a slice index following
+a description or numeric OID match attempt. A zero instance of [LDAPSyntaxDescription]
+alongside an index of -1 is returned if no match is found.
+
+Case is not significant in the matching process.
+*/
+func (r LDAPSyntaxDescriptions) Get(term string) (def LDAPSyntaxDescription, idx int) {
+	idx = -1
+	for i := 0; i < r.Len(); i++ {
+		if r[i].Match(term) {
+			def = r[i]
+			idx = i
+			break
+		}
 	}
 
 	return
@@ -977,8 +1000,8 @@ LDAPSyntaxByIndex returns the Nth [LDAPSyntaxDescription] instances found
 within the receiver instance.
 */
 func (r SubschemaSubentry) LDAPSyntaxByIndex(idx int) (def LDAPSyntaxDescription) {
-	if 0 <= idx && idx < r.ldapSyntaxes.Len() {
-		def = r.ldapSyntaxes[idx]
+	if 0 <= idx && idx < r.LDAPSyntaxDescriptions.Len() {
+		def = r.LDAPSyntaxDescriptions[idx]
 	}
 
 	return
@@ -990,7 +1013,7 @@ OID returns the numeric OID literal "1.3.6.1.4.1.1466.101.120.16" per
 
 [§ 4.2.5 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.5
 */
-func (r ldapSyntaxes) OID() string { return `1.3.6.1.4.1.1466.101.120.16` }
+func (r LDAPSyntaxDescriptions) OID() string { return `1.3.6.1.4.1.1466.101.120.16` }
 
 /*
 LDAPSyntaxDescription implements [§ 4.1.5 of RFC 4512].
@@ -1015,6 +1038,13 @@ func (r LDAPSyntaxDescription) String() (def string) {
 	}
 
 	return
+}
+
+/*
+Identifier returns the numeric OID by which the receiver is known.
+*/
+func (r LDAPSyntaxDescription) Identifier() string {
+	return r.NumericOID
 }
 
 /*
@@ -1060,7 +1090,7 @@ Case is not significant in the matching process, and whitespace is disregarded
 where a Description value is concerned.
 */
 func (r LDAPSyntaxDescription) Match(term string) bool {
-        return term == r.NumericOID || streqf(removeWHSP(term), removeWHSP(r.Description))
+	return term == r.NumericOID || streqf(removeWHSP(term), removeWHSP(r.Description))
 }
 
 /*
@@ -1123,19 +1153,39 @@ func (r LDAPSyntaxDescription) Valid() bool {
 }
 
 /*
-matchingRules implements [§ 4.2.3 of RFC 4512] and contains slices of
+MatchingRuleDescriptions implements [§ 4.2.3 of RFC 4512] and contains slices of
 [MatchingRuleDescription].
 
 [§ 4.2.3 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.3
 */
-type matchingRules []MatchingRuleDescription
+type MatchingRuleDescriptions []MatchingRuleDescription
 
 /*
 String returns the string representation of the receiver instance.
 */
-func (r matchingRules) String() (s string) {
+func (r MatchingRuleDescriptions) String() (s string) {
 	for i := 0; i < r.Len(); i++ {
 		s += r.Type() + `: ` + r[i].String() + string(rune(10))
+	}
+
+	return
+}
+
+/*
+Get returns an instance of [MatchingRuleDescription] and a slice index following
+a descriptor or numeric OID match attempt. A zero instance of [MatchingRuleDescription]
+alongside an index of -1 is returned if no match is found.
+
+Case is not significant in the matching process.
+*/
+func (r MatchingRuleDescriptions) Get(term string) (def MatchingRuleDescription, idx int) {
+	idx = -1
+	for i := 0; i < r.Len(); i++ {
+		if r[i].Match(term) {
+			def = r[i]
+			idx = i
+			break
+		}
 	}
 
 	return
@@ -1146,8 +1196,8 @@ MatchingRuleIndex returns the Nth [MatchingRuleDescription] instances found
 within the receiver instance.
 */
 func (r SubschemaSubentry) MatchingRuleByIndex(idx int) (def MatchingRuleDescription) {
-	if 0 <= idx && idx < r.matchingRules.Len() {
-		def = r.matchingRules[idx]
+	if 0 <= idx && idx < r.MatchingRuleDescriptions.Len() {
+		def = r.MatchingRuleDescriptions[idx]
 	}
 
 	return
@@ -1158,8 +1208,8 @@ MatchingRuleUseIndex returns the Nth [MatchingRuleUseDescription] instances
 found within the receiver instance.
 */
 func (r SubschemaSubentry) MatchingRuleUseByIndex(idx int) (def MatchingRuleUseDescription) {
-	if 0 <= idx && idx < r.matchingRuleUses.Len() {
-		def = r.matchingRuleUses[idx]
+	if 0 <= idx && idx < r.MatchingRuleUseDescriptions.Len() {
+		def = r.MatchingRuleUseDescriptions[idx]
 	}
 
 	return
@@ -1170,7 +1220,7 @@ OID returns the numeric OID literal "2.5.21.4" per [§ 4.2.3 of RFC 4512].
 
 [§ 4.2.3 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.3
 */
-func (r matchingRules) OID() string { return `2.5.21.4` }
+func (r MatchingRuleDescriptions) OID() string { return `2.5.21.4` }
 
 /*
 MatchingRuleDescription implements [§ 4.1.3 of RFC 4512].
@@ -1227,7 +1277,7 @@ term value and the receiver's NumericOID or Name value.
 Case is not significant in the matching process.
 */
 func (r MatchingRuleDescription) Match(term string) bool {
-        return term == r.NumericOID || strInSlice(term, r.Name)
+	return term == r.NumericOID || strInSlice(term, r.Name)
 }
 
 /*
@@ -1242,6 +1292,21 @@ func (r MatchingRuleDescription) String() (def string) {
 		def += ` SYNTAX ` + r.Syntax
 		def += stringExtensions(r.Extensions)
 		def += ` )`
+	}
+
+	return
+}
+
+/*
+Identifier returns the principal string value by which the receiver
+is known. If the receiver is not assigned a name (descriptor), the
+numeric OID is returned instead.
+*/
+func (r MatchingRuleDescription) Identifier() (id string) {
+	if len(r.Name) > 0 {
+		id = r.Name[0]
+	} else {
+		id = r.NumericOID
 	}
 
 	return
@@ -1271,26 +1336,46 @@ func (r MatchingRuleDescription) Valid() bool {
 }
 
 /*
-attributeTypes implements [§ 4.2.2 of RFC 4512] and contains slices of
+AttributeTypeDescriptions implements [§ 4.2.2 of RFC 4512] and contains slices of
 [AttributeTypeDescription].
 
 [§ 4.2.2 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.2
 */
-type attributeTypes []AttributeTypeDescription
+type AttributeTypeDescriptions []AttributeTypeDescription
 
 /*
 OID returns the numeric OID literal "2.5.21.5" per [§ 4.2.2 of RFC 4512].
 
 [§ 4.2.2 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.2
 */
-func (r attributeTypes) OID() string { return `2.5.21.5` }
+func (r AttributeTypeDescriptions) OID() string { return `2.5.21.5` }
 
 /*
 String returns the string representation of the receiver instance.
 */
-func (r attributeTypes) String() (s string) {
+func (r AttributeTypeDescriptions) String() (s string) {
 	for i := 0; i < r.Len(); i++ {
 		s += r.Type() + `: ` + r[i].String() + string(rune(10))
+	}
+
+	return
+}
+
+/*
+Get returns an instance of [AttributeTypeDescription] and a slice index following
+a descriptor or numeric OID match attempt. A zero instance of [AttributeTypeDescription]
+alongside an index of -1 is returned if no match is found.
+
+Case is not significant in the matching process.
+*/
+func (r AttributeTypeDescriptions) Get(term string) (def AttributeTypeDescription, idx int) {
+	idx = -1
+	for i := 0; i < r.Len(); i++ {
+		if r[i].Match(term) {
+			def = r[i]
+			idx = i
+			break
+		}
 	}
 
 	return
@@ -1301,8 +1386,8 @@ AttributeTypeIndex returns the Nth [AttributeTypeDescription] instances found
 within the receiver instance.
 */
 func (r SubschemaSubentry) AttributeTypeByIndex(idx int) (def AttributeTypeDescription) {
-	if 0 <= idx && idx < r.attributeTypes.Len() {
-		def = r.attributeTypes[idx]
+	if 0 <= idx && idx < r.AttributeTypeDescriptions.Len() {
+		def = r.AttributeTypeDescriptions[idx]
 	}
 
 	return
@@ -1356,6 +1441,53 @@ func (r AttributeTypeDescription) String() (def string) {
 }
 
 /*
+Identifier returns the principal string value by which the receiver
+is known. If the receiver is not assigned a name (descriptor), the
+numeric OID is returned instead.
+*/
+func (r AttributeTypeDescription) Identifier() (id string) {
+	if len(r.Name) > 0 {
+		id = r.Name[0]
+	} else {
+		id = r.NumericOID
+	}
+
+	return
+}
+
+/*
+SuperChain returns an instance of [AttributeTypeDescriptions], which will
+contain zero (0) or more slices of [AttributeTypeDescription], each of which
+representing an ascending superior type of the receiver instance.
+
+The input classes instance should represent the [AttributeTypeDescriptions]
+instance obtained through a [SubschemaSubentry] instance.
+*/
+func (r AttributeTypeDescription) SuperChain(types AttributeTypeDescriptions) (supers AttributeTypeDescriptions) {
+	if &r != nil {
+		supers = r.superChain(types)
+	}
+
+	return
+}
+
+func (r AttributeTypeDescription) superChain(types AttributeTypeDescriptions) (supers AttributeTypeDescriptions) {
+	if len(r.SuperType) != 0 {
+		supers = make(AttributeTypeDescriptions, 0)
+		sup, idx := types.Get(r.SuperType)
+		if idx != -1 {
+			supers = append(supers, sup)
+			x := sup.SuperChain(types)
+			for i := 0; i < x.Len(); i++ {
+				supers = append(supers, x[i])
+			}
+		}
+	}
+
+	return
+}
+
+/*
 XOrigin returns slices of standards citations, each being the name of an RFC,
 Internet-Draft or ITU-T Recommendation from which the receiver definition
 
@@ -1381,7 +1513,7 @@ term value and the receiver's NumericOID or Name value.
 Case is not significant in the matching process.
 */
 func (r AttributeTypeDescription) Match(term string) bool {
-        return term == r.NumericOID || strInSlice(term, r.Name)
+	return term == r.NumericOID || strInSlice(term, r.Name)
 }
 
 func (r AttributeTypeDescription) mutexBooleanString() (clause string) {
@@ -1433,20 +1565,40 @@ func (r AttributeTypeDescription) Valid() bool {
 }
 
 /*
-matchingRuleUses implements [§ 4.2.4 of RFC 4512] and contains slices of
+MatchingRuleUseDescriptions implements [§ 4.2.4 of RFC 4512] and contains slices of
 [MatchingRuleUseDescription].
 
 [§ 4.2.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.4
 */
-type matchingRuleUses []MatchingRuleUseDescription
+type MatchingRuleUseDescriptions []MatchingRuleUseDescription
 
 /*
 String returns the string representation of the receiver instance.
 */
-func (r matchingRuleUses) String() (s string) {
+func (r MatchingRuleUseDescriptions) String() (s string) {
 	for i := 0; i < r.Len(); i++ {
 		if def := r[i].String(); def != "" {
 			s += r.Type() + `: ` + r[i].String() + string(rune(10))
+		}
+	}
+
+	return
+}
+
+/*
+Get returns an instance of [MatchingRuleUseDescription] and a slice index following
+a descriptor or numeric OID match attempt. A zero instance of [MatchingRuleUseDescription]
+alongside an index of -1 is returned if no match is found.
+
+Case is not significant in the matching process.
+*/
+func (r MatchingRuleUseDescriptions) Get(term string) (def MatchingRuleUseDescription, idx int) {
+	idx = -1
+	for i := 0; i < r.Len(); i++ {
+		if r[i].Match(term) {
+			def = r[i]
+			idx = i
+			break
 		}
 	}
 
@@ -1458,7 +1610,7 @@ OID returns the numeric OID literal "2.5.21.8" per [§ 4.2.4 of RFC 4512].
 
 [§ 4.2.4 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.4
 */
-func (r matchingRuleUses) OID() string { return `2.5.21.8` }
+func (r MatchingRuleUseDescriptions) OID() string { return `2.5.21.8` }
 
 /*
 MatchingRuleUseDescription implements [§ 4.1.4 of RFC 4512].
@@ -1492,6 +1644,21 @@ func (r MatchingRuleUseDescription) String() (def string) {
 }
 
 /*
+Identifier returns the principal string value by which the receiver
+is known. If the receiver is not assigned a name (descriptor), the
+numeric OID is returned instead.
+*/
+func (r MatchingRuleUseDescription) Identifier() (id string) {
+	if len(r.Name) > 0 {
+		id = r.Name[0]
+	} else {
+		id = r.NumericOID
+	}
+
+	return
+}
+
+/*
 XOrigin returns slices of standards citations, each being the name of an RFC,
 Internet-Draft or ITU-T Recommendation from which the receiver definition
 
@@ -1517,7 +1684,7 @@ term value and the receiver's NumericOID or Name value.
 Case is not significant in the matching process.
 */
 func (r MatchingRuleUseDescription) Match(term string) bool {
-        return term == r.NumericOID || strInSlice(term, r.Name)
+	return term == r.NumericOID || strInSlice(term, r.Name)
 }
 
 /*
@@ -1542,27 +1709,27 @@ func (r MatchingRuleUseDescription) Valid() bool {
 }
 
 /*
-objectClasses implements [§ 4.2.1 of RFC 4512] and contains slices of
+ObjectClassDescriptions implements [§ 4.2.1 of RFC 4512] and contains slices of
 [ObjectClassDescription].
 
 [§ 4.2.1 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.1
 */
-type objectClasses []ObjectClassDescription
+type ObjectClassDescriptions []ObjectClassDescription
 
 /*
 OID returns the numeric OID literal "2.5.21.6" per [§ 4.2.1 of RFC 4512].
 
 [§ 4.2.1 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.1
 */
-func (r objectClasses) OID() string { return `2.5.21.6` }
+func (r ObjectClassDescriptions) OID() string { return `2.5.21.6` }
 
 /*
 ObjectClassIndex returns the Nth [ObjectClassDescription] instances found
 within the receiver instance.
 */
 func (r SubschemaSubentry) ObjectClassByIndex(idx int) (def ObjectClassDescription) {
-	if 0 <= idx && idx < r.objectClasses.Len() {
-		def = r.objectClasses[idx]
+	if 0 <= idx && idx < r.ObjectClassDescriptions.Len() {
+		def = r.ObjectClassDescriptions[idx]
 	}
 
 	return
@@ -1571,9 +1738,29 @@ func (r SubschemaSubentry) ObjectClassByIndex(idx int) (def ObjectClassDescripti
 /*
 String returns the string representation of the receiver instance.
 */
-func (r objectClasses) String() (s string) {
+func (r ObjectClassDescriptions) String() (s string) {
 	for i := 0; i < r.Len(); i++ {
 		s += r.Type() + `: ` + r[i].String() + string(rune(10))
+	}
+
+	return
+}
+
+/*
+Get returns an instance of [ObjectClassDescription] and a slice index following
+a descriptor or numeric OID match attempt. A zero instance of [ObjectClassDescription]
+alongside an index of -1 is returned if no match is found.
+
+Case is not significant in the matching process.
+*/
+func (r ObjectClassDescriptions) Get(term string) (def ObjectClassDescription, idx int) {
+	idx = -1
+	for i := 0; i < r.Len(); i++ {
+		if r[i].Match(term) {
+			def = r[i]
+			idx = i
+			break
+		}
 	}
 
 	return
@@ -1617,6 +1804,39 @@ func (r ObjectClassDescription) String() (def string) {
 }
 
 /*
+Identifier returns the principal string value by which the receiver
+is known. If the receiver is not assigned a name (descriptor), the
+numeric OID is returned instead.
+*/
+func (r ObjectClassDescription) Identifier() (id string) {
+	if len(r.Name) > 0 {
+		id = r.Name[0]
+	} else {
+		id = r.NumericOID
+	}
+
+	return
+}
+
+/*
+SuperChain returns an instance of [ObjectClassDescriptions], which will
+contain zero (0) or more slices of [ObjectClassDescription], each of which
+representing a direct superior class of the receiver instance.
+
+The input classes instance should represent the [ObjectClassDescriptions]
+instance obtained through a [SubschemaSubentry] instance.
+*/
+func (r ObjectClassDescription) SuperChain(classes ObjectClassDescriptions) (supers ObjectClassDescriptions) {
+	for _, class := range r.SuperClasses {
+		if def, idx := classes.Get(class); idx != -1 {
+			supers = append(supers, def)
+		}
+	}
+
+	return
+}
+
+/*
 XOrigin returns slices of standards citations, each being the name of an RFC,
 Internet-Draft or ITU-T Recommendation from which the receiver definition
 
@@ -1642,7 +1862,7 @@ term value and the receiver's NumericOID or Name value.
 Case is not significant in the matching process.
 */
 func (r ObjectClassDescription) Match(term string) bool {
-        return term == r.NumericOID || strInSlice(term, r.Name)
+	return term == r.NumericOID || strInSlice(term, r.Name)
 }
 
 func stringClassKind(kind uint8) (k string) {
@@ -1673,7 +1893,9 @@ func definitionName(name []string) (def string) {
 	switch len(name) {
 	case 0:
 	default:
-		def += ` NAME ` + stringQuotedDescrs(name)
+		if len(name) > 0 {
+			def += ` NAME ` + stringQuotedDescrs(name)
+		}
 	}
 
 	return
@@ -1682,9 +1904,13 @@ func definitionName(name []string) (def string) {
 func definitionMVDescriptors(key string, src any) (clause string) {
 	switch tv := src.(type) {
 	case string:
-		clause += ` ` + uc(key) + ` ` + tv
+		if len(tv) > 0 {
+			clause += ` ` + uc(key) + ` ` + tv
+		}
 	case []string:
-		clause += ` ` + uc(key) + ` ` + stringDescrs(tv, ` $ `)
+		if len(tv) > 0 {
+			clause += ` ` + uc(key) + ` ` + stringDescrs(tv, ` $ `)
+		}
 	}
 
 	return
@@ -1718,27 +1944,103 @@ func (r ObjectClassDescription) Valid() bool {
 }
 
 /*
-dITContentRules implements [§ 4.2.6 of RFC 4512] and contains slices of
+AllMust returns an [AttributeTypeDescriptions] instance containing zero (0)
+or more MANDATORY [AttributeTypeDescription] instances for use with this the
+receiver instance, as well as those specified by any and all applicable super
+classes.
+
+The input types instance must contain all registered [AttributeTypeDescription]
+slice instances known to be registered within the relevant [SubschemaSubentry]
+instance. Similarly, the input classes instance must contain all registered
+[ObjectClassDescription] instances known to be registered within that same
+[SubschemaSubentry] instance.
+
+Duplicate references are silently discarded.
+*/
+func (r ObjectClassDescription) AllMust(types AttributeTypeDescriptions,
+	classes ObjectClassDescriptions) (must AttributeTypeDescriptions) {
+	must = make(AttributeTypeDescriptions, 0)
+
+	// Add MANDATORY types declared by super classes.
+	for i := 0; i < len(r.SuperClasses); i++ {
+		sm := r.SuperClasses[i]
+		if class, idx := classes.Get(sm); idx != -1 {
+			if sc := class.AllMust(types, classes); sc.Len() > 0 {
+				must = append(must, sc...)
+			}
+		}
+	}
+
+	// Add local MANDATORY types.
+	for i := 0; i < len(r.Must); i++ {
+		if attr, idx := types.Get(r.Must[i]); idx != -1 {
+			must = append(must, attr)
+		}
+	}
+
+	return
+}
+
+/*
+AllMay returns an [AttributeTypeDescriptions] instance containing zero (0)
+or more OPTIONAL [AttributeTypeDescription] instances for use with this the
+receiver instance, as well as those specified by any and all applicable super
+classes.
+
+The input types instance must contain all registered [AttributeTypeDescription]
+slice instances known to be registered within the relevant [SubschemaSubentry]
+instance. Similarly, the input classes instance must contain all registered
+[ObjectClassDescription] instances known to be registered within that same
+[SubschemaSubentry] instance.
+
+Duplicate references are silently discarded.
+*/
+func (r ObjectClassDescription) AllMay(types AttributeTypeDescriptions,
+	classes ObjectClassDescriptions) (may AttributeTypeDescriptions) {
+	may = make(AttributeTypeDescriptions, 0)
+
+	// Add MANDATORY types declared by super classes.
+	for i := 0; i < len(r.SuperClasses); i++ {
+		sm := r.SuperClasses[i]
+		if class, idx := classes.Get(sm); idx != -1 {
+			if sc := class.AllMay(types, classes); sc.Len() > 0 {
+				may = append(may, sc...)
+			}
+		}
+	}
+
+	// Add local MANDATORY types.
+	for i := 0; i < len(r.May); i++ {
+		if attr, idx := types.Get(r.May[i]); idx != -1 {
+			may = append(may, attr)
+		}
+	}
+
+	return
+}
+
+/*
+DITContentRuleDescriptions implements [§ 4.2.6 of RFC 4512] and contains slices of
 [DITContentRuleDescription].
 
 [§ 4.2.6 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.6
 */
-type dITContentRules []DITContentRuleDescription
+type DITContentRuleDescriptions []DITContentRuleDescription
 
 /*
 OID returns the numeric OID literal "2.5.21.2" per [§ 4.2.6 of RFC 4512].
 
 [§ 4.2.6 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.6
 */
-func (r dITContentRules) OID() string { return `2.5.21.2` }
+func (r DITContentRuleDescriptions) OID() string { return `2.5.21.2` }
 
 /*
 DITContentRuleIndex returns the Nth [DITContentRuleDescription] instances found
 within the receiver instance.
 */
 func (r SubschemaSubentry) DITContentRuleByIndex(idx int) (def DITContentRuleDescription) {
-	if 0 <= idx && idx < r.dITContentRules.Len() {
-		def = r.dITContentRules[idx]
+	if 0 <= idx && idx < r.DITContentRuleDescriptions.Len() {
+		def = r.DITContentRuleDescriptions[idx]
 	}
 
 	return
@@ -1747,9 +2049,29 @@ func (r SubschemaSubentry) DITContentRuleByIndex(idx int) (def DITContentRuleDes
 /*
 String returns the string representation of the receiver instance.
 */
-func (r dITContentRules) String() (s string) {
+func (r DITContentRuleDescriptions) String() (s string) {
 	for i := 0; i < r.Len(); i++ {
 		s += r.Type() + `: ` + r[i].String() + string(rune(10))
+	}
+
+	return
+}
+
+/*
+Get returns an instance of [DITContentRuleDescription] and a slice index following
+a descriptor or numeric OID match attempt. A zero instance of [DITContentRuleDescription]
+alongside an index of -1 is returned if no match is found.
+
+Case is not significant in the matching process.
+*/
+func (r DITContentRuleDescriptions) Get(term string) (def DITContentRuleDescription, idx int) {
+	idx = -1
+	for i := 0; i < r.Len(); i++ {
+		if r[i].Match(term) {
+			def = r[i]
+			idx = i
+			break
+		}
 	}
 
 	return
@@ -1793,6 +2115,21 @@ func (r DITContentRuleDescription) String() (def string) {
 }
 
 /*
+Identifier returns the principal string value by which the receiver
+is known. If the receiver is not assigned a name (descriptor), the
+numeric OID is returned instead.
+*/
+func (r DITContentRuleDescription) Identifier() (id string) {
+	if len(r.Name) > 0 {
+		id = r.Name[0]
+	} else {
+		id = r.NumericOID
+	}
+
+	return
+}
+
+/*
 XOrigin returns slices of standards citations, each being the name of an RFC,
 Internet-Draft or ITU-T Recommendation from which the receiver definition
 
@@ -1818,7 +2155,7 @@ term value and the receiver's NumericOID or Name value.
 Case is not significant in the matching process.
 */
 func (r DITContentRuleDescription) Match(term string) bool {
-        return term == r.NumericOID || strInSlice(term, r.Name)
+	return term == r.NumericOID || strInSlice(term, r.Name)
 }
 
 /*
@@ -1862,27 +2199,27 @@ func (r DITContentRuleDescription) Valid() bool {
 }
 
 /*
-nameForms implements [§ 4.2.8 of RFC 4512] and contains slices of
+NameFormDescriptions implements [§ 4.2.8 of RFC 4512] and contains slices of
 [NameFormDescription].
 
 [§ 4.2.8 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.8
 */
-type nameForms []NameFormDescription
+type NameFormDescriptions []NameFormDescription
 
 /*
 OID returns the numeric OID literal "2.5.21.7" per [§ 4.2.8 of RFC 4512].
 
 [§ 4.2.8 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.8
 */
-func (r nameForms) OID() string { return `2.5.21.7` }
+func (r NameFormDescriptions) OID() string { return `2.5.21.7` }
 
 /*
 NameFormIndex returns the Nth [NameFormDescription] instances found
 within the receiver instance.
 */
 func (r SubschemaSubentry) NameFormByIndex(idx int) (def NameFormDescription) {
-	if 0 <= idx && idx < r.nameForms.Len() {
-		def = r.nameForms[idx]
+	if 0 <= idx && idx < r.NameFormDescriptions.Len() {
+		def = r.NameFormDescriptions[idx]
 	}
 
 	return
@@ -1891,9 +2228,29 @@ func (r SubschemaSubentry) NameFormByIndex(idx int) (def NameFormDescription) {
 /*
 String returns the string representation of the receiver instance.
 */
-func (r nameForms) String() (s string) {
+func (r NameFormDescriptions) String() (s string) {
 	for i := 0; i < r.Len(); i++ {
 		s += r.Type() + `: ` + r[i].String() + string(rune(10))
+	}
+
+	return
+}
+
+/*
+Get returns an instance of [NameFormDescription] and a slice index following
+a descriptor or numeric OID match attempt. A zero instance of [NameFormDescription]
+alongside an index of -1 is returned if no match is found.
+
+Case is not significant in the matching process.
+*/
+func (r NameFormDescriptions) Get(term string) (def NameFormDescription, idx int) {
+	idx = -1
+	for i := 0; i < r.Len(); i++ {
+		if r[i].Match(term) {
+			def = r[i]
+			idx = i
+			break
+		}
 	}
 
 	return
@@ -1935,6 +2292,21 @@ func (r NameFormDescription) String() (def string) {
 }
 
 /*
+Identifier returns the principal string value by which the receiver
+is known. If the receiver is not assigned a name (descriptor), the
+numeric OID is returned instead.
+*/
+func (r NameFormDescription) Identifier() (id string) {
+	if len(r.Name) > 0 {
+		id = r.Name[0]
+	} else {
+		id = r.NumericOID
+	}
+
+	return
+}
+
+/*
 XOrigin returns slices of standards citations, each being the name of an RFC,
 Internet-Draft or ITU-T Recommendation from which the receiver definition
 
@@ -1960,7 +2332,7 @@ term value and the receiver's NumericOID or Name value.
 Case is not significant in the matching process.
 */
 func (r NameFormDescription) Match(term string) bool {
-        return term == r.NumericOID || strInSlice(term, r.Name)
+	return term == r.NumericOID || strInSlice(term, r.Name)
 }
 
 /*
@@ -1999,27 +2371,27 @@ func (r NameFormDescription) Valid() bool {
 }
 
 /*
-dITStructureRules implements [§ 4.2.7 of RFC 4512] and contains slices of
+DITStructureRuleDescriptions implements [§ 4.2.7 of RFC 4512] and contains slices of
 [DITStructureRuleDescription].
 
 [§ 4.2.7 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.7
 */
-type dITStructureRules []DITStructureRuleDescription
+type DITStructureRuleDescriptions []DITStructureRuleDescription
 
 /*
 OID returns the numeric OID literal "2.5.21.1" per [§ 4.2.7 of RFC 4512].
 
 [§ 4.2.7 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.7
 */
-func (r dITStructureRules) OID() string { return `2.5.21.1` }
+func (r DITStructureRuleDescriptions) OID() string { return `2.5.21.1` }
 
 /*
 DITStructureRuleIndex returns the Nth [DITStructureRuleDescription] instances found
 within the receiver instance.
 */
 func (r SubschemaSubentry) DITStructureRuleByIndex(idx int) (def DITStructureRuleDescription) {
-	if 0 <= idx && idx < r.dITStructureRules.Len() {
-		def = r.dITStructureRules[idx]
+	if 0 <= idx && idx < r.DITStructureRuleDescriptions.Len() {
+		def = r.DITStructureRuleDescriptions[idx]
 	}
 
 	return
@@ -2028,9 +2400,29 @@ func (r SubschemaSubentry) DITStructureRuleByIndex(idx int) (def DITStructureRul
 /*
 String returns the string representation of the receiver instance.
 */
-func (r dITStructureRules) String() (s string) {
+func (r DITStructureRuleDescriptions) String() (s string) {
 	for i := 0; i < r.Len(); i++ {
 		s += r.Type() + `: ` + r[i].String() + string(rune(10))
+	}
+
+	return
+}
+
+/*
+Get returns an instance of [DITStructureRuleDescription] and a slice index following
+a descriptor or integer identifier match attempt. A zero instance of [DITStructureRuleDescription]
+alongside an index of -1 is returned if no match is found.
+
+Case is not significant in the matching process.
+*/
+func (r DITStructureRuleDescriptions) Get(term string) (def DITStructureRuleDescription, idx int) {
+	idx = -1
+	for i := 0; i < r.Len(); i++ {
+		if r[i].Match(term) {
+			def = r[i]
+			idx = i
+			break
+		}
 	}
 
 	return
@@ -2070,6 +2462,21 @@ func (r DITStructureRuleDescription) String() (def string) {
 }
 
 /*
+Identifier returns the principal string value by which the receiver
+is known. If the receiver is not assigned a name (descriptor), the
+integer identifier (RuleID) is returned instead.
+*/
+func (r DITStructureRuleDescription) Identifier() (id string) {
+	if len(r.Name) > 0 {
+		id = r.Name[0]
+	} else {
+		id = r.RuleID
+	}
+
+	return
+}
+
+/*
 XOrigin returns slices of standards citations, each being the name of an RFC,
 Internet-Draft or ITU-T Recommendation from which the receiver definition
 
@@ -2095,7 +2502,7 @@ term value and the receiver's integer rule identifier (RuleID) or Name value.
 Case is not significant in the matching process.
 */
 func (r DITStructureRuleDescription) Match(term string) bool {
-        return term == uitoa(r.RuleID) || strInSlice(term, r.Name)
+	return term == uitoa(r.RuleID) || strInSlice(term, r.Name)
 }
 
 /*
@@ -2826,23 +3233,23 @@ OID returns the numeric OID literal "1.3.6.1.4.1.1466.115.121.1.17" per
 */
 func (r DITStructureRuleDescription) OID() string { return `1.3.6.1.4.1.1466.115.121.1.17` }
 
-func (r ldapSyntaxes) Len() int      { return len(r) }
-func (r matchingRules) Len() int     { return len(r) }
-func (r attributeTypes) Len() int    { return len(r) }
-func (r matchingRuleUses) Len() int  { return len(r) }
-func (r objectClasses) Len() int     { return len(r) }
-func (r dITContentRules) Len() int   { return len(r) }
-func (r nameForms) Len() int         { return len(r) }
-func (r dITStructureRules) Len() int { return len(r) }
+func (r LDAPSyntaxDescriptions) Len() int       { return len(r) }
+func (r MatchingRuleDescriptions) Len() int     { return len(r) }
+func (r AttributeTypeDescriptions) Len() int    { return len(r) }
+func (r MatchingRuleUseDescriptions) Len() int  { return len(r) }
+func (r ObjectClassDescriptions) Len() int      { return len(r) }
+func (r DITContentRuleDescriptions) Len() int   { return len(r) }
+func (r NameFormDescriptions) Len() int         { return len(r) }
+func (r DITStructureRuleDescriptions) Len() int { return len(r) }
 
-func (r ldapSyntaxes) Type() string      { return headerTokens[0] }
-func (r matchingRules) Type() string     { return headerTokens[2] }
-func (r attributeTypes) Type() string    { return headerTokens[4] }
-func (r matchingRuleUses) Type() string  { return headerTokens[6] }
-func (r objectClasses) Type() string     { return headerTokens[8] }
-func (r dITContentRules) Type() string   { return headerTokens[10] }
-func (r nameForms) Type() string         { return headerTokens[12] }
-func (r dITStructureRules) Type() string { return headerTokens[14] }
+func (r LDAPSyntaxDescriptions) Type() string       { return headerTokens[0] }
+func (r MatchingRuleDescriptions) Type() string     { return headerTokens[2] }
+func (r AttributeTypeDescriptions) Type() string    { return headerTokens[4] }
+func (r MatchingRuleUseDescriptions) Type() string  { return headerTokens[6] }
+func (r ObjectClassDescriptions) Type() string      { return headerTokens[8] }
+func (r DITContentRuleDescriptions) Type() string   { return headerTokens[10] }
+func (r NameFormDescriptions) Type() string         { return headerTokens[12] }
+func (r DITStructureRuleDescriptions) Type() string { return headerTokens[14] }
 
 func (r LDAPSyntaxDescription) Type() string       { return headerTokens[1] }
 func (r MatchingRuleDescription) Type() string     { return headerTokens[3] }
@@ -2862,14 +3269,14 @@ func (r DITContentRuleDescription) isDefinition()   {}
 func (r NameFormDescription) isDefinition()         {}
 func (r DITStructureRuleDescription) isDefinition() {}
 
-func (r ldapSyntaxes) isDefinitions()      {}
-func (r matchingRules) isDefinitions()     {}
-func (r attributeTypes) isDefinitions()    {}
-func (r matchingRuleUses) isDefinitions()  {}
-func (r objectClasses) isDefinitions()     {}
-func (r dITContentRules) isDefinitions()   {}
-func (r nameForms) isDefinitions()         {}
-func (r dITStructureRules) isDefinitions() {}
+func (r LDAPSyntaxDescriptions) isDefinitions()       {}
+func (r MatchingRuleDescriptions) isDefinitions()     {}
+func (r AttributeTypeDescriptions) isDefinitions()    {}
+func (r MatchingRuleUseDescriptions) isDefinitions()  {}
+func (r ObjectClassDescriptions) isDefinitions()      {}
+func (r DITContentRuleDescriptions) isDefinitions()   {}
+func (r NameFormDescriptions) isDefinitions()         {}
+func (r DITStructureRuleDescriptions) isDefinitions() {}
 
 // Keep plurals before singulars for optimal matching. Note that
 // the respective indices correlate to the return values of the
