@@ -565,7 +565,7 @@ func (r *SubschemaSubentry) RegisterDITStructureRule(input any) (err error) {
 		return
 	}
 
-	// Make sure superclasses, if present, are sane.
+	// Make sure superior structure rules, if present, are sane.
 	for i := 0; i < len(def.SuperRules); i++ {
 		if _, idx := r.DITStructureRule(def.SuperRules[i]); idx == -1 {
 			// Allow recursive rules to be added (ignore
@@ -882,7 +882,7 @@ func (r SubschemaSubentry) SubordinateStructureRules(id string) (sub []DITStruct
 }
 
 /*
-SubordinateStructureRules returns slices of [DITStructureRuleDescription], each of
+SuperiorStructureRules returns slices of [DITStructureRuleDescription], each of
 which are direct superior structure rules of the input string id.
 
 The input string id must be the rule ID or name of the subordinate structure rule.
@@ -935,7 +935,6 @@ func (r SubschemaSubentry) NamedObjectClass(id string) (noc ObjectClassDescripti
 
 	return
 }
-
 
 /*
 IsZero returns a Boolean value indicative of a nil receiver state.
@@ -1525,20 +1524,20 @@ AttributeTypeDescription implements [§ 4.1.2 of RFC 4512] and [§ 13.4.8 of ITU
 [§ 13.4.8 of ITU-T Rec. X.501]: https://www.itu.int/rec/T-REC-X.520
 */
 type AttributeTypeDescription struct {
-	NumericOID         string   // "id"
-	Name               []string // "ldapName"
-	Description        string   // "ldapDesc"
-	SuperType          string   // "derivation"
-	Obsolete           bool     // "obsolete"
-	Single             bool     // "single-valued"
-	Collective         bool     // "collective"
-	NoUserModification bool     // "no-user-modification"
-	MinUpperBounds     uint	    // --
-	Syntax             string   // "ldapSyntax"
-	Equality           string   // "equality-match"
-	Ordering           string   // "ordering-match"
-	Substring          string   // "substrings-match"
-	Usage              string   // "usage"
+	NumericOID         string            // "id"
+	Name               []string          // "ldapName"
+	Description        string            // "ldapDesc"
+	SuperType          string            // "derivation"
+	Obsolete           bool              // "obsolete"
+	Single             bool              // "single-valued"
+	Collective         bool              // "collective"
+	NoUserModification bool              // "no-user-modification"
+	MinUpperBounds     uint              // --
+	Syntax             string            // "ldapSyntax"
+	Equality           string            // "equality-match"
+	Ordering           string            // "ordering-match"
+	Substring          string            // "substrings-match"
+	Usage              string            // "usage"
 	Extensions         map[int]Extension // --
 }
 
@@ -2582,6 +2581,21 @@ func (r DITStructureRuleDescription) String() (def string) {
 		def += definitionMVDescriptors(`SUP`, r.SuperRules)
 		def += stringExtensions(r.Extensions)
 		def += ` )`
+	}
+
+	return
+}
+
+/*
+SubRules returns an instance of [DITStructureRuleDescriptions], each
+slice representing a subordinate [DITStructureRuleDescription] of the receiver
+instance.
+*/
+func (r DITStructureRuleDescription) SubRules(rules DITStructureRuleDescriptions) (sub DITStructureRuleDescriptions) {
+	for i := 0; i < len(rules); i++ {
+		if strInSlice(r.RuleID, rules[i].SuperRules) {
+			sub = append(sub, rules[i])
+		}
 	}
 
 	return
