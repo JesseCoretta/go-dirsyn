@@ -853,8 +853,8 @@ func (r SubschemaSubentry) DITStructureRule(id string) (ds DITStructureRuleDescr
 }
 
 /*
-SubRules returns slices of [DITStructureRuleDescription], each of
-which are direct subordinate structure rules of the input string id.
+SubordinateStructureRules returns slices of [DITStructureRuleDescription],
+each of which are direct subordinate structure rules of the input string id.
 
 The input string id must be the rule ID or name of the supposed superior
 structure rule.
@@ -865,7 +865,7 @@ process.
 If zero slices are returned, this can mean either the superior structure rule
 was not found, or that it has no subordinate rules of its own.
 */
-func (r SubschemaSubentry) SubRules(id string) (sub []DITStructureRuleDescription) {
+func (r SubschemaSubentry) SubordinateStructureRules(id string) (sub []DITStructureRuleDescription) {
 	if rule, idx := r.DITStructureRule(id); idx != -1 {
 		for i := 0; i < r.DITStructureRuleDescriptions.Len(); i++ {
 			// NOTE - don't skip the superior rule itself,
