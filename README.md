@@ -6,7 +6,7 @@
 
 Package dirsyn implements low-level directory syntax parsing and assertion matching rule components.
 
-This package was mainly developed for the XDAPL Project, but may be freely used by anyone needing value abstract syntax checking or matching rule capabilities related to directory technologies.
+This package was mainly developed for the XDAPL Project.
 
 ## Status
 

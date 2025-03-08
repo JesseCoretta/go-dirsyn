@@ -539,3 +539,4 @@ func (t *criteriaParser) tokenizeMatchType() (s string) {
 
 	return
 }
+

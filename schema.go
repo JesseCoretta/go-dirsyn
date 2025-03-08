@@ -33,6 +33,7 @@ following types:
 */
 type Definition interface {
 	OID() string
+	IsZero() bool
 	Identifier() string
 	Type() string
 	Valid() bool
@@ -58,6 +59,7 @@ type Definitions interface {
 	Len() int
 	OID() string
 	Type() string
+	IsZero() bool
 	String() string
 	Contains(string) int
 	isDefinitions()
@@ -934,6 +936,87 @@ func (r SubschemaSubentry) NamedObjectClass(id string) (noc ObjectClassDescripti
 	return
 }
 
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r LDAPSyntaxDescription) IsZero() bool { return &r == nil }
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r MatchingRuleDescription) IsZero() bool { return &r == nil }
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r AttributeTypeDescription) IsZero() bool { return &r == nil }
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r MatchingRuleUseDescription) IsZero() bool { return &r == nil }
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r ObjectClassDescription) IsZero() bool { return &r == nil }
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r DITContentRuleDescription) IsZero() bool { return &r == nil }
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r NameFormDescription) IsZero() bool { return &r == nil }
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r DITStructureRuleDescription) IsZero() bool { return &r == nil }
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r LDAPSyntaxDescriptions) IsZero() bool { return r.Len() == 0 }
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r MatchingRuleDescriptions) IsZero() bool { return r.Len() == 0 }
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r AttributeTypeDescriptions) IsZero() bool { return r.Len() == 0 }
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r MatchingRuleUseDescriptions) IsZero() bool { return r.Len() == 0 }
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r ObjectClassDescriptions) IsZero() bool { return r.Len() == 0 }
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r DITContentRuleDescriptions) IsZero() bool { return r.Len() == 0 }
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r NameFormDescriptions) IsZero() bool { return r.Len() == 0 }
+
+/*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r DITStructureRuleDescriptions) IsZero() bool { return r.Len() == 0 }
+
 /*
 Extension implements [§ 4.2 of RFC 4512] and describes a single extension
 using an "xstring" and one or more quoted string values.
@@ -1394,26 +1477,27 @@ func (r SubschemaSubentry) AttributeTypeByIndex(idx int) (def AttributeTypeDescr
 }
 
 /*
-AttributeTypeDescription implements [§ 4.1.2 of RFC 4512].
+AttributeTypeDescription implements [§ 4.1.2 of RFC 4512] and [§ 13.4.8 of ITU-T Rec. X.501] (AttributeType).
 
 [§ 4.1.2 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.1.2
+[§ 13.4.8 of ITU-T Rec. X.501]: https://www.itu.int/rec/T-REC-X.520
 */
 type AttributeTypeDescription struct {
-	NumericOID         string
-	Name               []string
-	Description        string
-	SuperType          string
-	Obsolete           bool
-	Single             bool
-	Collective         bool
-	NoUserModification bool
-	MinUpperBounds     uint
-	Syntax             string
-	Equality           string
-	Ordering           string
-	Substring          string
-	Usage              string
-	Extensions         map[int]Extension
+	NumericOID         string   // "id"
+	Name               []string // "ldapName"
+	Description        string   // "ldapDesc"
+	SuperType          string   // "derivation"
+	Obsolete           bool     // "obsolete"
+	Single             bool     // "single-valued"
+	Collective         bool     // "collective"
+	NoUserModification bool     // "no-user-modification"
+	MinUpperBounds     uint	    // --
+	Syntax             string   // "ldapSyntax"
+	Equality           string   // "equality-match"
+	Ordering           string   // "ordering-match"
+	Substring          string   // "substrings-match"
+	Usage              string   // "usage"
+	Extensions         map[int]Extension // --
 }
 
 /*
