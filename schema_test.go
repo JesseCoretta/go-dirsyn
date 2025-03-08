@@ -17,6 +17,31 @@ func ExampleAttributeTypeDescription_SuperChain() {
 	// Output: attributeTypes: ( 2.5.4.41  NAME 'name' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC4519' )
 }
 
+func ExampleDITStructureRuleDescription_SubRules() {
+	rules := exampleSchema.DITStructureRuleDescriptions
+	sup, idx := rules.Get(`applicationProcessStructure`)
+	if idx == -1 {
+		// not found
+		return
+	}
+
+	subs := sup.SubRules(rules)
+	fmt.Printf("%d subordinate rule found", len(subs))
+	// Output: 1 subordinate rule found
+}
+
+func ExampleObjectClassDescription_SuperClassOf() {
+	classes := exampleSchema.ObjectClassDescriptions
+	top, idx := classes.Get(`top`) // 2.5.6.0
+	if idx == -1 {
+		// not found
+		return
+	}
+
+	fmt.Println(top.SuperClassOf(`subentry`, classes))
+	// Output: true
+}
+
 func ExampleObjectClassDescription_SuperChain() {
 	child, _ := exampleSchema.ObjectClass(`subentry`)
 	supers := child.SuperChain(exampleSchema.ObjectClassDescriptions)
