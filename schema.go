@@ -1018,6 +1018,48 @@ IsZero returns a Boolean value indicative of a nil receiver state.
 func (r DITStructureRuleDescriptions) IsZero() bool { return r.Len() == 0 }
 
 /*
+SuperClassOf returns a Boolean value indicative of r being a superior ("SUP")
+[ObjectClassDescription] of sub, which may be a string or bonafide instance of
+[ObjectClassDescription].
+
+Note: this will trace all super class chains indefinitely and, thus, will
+recognize any superior association without regard for "depth".
+*/
+func (r ObjectClassDescription) SuperClassOf(sub any, classes ObjectClassDescriptions) (sup bool) {
+	var subordinate ObjectClassDescription
+	switch tv := sub.(type) {
+	case string:
+		// resolve to ObjectClassDescription
+		var idx int
+		if subordinate, idx = classes.Get(tv); idx == -1 {
+			return
+		}
+	case ObjectClassDescription:
+		subordinate = tv
+	default:
+		return
+	}
+
+	dsups := subordinate.SuperClasses
+	for i := 0; i < len(dsups) && !sup; i++ {
+		res, ridx := classes.Get(dsups[i])
+		if ridx == -1 {
+			break
+		}
+
+		if sup = res.NumericOID == r.NumericOID; sup {
+			// direct (immediate) match by numeric OID
+			break
+		} else if sup = r.SuperClassOf(res, classes); sup {
+			// match by traversal
+			break
+		}
+	}
+
+	return
+}
+
+/*
 Extension implements [§ 4.2 of RFC 4512] and describes a single extension
 using an "xstring" and one or more quoted string values.
 
