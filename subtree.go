@@ -276,7 +276,6 @@ From [Appendix A of RFC 3672]:
 	id-chopAfter       = %x63.68.6F.70.41.66.74.65.72    ; "chopAfter"
 
 [Appendix A of RFC 3672]: https://datatracker.ietf.org/doc/html/rfc3672#appendix-A
-
 [§ 2.1 of RFC 3672]: https://datatracker.ietf.org/doc/html/rfc3672#section-2.1
 */
 type SpecificExclusion struct {

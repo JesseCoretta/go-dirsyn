@@ -690,7 +690,7 @@ func (r *SubschemaSubentry) Counters() (counters [9]uint) {
 
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	
+
 	counters[0] = uint(r.LDAPSyntaxes.Len())
 	counters[1] = uint(r.MatchingRules.Len())
 	counters[2] = uint(r.AttributeTypes.Len())
@@ -3453,20 +3453,20 @@ OID returns the numeric OID literal "1.3.6.1.4.1.1466.115.121.1.17" per
 */
 func (r DITStructureRule) OID() string { return `1.3.6.1.4.1.1466.115.121.1.17` }
 
-func (r LDAPSyntaxes) Len() int       { return len(r) }
+func (r LDAPSyntaxes) Len() int      { return len(r) }
 func (r MatchingRules) Len() int     { return len(r) }
 func (r AttributeTypes) Len() int    { return len(r) }
 func (r MatchingRuleUses) Len() int  { return len(r) }
-func (r ObjectClasses) Len() int      { return len(r) }
+func (r ObjectClasses) Len() int     { return len(r) }
 func (r DITContentRules) Len() int   { return len(r) }
 func (r NameForms) Len() int         { return len(r) }
 func (r DITStructureRules) Len() int { return len(r) }
 
-func (r LDAPSyntaxes) Type() string       { return headerTokens[0] }
+func (r LDAPSyntaxes) Type() string      { return headerTokens[0] }
 func (r MatchingRules) Type() string     { return headerTokens[2] }
 func (r AttributeTypes) Type() string    { return headerTokens[4] }
 func (r MatchingRuleUses) Type() string  { return headerTokens[6] }
-func (r ObjectClasses) Type() string      { return headerTokens[8] }
+func (r ObjectClasses) Type() string     { return headerTokens[8] }
 func (r DITContentRules) Type() string   { return headerTokens[10] }
 func (r NameForms) Type() string         { return headerTokens[12] }
 func (r DITStructureRules) Type() string { return headerTokens[14] }
@@ -3489,11 +3489,11 @@ func (r DITContentRule) isDefinition()   {}
 func (r NameForm) isDefinition()         {}
 func (r DITStructureRule) isDefinition() {}
 
-func (r LDAPSyntaxes) isDefinitions()       {}
+func (r LDAPSyntaxes) isDefinitions()      {}
 func (r MatchingRules) isDefinitions()     {}
 func (r AttributeTypes) isDefinitions()    {}
 func (r MatchingRuleUses) isDefinitions()  {}
-func (r ObjectClasses) isDefinitions()      {}
+func (r ObjectClasses) isDefinitions()     {}
 func (r DITContentRules) isDefinitions()   {}
 func (r NameForms) isDefinitions()         {}
 func (r DITStructureRules) isDefinitions() {}
