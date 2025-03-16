@@ -142,7 +142,8 @@ type FilterApproximateMatch AttributeValueAssertion
 
 /*
 AttributeValueAssertion implements the basis for [FilterApproximateMatch],
-[FilterGreaterOrEqual], [FilterLessOrEqual] and [FilterEqualityMatch].
+[FilterGreaterOrEqual], [FilterLessOrEqual] and [FilterEqualityMatch]
+instances.
 
 	AttributeValueAssertion ::= SEQUENCE {
 	    attributeDesc   AttributeDescription,
@@ -239,7 +240,7 @@ String returns the string representation of the receiver instance.
 */
 func (r AttributeTag) String() string { return string(r) }
 
-// differentiate from other interfaces
+// differentiate Filter qualifiers from other interfaces.
 func (r AttributeTag) isAttributeOption()  {}
 func (r invalidFilter) isFilter()          {}
 func (r FilterAnd) isFilter()              {}
@@ -1055,8 +1056,8 @@ func (r FilterAnd) BER() (packet *ber.Packet, err error) {
 		r.Choice())
 
 	for i := 0; i < r.Len(); i++ {
-		child, err := r[i].BER()
-		if err == nil {
+		var child *ber.Packet
+		if child, err = r[i].BER(); err == nil {
 			packet.AppendChild(child)
 		}
 	}
