@@ -260,13 +260,12 @@ func (r SpecificExclusions) Len() int {
 /*
 SpecificExclusion implements the chopSpecification specificExclusion component.
 
-From [§ 2.1 of RFC3672]:
+From [§ 2.1 of RFC 3672]:
 
-	        LocalName ::= RDNSequence
-
-		SET OF CHOICE {
-	   	   chopBefore [0] LocalName,
-	           chopAfter  [1] LocalName }
+	LocalName ::= RDNSequence
+	SET OF CHOICE {
+	   chopBefore [0] LocalName,
+	   chopAfter  [1] LocalName }
 
 From [Appendix A of RFC 3672]:
 
