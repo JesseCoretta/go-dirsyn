@@ -630,10 +630,10 @@ Refinement implements [Appendix A of RFC 3672], and serves as the
 "SpecificationFilter" optionally found within a Subtree Specification.
 It is qualified through instances of:
 
-  - [ItemRefinement]
-  - [AndRefinement]
-  - [OrRefinement]
-  - [NotRefinement]
+  - [RefinementItem]
+  - [RefinementAnd]
+  - [RefinementOr]
+  - [RefinementNot]
 
 From [Appendix A of RFC 3672]:
 
@@ -668,7 +668,7 @@ type Refinement interface {
 
 	// Index returns the Nth slice index found within
 	// the receiver instance. This is only useful if
-	// the receiver is an AndRefinement or OrRefinement
+	// the receiver is an RefinementAnd or RefinementOr
 	// Refinement qualifier type instance.
 	Index(int) Refinement
 
@@ -688,7 +688,7 @@ type Refinement interface {
 
 	// Len returns the integer length of the receiver
 	// instance. This is only useful if the receiver is
-	// an AndRefinement or OrRefinement Refinement
+	// an RefinementAnd or RefinementOr Refinement
 	// qualifier type instance.
 	Len() int
 
@@ -697,45 +697,45 @@ type Refinement interface {
 }
 
 /*
-AndRefinement implements slices of [Refinement], all of which are expected to
+RefinementAnd implements slices of [Refinement], all of which are expected to
 evaluate as true during processing.
 
 Instances of this type qualify the [Refinement] interface type.
 */
-type AndRefinement []Refinement
+type RefinementAnd []Refinement
 
 /*
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
-func (r AndRefinement) IsZero() bool {
+func (r RefinementAnd) IsZero() bool {
 	return &r == nil
 }
 
 /*
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
-func (r OrRefinement) IsZero() bool {
+func (r RefinementOr) IsZero() bool {
 	return &r == nil
 }
 
 /*
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
-func (r NotRefinement) IsZero() bool {
+func (r RefinementNot) IsZero() bool {
 	return r.Refinement == nil
 }
 
 /*
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
-func (r ItemRefinement) IsZero() bool {
+func (r RefinementItem) IsZero() bool {
 	return string(r) == ""
 }
 
 /*
 String returns the string representation of the receiver instance.
 */
-func (r AndRefinement) String() (s string) {
+func (r RefinementAnd) String() (s string) {
 	if !r.IsZero() {
 		var parts []string
 		for _, ref := range r {
@@ -750,21 +750,21 @@ func (r AndRefinement) String() (s string) {
 /*
 Type returns the string literal "and" as the ASN.1 CHOICE.
 */
-func (r AndRefinement) Choice() string {
+func (r RefinementAnd) Choice() string {
 	return "and"
 }
 
 /*
 Len returns the integer length of the receiver instance.
 */
-func (r AndRefinement) Len() int {
+func (r RefinementAnd) Len() int {
 	return len(r)
 }
 
 /*
 Index returns the Nth slice index found within the receiver instance.
 */
-func (r AndRefinement) Index(idx int) (x Refinement) {
+func (r RefinementAnd) Index(idx int) (x Refinement) {
 	rl := r.Len()
 	x = invalidRefinement{}
 	if 0 <= idx && idx < rl {
@@ -775,17 +775,17 @@ func (r AndRefinement) Index(idx int) (x Refinement) {
 }
 
 /*
-OrRefinement implements slices of [Refinement], at least one of which is
+RefinementOr implements slices of [Refinement], at least one of which is
 expected to evaluate as true during processing.
 
 Instances of this type qualify the [Refinement] interface type.
 */
-type OrRefinement []Refinement
+type RefinementOr []Refinement
 
 /*
 String returns the string representation of the receiver instance.
 */
-func (r OrRefinement) String() (s string) {
+func (r RefinementOr) String() (s string) {
 	if !r.IsZero() {
 		var parts []string
 		for _, ref := range r {
@@ -800,21 +800,21 @@ func (r OrRefinement) String() (s string) {
 /*
 Type returns the string literal "or" as the ASN.1 CHOICE.
 */
-func (r OrRefinement) Choice() string {
+func (r RefinementOr) Choice() string {
 	return "or"
 }
 
 /*
 Len returns the integer length of the receiver instance.
 */
-func (r OrRefinement) Len() int {
+func (r RefinementOr) Len() int {
 	return len(r)
 }
 
 /*
 Index returns the Nth slice index found within the receiver instance.
 */
-func (r OrRefinement) Index(idx int) (x Refinement) {
+func (r RefinementOr) Index(idx int) (x Refinement) {
 	rl := r.Len()
 	x = invalidRefinement{}
 	if 0 <= idx && idx < rl {
@@ -825,21 +825,21 @@ func (r OrRefinement) Index(idx int) (x Refinement) {
 }
 
 /*
-NotRefinement implements a negated, recursive instance of [Refinement].
+RefinementNot implements a negated, recursive instance of [Refinement].
 Normally during processing, instances of this type are processed first
 when present among other qualifiers as siblings (slices), such as with
-[AndRefinement] and [OrRefinement] instances.
+[RefinementAnd] and [RefinementOr] instances.
 
 Instances of this type qualify the [Refinement] interface type.
 */
-type NotRefinement struct {
+type RefinementNot struct {
 	Refinement
 }
 
 /*
 String returns the string representation of the receiver instance.
 */
-func (r NotRefinement) String() string {
+func (r RefinementNot) String() string {
 	if r.IsZero() {
 		return ``
 	}
@@ -850,14 +850,14 @@ func (r NotRefinement) String() string {
 /*
 Type returns the string literal "not" as the ASN.1 CHOICE.
 */
-func (r NotRefinement) Choice() string {
+func (r RefinementNot) Choice() string {
 	return "not"
 }
 
 /*
 Len returns the integer length of the receiver instance.
 */
-func (r NotRefinement) Len() (l int) {
+func (r RefinementNot) Len() (l int) {
 	if !r.IsZero() {
 		l = r.Refinement.Len()
 	}
@@ -868,7 +868,7 @@ func (r NotRefinement) Len() (l int) {
 /*
 Index returns the Nth slice index found within the receiver instance.
 */
-func (r NotRefinement) Index(idx int) (x Refinement) {
+func (r RefinementNot) Index(idx int) (x Refinement) {
 	x = invalidRefinement{}
 
 	if !r.IsZero() {
@@ -878,10 +878,10 @@ func (r NotRefinement) Index(idx int) (x Refinement) {
 	return
 }
 
-func (r OrRefinement) isRefinement()   {}
-func (r AndRefinement) isRefinement()  {}
-func (r NotRefinement) isRefinement()  {}
-func (r ItemRefinement) isRefinement() {}
+func (r RefinementOr) isRefinement()   {}
+func (r RefinementAnd) isRefinement()  {}
+func (r RefinementNot) isRefinement()  {}
+func (r RefinementItem) isRefinement() {}
 
 type invalidRefinement struct{}
 
@@ -896,9 +896,9 @@ func (r invalidRefinement) BER() (*ber.Packet, error) {
 }
 
 /*
-ItemRefinement implements the core ("atom") value type to be used in
-[Refinement] statements, and appears in [AndRefinement], [OrRefinement]
-and [NotRefinement] [Refinement] qualifier type instances.
+RefinementItem implements the core ("atom") value type to be used in
+[Refinement] statements, and appears in [RefinementAnd], [RefinementOr]
+and [RefinementNot] [Refinement] qualifier type instances.
 
 This is the only "tangible" type in the "specificationFilter" formula,
 as all other types simply act as contextual "envelopes" meant to,
@@ -906,12 +906,12 @@ ultimately, store instances of this type.
 
 Instances of this type qualify the [Refinement] interface type.
 */
-type ItemRefinement string
+type RefinementItem string
 
 /*
 String returns the string representation of the receiver instance.
 */
-func (r ItemRefinement) String() (s string) {
+func (r RefinementItem) String() (s string) {
 	if !r.IsZero() {
 		s = `item:` + string(r)
 	}
@@ -922,7 +922,7 @@ func (r ItemRefinement) String() (s string) {
 /*
 Type returns the string literal "item" as the ASN.1 CHOICE.
 */
-func (r ItemRefinement) Choice() string {
+func (r RefinementItem) Choice() string {
 	return "item"
 }
 
@@ -930,7 +930,7 @@ func (r ItemRefinement) Choice() string {
 Len always returns the integer 1 (one).  This method only exists to satisfy
 Go's interface signature requirements.
 */
-func (r ItemRefinement) Len() int {
+func (r RefinementItem) Len() int {
 	return 1
 }
 
@@ -938,7 +938,7 @@ func (r ItemRefinement) Len() int {
 Index returns the receiver instance of [Refinement]. This method only
 exists to satisfy Go's interface signature requirement.
 */
-func (r ItemRefinement) Index(_ int) Refinement {
+func (r RefinementItem) Index(_ int) Refinement {
 	return r
 }
 
@@ -1001,7 +1001,7 @@ func parseItem(input string) (Refinement, error) {
 	if len(parts) != 2 {
 		return nil, errorTxt("invalid item: " + input)
 	}
-	return ItemRefinement(parts[1]), nil
+	return RefinementItem(parts[1]), nil
 }
 
 func parseAnd(input string) (Refinement, error) {
@@ -1018,7 +1018,7 @@ func parseNot(input string) (Refinement, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NotRefinement{subRef}, nil
+	return RefinementNot{subRef}, nil
 }
 
 func parseComplexRefinement(input, prefix string) (Refinement, error) {
@@ -1038,9 +1038,9 @@ func parseComplexRefinement(input, prefix string) (Refinement, error) {
 	}
 
 	if prefix == "and:" {
-		return AndRefinement(refs), nil
+		return RefinementAnd(refs), nil
 	}
-	return OrRefinement(refs), nil
+	return RefinementOr(refs), nil
 }
 
 func splitRefinementParts(input string) []string {
@@ -1073,7 +1073,7 @@ func splitRefinementParts(input string) []string {
 /*
 BER returns the BER encoding of the receiver instance.
 */
-func (r ItemRefinement) BER() (packet *ber.Packet, err error) {
+func (r RefinementItem) BER() (packet *ber.Packet, err error) {
 	if r.IsZero() {
 		err = errorTxt("Nil Refinement; cannot BER encode")
 		return
@@ -1094,7 +1094,7 @@ func (r ItemRefinement) BER() (packet *ber.Packet, err error) {
 /*
 BER returns the BER encoding of the receiver instance.
 */
-func (r AndRefinement) BER() (packet *ber.Packet, err error) {
+func (r RefinementAnd) BER() (packet *ber.Packet, err error) {
 	if r.IsZero() || r.Len() == 0 {
 		err = errorTxt("Nil Refinement, cannot BER encode")
 		return
@@ -1124,7 +1124,7 @@ func (r AndRefinement) BER() (packet *ber.Packet, err error) {
 /*
 BER returns the BER encoding of the receiver instance.
 */
-func (r OrRefinement) BER() (packet *ber.Packet, err error) {
+func (r RefinementOr) BER() (packet *ber.Packet, err error) {
 	if r.IsZero() || r.Len() == 0 {
 		err = errorTxt("Nil Refinement, cannot BER encode")
 		return
@@ -1154,7 +1154,7 @@ func (r OrRefinement) BER() (packet *ber.Packet, err error) {
 /*
 BER returns the BER encoding of the receiver instance.
 */
-func (r NotRefinement) BER() (packet *ber.Packet, err error) {
+func (r RefinementNot) BER() (packet *ber.Packet, err error) {
 	if r.IsZero() {
 		return nil, errorTxt("Nil Refinement, cannot BER encode")
 	}
@@ -1217,7 +1217,7 @@ func unmarshalSubtreeSpecificationBER(packet *ber.Packet) (ss SubtreeSpecificati
 	return
 }
 
-func unmarshalNotRefinementBER(packet *ber.Packet) (not Refinement, err error) {
+func unmarshalRefinementNotBER(packet *ber.Packet) (not Refinement, err error) {
 	not = invalidRefinement{}
 	if len(packet.Children) != 1 {
 		err = errorTxt("Invalid Not Refinement (no payload); cannot unmarshal")
@@ -1226,7 +1226,7 @@ func unmarshalNotRefinementBER(packet *ber.Packet) (not Refinement, err error) {
 
 	var nest Refinement
 	if nest, err = unmarshalRefinementBER(packet.Children[0]); err == nil {
-		not = NotRefinement{nest}
+		not = RefinementNot{nest}
 	}
 
 	return
@@ -1243,9 +1243,9 @@ func unmarshalRefinementBER(packet *ber.Packet) (refinement Refinement, err erro
 
 	switch refpkt.Description {
 	case "item":
-		refinement, err = unmarshalItemRefinementBER(refpkt)
+		refinement, err = unmarshalRefinementItemBER(refpkt)
 	case "not":
-		refinement, err = unmarshalNotRefinementBER(refpkt)
+		refinement, err = unmarshalRefinementNotBER(refpkt)
 	case "and", "or":
 		refinement, err = unmarshalSetRefinementBER(refpkt)
 	default:
@@ -1256,13 +1256,13 @@ func unmarshalRefinementBER(packet *ber.Packet) (refinement Refinement, err erro
 	return
 }
 
-func unmarshalItemRefinementBER(packet *ber.Packet) (item Refinement, err error) {
+func unmarshalRefinementItemBER(packet *ber.Packet) (item Refinement, err error) {
 
 	v, vok := packet.Value.(string)
 	if !vok {
 		err = errorTxt("Invalid or absent item refinement objectClass ID; cannot unmarshal")
 	} else {
-		item = ItemRefinement(v)
+		item = RefinementItem(v)
 	}
 
 	return
@@ -1289,9 +1289,9 @@ func unmarshalSetRefinementBER(packet *ber.Packet) (refinement Refinement, err e
 	}
 
 	if and {
-		refinement = AndRefinement(refs)
+		refinement = RefinementAnd(refs)
 	} else {
-		refinement = OrRefinement(refs)
+		refinement = RefinementOr(refs)
 	}
 
 	return

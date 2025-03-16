@@ -93,8 +93,14 @@ SetBytes sets the receiver state to reflect the bytes provided.
 An instance of []byte containing a single value of 0xFF results in a state
 of TRUE, while a value of 0x0 results in a state of FALSE.
 */
-func (r *Boolean) SetBytes() {
+func (r *Boolean) SetBytes(b byte) {
+	if b == 0x00 {
+		r.Set(false)
+	} else if b == 0xFF {
+		r.Set(true)
+	}
 
+	return
 }
 
 /*

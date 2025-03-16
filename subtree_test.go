@@ -64,13 +64,13 @@ func TestSubtreeSpecification_codecov(t *testing.T) {
 	var chop ChopSpecification
 	chop.BER()
 
-	var orref OrRefinement
+	var orref RefinementOr
 	orref.BER()
 	_ = orref.String()
 	orref.Index(2)
 	orref.isRefinement()
 
-	var andref AndRefinement
+	var andref RefinementAnd
 	andref.BER()
 	_ = andref.String()
 	andref.Index(2)
@@ -84,7 +84,7 @@ func TestSubtreeSpecification_codecov(t *testing.T) {
 	excl.BER()
 	_ = excl.String()
 
-	var iref ItemRefinement
+	var iref RefinementItem
 	iref.BER()
 	iref.Choice()
 	_ = iref.String()
@@ -92,7 +92,7 @@ func TestSubtreeSpecification_codecov(t *testing.T) {
 	iref.Index(1)
 	iref.isRefinement()
 
-	var nref NotRefinement
+	var nref RefinementNot
 	nref.BER()
 	_ = nref.String()
 	nref.Len()

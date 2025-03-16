@@ -103,7 +103,7 @@ func TestOID_codecov(t *testing.T) {
 	_, _ = objectIdentifierFirstComponentMatch(nil, `.`)
 	_, _ = objectIdentifierFirstComponentMatch(`2.3.4.5`, `1.2.3.4`)
 	_, _ = objectIdentifierFirstComponentMatch(bogusType{5}, `.`)
-	_, _ = objectIdentifierFirstComponentMatch(DITStructureRuleDescription{RuleID: `4`}, `4`)
+	_, _ = objectIdentifierFirstComponentMatch(DITStructureRule{RuleID: `4`}, `4`)
 	_, _ = objectIdentifierFirstComponentMatch(fakeType{`descr`}, `2.5.4.3`)
 	_, _ = objectIdentifierFirstComponentMatch(fakeType{`descr`}, nil)
 	_, _ = objectIdentifierFirstComponentMatch(fakeType{`descr`}, `2..4.3`)

@@ -212,9 +212,9 @@ func objectIdentifierFirstComponentMatch(a, b any) (result Boolean, err error) {
 	}
 
 	// Don't bother going any further if the input
-	// realValue is a DITStructureRuleDescription,
+	// realValue is a DITStructureRule,
 	// as those don't use OIDs.
-	if _, ok := a.(DITStructureRuleDescription); ok {
+	if _, ok := a.(DITStructureRule); ok {
 		return
 	}
 

@@ -46,7 +46,7 @@ func ExampleFilter_BER() {
 This example demonstrates the means for accessing a specific slice index
 within the return instance of [Filter].
 */
-func ExampleAndFilter_Index() {
+func ExampleFilterAnd_Index() {
 	var r RFC4515
 	f, _ := r.Filter(`(&(|(sn;lang-sl=Lučić)(employeeID=123456789))(objectClass=person))`)
 
@@ -59,7 +59,7 @@ func ExampleAndFilter_Index() {
 This example demonstrates the means for accessing a specific slice index
 within the return instance of [Filter].
 */
-func ExampleNotFilter_Index() {
+func ExampleFilterNot_Index() {
 	var r RFC4515
 	f, _ := r.Filter(`(!(&(objectClass=employee)(terminated=TRUE)))`)
 
@@ -72,7 +72,7 @@ func ExampleNotFilter_Index() {
 This example demonstrates the means for accessing a specific slice index
 within the return instance of [Filter].
 */
-func ExampleOrFilter_Index() {
+func ExampleFilterOr_Index() {
 	var r RFC4515
 	f, _ := r.Filter(`(&(|(sn=Lučić)(employeeID=123456789))(objectClass=person))`)
 
@@ -414,15 +414,15 @@ func TestFilter_codecov(t *testing.T) {
 	av.Set([]byte(`hello`))
 	av.Set(struct{}{})
 
-	var ands AndFilter
+	var ands FilterAnd
 	ands.isFilter()
 	ands.BER()
 
-	var ors OrFilter
+	var ors FilterOr
 	ors.isFilter()
 	ors.BER()
 
-	var nots NotFilter
+	var nots FilterNot
 	nots.isFilter()
 	nots.BER()
 
@@ -434,9 +434,9 @@ func TestFilter_codecov(t *testing.T) {
 		Children:    []*ber.Packet{zerober},
 	})
 	unmarshalSetFilterBER(zerober)
-	unmarshalNotFilterBER(zerober)
-	unmarshalSubstringsFilterBER(zerober)
-	unmarshalSubstringsFilterBER(&ber.Packet{
+	unmarshalFilterNotBER(zerober)
+	unmarshalFilterSubstringsBER(zerober)
+	unmarshalFilterSubstringsBER(&ber.Packet{
 		Description: `bogus`,
 		Children:    []*ber.Packet{zerober},
 	})
@@ -456,9 +456,9 @@ func TestFilter_codecov(t *testing.T) {
 	unmarshalExtensibleFilterBER(&ber.Packet{
 		Description: `bogus`,
 	})
-	unmarshalPresentFilterBER(&ber.Packet{})
+	unmarshalFilterPresentBER(&ber.Packet{})
 
-	var gEqual GreaterOrEqualFilter
+	var gEqual FilterGreaterOrEqual
 	_ = gEqual.String()
 	gEqual.Index(9)
 	gEqual.IsZero()
@@ -467,7 +467,7 @@ func TestFilter_codecov(t *testing.T) {
 	gEqual.tag()
 	gEqual.isFilter()
 
-	var lEqual LessOrEqualFilter
+	var lEqual FilterLessOrEqual
 	_ = lEqual.String()
 	lEqual.Index(9)
 	lEqual.IsZero()
@@ -476,7 +476,7 @@ func TestFilter_codecov(t *testing.T) {
 	lEqual.tag()
 	lEqual.isFilter()
 
-	var exts ExtensibleMatchFilter
+	var exts FilterExtensibleMatch
 	exts.Index(9)
 	exts.IsZero()
 	_ = exts.String()
@@ -487,7 +487,7 @@ func TestFilter_codecov(t *testing.T) {
 	exts.DNAttributes = true
 	_ = exts.String()
 
-	var substr SubstringsFilter
+	var substr FilterSubstrings
 	_ = substr.String()
 	substr.Index(9)
 	substr.IsZero()
@@ -500,7 +500,7 @@ func TestFilter_codecov(t *testing.T) {
 	substr.Type = AttributeDescription(`cn`)
 	substr.BER()
 
-	var eqly EqualityMatchFilter
+	var eqly FilterEqualityMatch
 	_ = eqly.String()
 	eqly.Index(9)
 	eqly.IsZero()
@@ -509,7 +509,7 @@ func TestFilter_codecov(t *testing.T) {
 	eqly.tag()
 	eqly.isFilter()
 
-	var pres PresentFilter
+	var pres FilterPresent
 	_ = pres.String()
 	pres.Index(9)
 	pres.IsZero()
@@ -518,7 +518,7 @@ func TestFilter_codecov(t *testing.T) {
 	pres.tag()
 	pres.isFilter()
 
-	var aprx ApproximateMatchFilter
+	var aprx FilterApproximateMatch
 	_ = aprx.String()
 	aprx.Index(9)
 	aprx.IsZero()
@@ -566,8 +566,8 @@ func TestFilter_codecov(t *testing.T) {
 	parseItemFilter(`47=_83`)
 	parseItemFilter(`a:dn:1.2.3:=John`)
 	parseExtensibleMatch(`a:dn:1.2.3.4`, `xxxx`)
-	parseNotFilter(`4`)
-	parseNotFilter(`uifeds\f43829`)
+	parseFilterNot(`4`)
+	parseFilterNot(`uifeds\f43829`)
 	processFilter(`uifeds\f43829`)
 	processFilter(` `)
 	parseComplexFilter(`_`, `&`)

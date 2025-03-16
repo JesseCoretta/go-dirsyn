@@ -11,7 +11,7 @@ import (
 /*
 Filter returns a [Filter] qualifier instance alongside an error.
 
-If the input is nil, the default [PresentFilter] (e.g.: "(objectClass=*)")
+If the input is nil, the default [FilterPresent] (e.g.: "(objectClass=*)")
 is returned.
 
 If the input is a string, an attempt to marshal the value is made. If
@@ -32,7 +32,7 @@ func (r RFC4515) Filter(x any) (filter Filter, err error) {
 		// try to handle a zero length string
 		// filter (default return).
 		if len(tv) == 0 {
-			filter = PresentFilter{
+			filter = FilterPresent{
 				Desc: AttributeDescription(`objectClass`),
 			}
 			return
@@ -68,7 +68,7 @@ type Filter interface {
 
 	// Index returns the Nth slice index found within
 	// the receiver instance. This is only useful if
-	// the receiver is an AndFilter or OrFilter Filter
+	// the receiver is an FilterAnd or FilterOr Filter
 	// qualifier type instance.
 	Index(int) Filter
 
@@ -88,7 +88,7 @@ type Filter interface {
 
 	// Len returns the integer length of the receiver
 	// instance. This is only useful if the receiver is
-	// an AndFilter or OrFilter Filter qualifier type
+	// an FilterAnd or FilterOr Filter qualifier type
 	// instance.
 	Len() int
 
@@ -100,49 +100,49 @@ type Filter interface {
 type invalidFilter struct{}
 
 /*
-AndFilter implements the "and" CHOICE of an instance of [Filter].
+FilterAnd implements the "and" CHOICE of an instance of [Filter].
 */
-type AndFilter []Filter
+type FilterAnd []Filter
 
 /*
-OrFilter implements the "or" CHOICE of an instance of [Filter].
+FilterOr implements the "or" CHOICE of an instance of [Filter].
 */
-type OrFilter []Filter
+type FilterOr []Filter
 
 /*
-NotFilter implements the "not" CHOICE of an instance of [Filter].
+FilterNot implements the "not" CHOICE of an instance of [Filter].
 */
-type NotFilter struct {
+type FilterNot struct {
 	Filter
 }
 
 /*
-EqualityMatchFilter aliases the [AttributeValueAssertion] type to implement
+FilterEqualityMatch aliases the [AttributeValueAssertion] type to implement
 the "equalityMatch" CHOICE of an instance of [Filter].
 */
-type EqualityMatchFilter AttributeValueAssertion
+type FilterEqualityMatch AttributeValueAssertion
 
 /*
-GreaterOrEqualFilter aliases the [AttributeValueAssertion] type to implement
+FilterGreaterOrEqual aliases the [AttributeValueAssertion] type to implement
 the "greaterOrEqual" CHOICE of an instance of [Filter].
 */
-type GreaterOrEqualFilter AttributeValueAssertion
+type FilterGreaterOrEqual AttributeValueAssertion
 
 /*
-LessOrEqualFilter aliases the [AttributeValueAssertion] type to implement
+FilterLessOrEqual aliases the [AttributeValueAssertion] type to implement
 the "lessOrEqual" CHOICE of an instance of [Filter].
 */
-type LessOrEqualFilter AttributeValueAssertion
+type FilterLessOrEqual AttributeValueAssertion
 
 /*
-ApproximateMatchFilter aliases the [AttributeValueAssertion] type to implement
+FilterApproximateMatch aliases the [AttributeValueAssertion] type to implement
 the "approxMatch" CHOICE of an instance of [Filter].
 */
-type ApproximateMatchFilter AttributeValueAssertion
+type FilterApproximateMatch AttributeValueAssertion
 
 /*
-AttributeValueAssertion implements the basis for [ApproximateMatchFilter],
-[GreaterOrEqualFilter], [LessOrEqualFilter] and [EqualityMatchFilter].
+AttributeValueAssertion implements the basis for [FilterApproximateMatch],
+[FilterGreaterOrEqual], [FilterLessOrEqual] and [FilterEqualityMatch].
 
 	AttributeValueAssertion ::= SEQUENCE {
 	    attributeDesc   AttributeDescription,
@@ -185,22 +185,22 @@ of [AttributeValueAssertion].
 type AssertionValue []uint8
 
 /*
-PresentFilter implements the "present" CHOICE of an instance of [Filter].
+FilterPresent implements the "present" CHOICE of an instance of [Filter].
 */
-type PresentFilter struct {
+type FilterPresent struct {
 	Desc AttributeDescription
 }
 
 type MatchingRuleID LDAPString
 
 /*
-ExtensibleMatchFilter aliases the [MatchingRuleAssertionFilter] to implement
+FilterExtensibleMatch aliases the [FilterMatchingRuleAssertion] to implement
 the "extensibleMatch" CHOICE of an instance of [Filter].
 */
-type ExtensibleMatchFilter MatchingRuleAssertionFilter
+type FilterExtensibleMatch FilterMatchingRuleAssertion
 
 /*
-MatchingRuleAssertion implements the basis of [ExtensibleMatchFilter].
+MatchingRuleAssertion implements the basis of [FilterExtensibleMatch].
 
 	MatchingRuleAssertion ::= SEQUENCE {
 	    matchingRule    [1] MatchingRuleId OPTIONAL,
@@ -208,7 +208,7 @@ MatchingRuleAssertion implements the basis of [ExtensibleMatchFilter].
 	    matchValue      [3] AssertionValue,
 	    dnAttributes    [4] BOOLEAN DEFAULT FALSE }
 */
-type MatchingRuleAssertionFilter struct {
+type FilterMatchingRuleAssertion struct {
 	MatchingRule MatchingRuleID       `asn1:"tag:1,optional"`
 	Type         AttributeDescription `asn1:"tag:2,optional"`
 	MatchValue   AssertionValue       `asn1:"tag:3"`
@@ -216,9 +216,9 @@ type MatchingRuleAssertionFilter struct {
 }
 
 /*
-SubstringsFilter implements the "substrings" CHOICE of an instance of [Filter].
+FilterSubstrings implements the "substrings" CHOICE of an instance of [Filter].
 */
-type SubstringsFilter struct {
+type FilterSubstrings struct {
 	Type       AttributeDescription
 	Substrings SubstringAssertion
 }
@@ -242,38 +242,38 @@ func (r AttributeTag) String() string { return string(r) }
 // differentiate from other interfaces
 func (r AttributeTag) isAttributeOption()  {}
 func (r invalidFilter) isFilter()          {}
-func (r AndFilter) isFilter()              {}
-func (r NotFilter) isFilter()              {}
-func (r OrFilter) isFilter()               {}
-func (r EqualityMatchFilter) isFilter()    {}
-func (r PresentFilter) isFilter()          {}
-func (r SubstringsFilter) isFilter()       {}
-func (r ExtensibleMatchFilter) isFilter()  {}
-func (r ApproximateMatchFilter) isFilter() {}
-func (r GreaterOrEqualFilter) isFilter()   {}
-func (r LessOrEqualFilter) isFilter()      {}
+func (r FilterAnd) isFilter()              {}
+func (r FilterNot) isFilter()              {}
+func (r FilterOr) isFilter()               {}
+func (r FilterEqualityMatch) isFilter()    {}
+func (r FilterPresent) isFilter()          {}
+func (r FilterSubstrings) isFilter()       {}
+func (r FilterExtensibleMatch) isFilter()  {}
+func (r FilterApproximateMatch) isFilter() {}
+func (r FilterGreaterOrEqual) isFilter()   {}
+func (r FilterLessOrEqual) isFilter()      {}
 
 func (r invalidFilter) IsZero() bool { return true }
 
 /*
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
-func (r AndFilter) IsZero() bool { return &r == nil }
+func (r FilterAnd) IsZero() bool { return &r == nil }
 
 /*
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
-func (r OrFilter) IsZero() bool { return &r == nil }
+func (r FilterOr) IsZero() bool { return &r == nil }
 
 /*
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
-func (r NotFilter) IsZero() bool { return r.Filter == nil }
+func (r FilterNot) IsZero() bool { return r.Filter == nil }
 
 /*
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
-func (r EqualityMatchFilter) IsZero() bool {
+func (r FilterEqualityMatch) IsZero() bool {
 	return r.Desc.String() == "" &&
 		r.Value == nil
 }
@@ -281,7 +281,7 @@ func (r EqualityMatchFilter) IsZero() bool {
 /*
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
-func (r GreaterOrEqualFilter) IsZero() bool {
+func (r FilterGreaterOrEqual) IsZero() bool {
 	return r.Desc.String() == "" &&
 		r.Value == nil
 }
@@ -289,7 +289,7 @@ func (r GreaterOrEqualFilter) IsZero() bool {
 /*
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
-func (r LessOrEqualFilter) IsZero() bool {
+func (r FilterLessOrEqual) IsZero() bool {
 	return r.Desc.String() == "" &&
 		r.Value == nil
 }
@@ -297,7 +297,7 @@ func (r LessOrEqualFilter) IsZero() bool {
 /*
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
-func (r ApproximateMatchFilter) IsZero() bool {
+func (r FilterApproximateMatch) IsZero() bool {
 	return r.Desc.String() == "" &&
 		r.Value == nil
 }
@@ -305,12 +305,12 @@ func (r ApproximateMatchFilter) IsZero() bool {
 /*
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
-func (r PresentFilter) IsZero() bool { return r.Desc.String() == "" }
+func (r FilterPresent) IsZero() bool { return r.Desc.String() == "" }
 
 /*
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
-func (r SubstringsFilter) IsZero() bool {
+func (r FilterSubstrings) IsZero() bool {
 	return r.Type.String() == "" &&
 		r.Substrings.IsZero()
 }
@@ -318,7 +318,7 @@ func (r SubstringsFilter) IsZero() bool {
 /*
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
-func (r ExtensibleMatchFilter) IsZero() bool {
+func (r FilterExtensibleMatch) IsZero() bool {
 	return r.MatchingRule.String() == "" &&
 		r.Type.String() == "" &&
 		r.MatchValue == nil &&
@@ -328,7 +328,7 @@ func (r ExtensibleMatchFilter) IsZero() bool {
 /*
 Index returns the Nth [Filter] slice instance from within the receiver.
 */
-func (r AndFilter) Index(idx int) (filter Filter) {
+func (r FilterAnd) Index(idx int) (filter Filter) {
 	filter = invalidFilter{}
 
 	if !r.IsZero() {
@@ -343,7 +343,7 @@ func (r AndFilter) Index(idx int) (filter Filter) {
 /*
 Index returns the Nth [Filter] slice instance from within the receiver.
 */
-func (r OrFilter) Index(idx int) (filter Filter) {
+func (r FilterOr) Index(idx int) (filter Filter) {
 	filter = invalidFilter{}
 
 	if !r.IsZero() {
@@ -358,7 +358,7 @@ func (r OrFilter) Index(idx int) (filter Filter) {
 /*
 Index returns the Nth [Filter] slice instance from within the receiver.
 */
-func (r NotFilter) Index(idx int) (filter Filter) {
+func (r FilterNot) Index(idx int) (filter Filter) {
 	filter = invalidFilter{}
 
 	if !r.IsZero() {
@@ -381,7 +381,7 @@ func (r invalidFilter) Index(_ int) (filter Filter) {
 Index returns the receiver instance of [Filter]. This method only exists
 to satisfy Go's interface signature requirement.
 */
-func (r GreaterOrEqualFilter) Index(_ int) (filter Filter) {
+func (r FilterGreaterOrEqual) Index(_ int) (filter Filter) {
 	filter = invalidFilter{}
 
 	if !r.IsZero() {
@@ -395,7 +395,7 @@ func (r GreaterOrEqualFilter) Index(_ int) (filter Filter) {
 Index returns the receiver instance of [Filter]. This method only exists
 to satisfy Go's interface signature requirement.
 */
-func (r LessOrEqualFilter) Index(_ int) (filter Filter) {
+func (r FilterLessOrEqual) Index(_ int) (filter Filter) {
 	filter = invalidFilter{}
 
 	if !r.IsZero() {
@@ -409,7 +409,7 @@ func (r LessOrEqualFilter) Index(_ int) (filter Filter) {
 Index returns the receiver instance of [Filter]. This method only exists
 to satisfy Go's interface signature requirement.
 */
-func (r EqualityMatchFilter) Index(_ int) (filter Filter) {
+func (r FilterEqualityMatch) Index(_ int) (filter Filter) {
 	filter = invalidFilter{}
 
 	if !r.IsZero() {
@@ -423,7 +423,7 @@ func (r EqualityMatchFilter) Index(_ int) (filter Filter) {
 Index returns the receiver instance of [Filter]. This method only exists
 to satisfy Go's interface signature requirement.
 */
-func (r SubstringsFilter) Index(_ int) (filter Filter) {
+func (r FilterSubstrings) Index(_ int) (filter Filter) {
 	filter = invalidFilter{}
 
 	if !r.IsZero() {
@@ -437,7 +437,7 @@ func (r SubstringsFilter) Index(_ int) (filter Filter) {
 Index returns the receiver instance of [Filter]. This method only exists
 to satisfy Go's interface signature requirement.
 */
-func (r ApproximateMatchFilter) Index(_ int) (filter Filter) {
+func (r FilterApproximateMatch) Index(_ int) (filter Filter) {
 	filter = invalidFilter{}
 
 	if !r.IsZero() {
@@ -451,7 +451,7 @@ func (r ApproximateMatchFilter) Index(_ int) (filter Filter) {
 Index returns the receiver instance of [Filter]. This method only exists
 to satisfy Go's interface signature requirement.
 */
-func (r PresentFilter) Index(_ int) (filter Filter) {
+func (r FilterPresent) Index(_ int) (filter Filter) {
 	filter = invalidFilter{}
 
 	if !r.IsZero() {
@@ -465,7 +465,7 @@ func (r PresentFilter) Index(_ int) (filter Filter) {
 Index returns the receiver instance of [Filter]. This method only exists
 to satisfy Go's interface signature requirement.
 */
-func (r ExtensibleMatchFilter) Index(_ int) (filter Filter) {
+func (r FilterExtensibleMatch) Index(_ int) (filter Filter) {
 	filter = invalidFilter{}
 
 	if !r.IsZero() {
@@ -569,7 +569,7 @@ func (r *AssertionValue) Set(x any) {
 /*
 String returns the string representation of the receiver instance.
 */
-func (r AndFilter) String() (s string) {
+func (r FilterAnd) String() (s string) {
 	if !r.IsZero() {
 		var parts []string
 		for _, ref := range r {
@@ -584,7 +584,7 @@ func (r AndFilter) String() (s string) {
 /*
 String returns the string representation of the receiver instance.
 */
-func (r OrFilter) String() (s string) {
+func (r FilterOr) String() (s string) {
 	if !r.IsZero() {
 		var parts []string
 		for _, ref := range r {
@@ -599,7 +599,7 @@ func (r OrFilter) String() (s string) {
 /*
 String returns the string representation of the receiver instance.
 */
-func (r NotFilter) String() (s string) {
+func (r FilterNot) String() (s string) {
 	if !r.IsZero() {
 		s = "(!" + r.Filter.String() + ")"
 	}
@@ -610,7 +610,7 @@ func (r NotFilter) String() (s string) {
 /*
 String returns the string representation of the receiver instance.
 */
-func (r EqualityMatchFilter) String() (s string) {
+func (r FilterEqualityMatch) String() (s string) {
 	if !r.IsZero() {
 		s = `(` + r.Desc.String() + `=` + r.Value.String() + `)`
 	}
@@ -621,7 +621,7 @@ func (r EqualityMatchFilter) String() (s string) {
 /*
 String returns the string representation of the receiver instance.
 */
-func (r GreaterOrEqualFilter) String() (s string) {
+func (r FilterGreaterOrEqual) String() (s string) {
 	if !r.IsZero() {
 		s = `(` + r.Desc.String() + `>=` + r.Value.String() + `)`
 	}
@@ -632,7 +632,7 @@ func (r GreaterOrEqualFilter) String() (s string) {
 /*
 String returns the string representation of the receiver instance.
 */
-func (r LessOrEqualFilter) String() (s string) {
+func (r FilterLessOrEqual) String() (s string) {
 	if !r.IsZero() {
 		s = `(` + r.Desc.String() + `<=` + r.Value.String() + `)`
 	}
@@ -643,7 +643,7 @@ func (r LessOrEqualFilter) String() (s string) {
 /*
 String returns the string representation of the receiver instance.
 */
-func (r ApproximateMatchFilter) String() (s string) {
+func (r FilterApproximateMatch) String() (s string) {
 	if !r.IsZero() {
 		s = `(` + r.Desc.String() + `~=` + r.Value.String() + `)`
 	}
@@ -654,7 +654,7 @@ func (r ApproximateMatchFilter) String() (s string) {
 /*
 String returns the string representation of the receiver instance.
 */
-func (r PresentFilter) String() (s string) {
+func (r FilterPresent) String() (s string) {
 	if !r.IsZero() {
 		s = `(` + r.Desc.String() + `=*` + `)`
 	}
@@ -665,7 +665,7 @@ func (r PresentFilter) String() (s string) {
 /*
 String returns the string representation of the receiver instance.
 */
-func (r SubstringsFilter) String() (s string) {
+func (r FilterSubstrings) String() (s string) {
 	if !r.IsZero() {
 		s = `(` + string(r.Type) + `=` + r.Substrings.String() + `)`
 	}
@@ -676,7 +676,7 @@ func (r SubstringsFilter) String() (s string) {
 /*
 String returns the string representation of the receiver instance.
 */
-func (r ExtensibleMatchFilter) String() (s string) {
+func (r FilterExtensibleMatch) String() (s string) {
 	if !r.IsZero() {
 		if r.MatchValue == nil {
 			// always required here.
@@ -721,83 +721,83 @@ func (r invalidFilter) Choice() string { return "invalid" }
 /*
 Choice returns the string literal CHOICE "and".
 */
-func (r AndFilter) Choice() string { return "and" }
+func (r FilterAnd) Choice() string { return "and" }
 
 /*
 Choice returns the string literal CHOICE "or".
 */
-func (r OrFilter) Choice() string { return "or" }
+func (r FilterOr) Choice() string { return "or" }
 
 /*
 Choice returns the string literal CHOICE "not".
 */
-func (r NotFilter) Choice() string { return "not" }
+func (r FilterNot) Choice() string { return "not" }
 
 /*
 Choice returns the string literal CHOICE "equalityMatch".
 */
-func (r EqualityMatchFilter) Choice() string { return "equalityMatch" }
+func (r FilterEqualityMatch) Choice() string { return "equalityMatch" }
 
 /*
 Choice returns the string literal CHOICE "greaterOrEqual".
 */
-func (r GreaterOrEqualFilter) Choice() string { return "greaterOrEqual" }
+func (r FilterGreaterOrEqual) Choice() string { return "greaterOrEqual" }
 
 /*
 Choice returns the string literal CHOICE "lessOrEqual".
 */
-func (r LessOrEqualFilter) Choice() string { return "lessOrEqual" }
+func (r FilterLessOrEqual) Choice() string { return "lessOrEqual" }
 
 /*
 Choice returns the string literal CHOICE "approxMatch".
 */
-func (r ApproximateMatchFilter) Choice() string { return "approxMatch" }
+func (r FilterApproximateMatch) Choice() string { return "approxMatch" }
 
 /*
 Choice returns the string literal CHOICE "present".
 */
-func (r PresentFilter) Choice() string { return "present" }
+func (r FilterPresent) Choice() string { return "present" }
 
 /*
 Choice returns the string literal CHOICE "substrings".
 */
-func (r SubstringsFilter) Choice() string { return "substrings" }
+func (r FilterSubstrings) Choice() string { return "substrings" }
 
 /*
 Choice returns the string literal CHOICE "extensibleMatch".
 */
-func (r ExtensibleMatchFilter) Choice() string { return "extensibleMatch" }
+func (r FilterExtensibleMatch) Choice() string { return "extensibleMatch" }
 
 // tag values are used for BER packet labeling
 func (r invalidFilter) tag() uint64          { return 0 }
-func (r AndFilter) tag() uint64              { return 1 }
-func (r OrFilter) tag() uint64               { return 2 }
-func (r NotFilter) tag() uint64              { return 3 }
-func (r EqualityMatchFilter) tag() uint64    { return 4 }
-func (r SubstringsFilter) tag() uint64       { return 5 }
-func (r GreaterOrEqualFilter) tag() uint64   { return 6 }
-func (r LessOrEqualFilter) tag() uint64      { return 7 }
-func (r PresentFilter) tag() uint64          { return 8 }
-func (r ApproximateMatchFilter) tag() uint64 { return 9 }
-func (r ExtensibleMatchFilter) tag() uint64  { return 10 }
+func (r FilterAnd) tag() uint64              { return 1 }
+func (r FilterOr) tag() uint64               { return 2 }
+func (r FilterNot) tag() uint64              { return 3 }
+func (r FilterEqualityMatch) tag() uint64    { return 4 }
+func (r FilterSubstrings) tag() uint64       { return 5 }
+func (r FilterGreaterOrEqual) tag() uint64   { return 6 }
+func (r FilterLessOrEqual) tag() uint64      { return 7 }
+func (r FilterPresent) tag() uint64          { return 8 }
+func (r FilterApproximateMatch) tag() uint64 { return 9 }
+func (r FilterExtensibleMatch) tag() uint64  { return 10 }
 
 func (r invalidFilter) Len() int { return 0 }
 
 /*
 Len returns the integer length of the receiver instance.
 */
-func (r AndFilter) Len() int { return len(r) }
+func (r FilterAnd) Len() int { return len(r) }
 
 /*
 Len returns the integer length of the receiver instance.
 */
-func (r OrFilter) Len() int { return len(r) }
+func (r FilterOr) Len() int { return len(r) }
 
 /*
 Len always returns one (1), as instances of this kind only contain a
 single value.
 */
-func (r NotFilter) Len() (l int) {
+func (r FilterNot) Len() (l int) {
 	if !r.IsZero() {
 		l = r.Filter.Len()
 	}
@@ -809,43 +809,43 @@ func (r NotFilter) Len() (l int) {
 Len always returns one (1), as instances of this kind only contain a
 single value.
 */
-func (r EqualityMatchFilter) Len() int { return 1 }
+func (r FilterEqualityMatch) Len() int { return 1 }
 
 /*
 Len always returns one (1), as instances of this kind only contain a
 single value.
 */
-func (r GreaterOrEqualFilter) Len() int { return 1 }
+func (r FilterGreaterOrEqual) Len() int { return 1 }
 
 /*
 Len always returns one (1), as instances of this kind only contain a
 single value.
 */
-func (r LessOrEqualFilter) Len() int { return 1 }
+func (r FilterLessOrEqual) Len() int { return 1 }
 
 /*
 Len always returns one (1), as instances of this kind only contain a
 single value.
 */
-func (r ApproximateMatchFilter) Len() int { return 1 }
+func (r FilterApproximateMatch) Len() int { return 1 }
 
 /*
 Len always returns one (1), as instances of this kind only contain a
 single value.
 */
-func (r PresentFilter) Len() int { return 1 }
+func (r FilterPresent) Len() int { return 1 }
 
 /*
 Len always returns one (1), as instances of this kind only contain a
 single value.
 */
-func (r SubstringsFilter) Len() int { return 1 }
+func (r FilterSubstrings) Len() int { return 1 }
 
 /*
 Len always returns one (1), as instances of this kind only contain a
 single value.
 */
-func (r ExtensibleMatchFilter) Len() int { return 1 }
+func (r FilterExtensibleMatch) Len() int { return 1 }
 
 func processFilter(x any) (filter Filter, err error) {
 	var input string
@@ -854,7 +854,7 @@ func processFilter(x any) (filter Filter, err error) {
 	}
 
 	if input = trimS(input); input == "" {
-		filter = PresentFilter{Desc: AttributeDescription("objectClass")}
+		filter = FilterPresent{Desc: AttributeDescription("objectClass")}
 		return
 	} else if cntns(input, `((`) || !checkParenBalanced(input) {
 		err = endOfFilterErr
@@ -864,11 +864,11 @@ func processFilter(x any) (filter Filter, err error) {
 
 	switch {
 	case hasPfx(input, "(&"):
-		filter, err = parseAndFilter(input)
+		filter, err = parseFilterAnd(input)
 	case hasPfx(input, "(|"):
-		filter, err = parseOrFilter(input)
+		filter, err = parseFilterOr(input)
 	case hasPfx(input, "(!"):
-		filter, err = parseNotFilter(input)
+		filter, err = parseFilterNot(input)
 	default:
 		filter, err = parseItemFilter(input)
 	}
@@ -876,15 +876,15 @@ func processFilter(x any) (filter Filter, err error) {
 	return
 }
 
-func parseAndFilter(input string) (Filter, error) {
+func parseFilterAnd(input string) (Filter, error) {
 	return parseComplexFilter(input[2:len(input)-1], "&")
 }
 
-func parseOrFilter(input string) (Filter, error) {
+func parseFilterOr(input string) (Filter, error) {
 	return parseComplexFilter(input[2:len(input)-1], "|")
 }
 
-func parseNotFilter(input string) (filter Filter, err error) {
+func parseFilterNot(input string) (filter Filter, err error) {
 	filter = invalidFilter{}
 	if len(input) < 8 {
 		err = invalidFilterErr
@@ -893,7 +893,7 @@ func parseNotFilter(input string) (filter Filter, err error) {
 
 	var subRef Filter
 	if subRef, err = processFilter(input[2 : len(input)-1]); err == nil {
-		filter = NotFilter{subRef}
+		filter = FilterNot{subRef}
 	}
 
 	return
@@ -910,9 +910,9 @@ func parseComplexFilter(input, prefix string) (Filter, error) {
 		refs = append(refs, subRef)
 	}
 	if prefix == "&" {
-		return AndFilter(refs), nil
+		return FilterAnd(refs), nil
 	}
-	return OrFilter(refs), nil
+	return FilterOr(refs), nil
 }
 
 func parseItemFilter(input string) (filter Filter, err error) {
@@ -941,31 +941,31 @@ func parseItemFilter(input string) (filter Filter, err error) {
 
 	if after == `*` {
 		err = checkFilterOIDs(pre, ``)
-		filter = PresentFilter{
+		filter = FilterPresent{
 			Desc: AttributeDescription(pre)}
 	} else if hasSfx(pre, `>`) {
 		err = checkFilterOIDs(pre[:len(pre)-1], ``)
 		cerr = assertionValueRunes(after, true)
-		filter = GreaterOrEqualFilter{
+		filter = FilterGreaterOrEqual{
 			AttributeDescription(pre[:len(pre)-1]),
 			AssertionValue(after)}
 	} else if hasSfx(pre, `<`) {
 		err = checkFilterOIDs(pre[:len(pre)-1], ``)
 		cerr = assertionValueRunes(after, true)
-		filter = LessOrEqualFilter{
+		filter = FilterLessOrEqual{
 			AttributeDescription(pre[:len(pre)-1]),
 			AssertionValue(after)}
 	} else if hasSfx(pre, `~`) {
 		err = checkFilterOIDs(pre[:len(pre)-1], ``)
 		cerr = assertionValueRunes(after, true)
-		filter = ApproximateMatchFilter{
+		filter = FilterApproximateMatch{
 			AttributeDescription(pre[:len(pre)-1]),
 			AssertionValue(after)}
 	} else if cntns(after, "*") {
 		var ssa SubstringAssertion
 		if ssa, err = marshalSubstringAssertion(after); err == nil {
 			err = checkFilterOIDs(pre, ``)
-			filter = SubstringsFilter{
+			filter = FilterSubstrings{
 				Type:       AttributeDescription(pre),
 				Substrings: ssa}
 		}
@@ -975,7 +975,7 @@ func parseItemFilter(input string) (filter Filter, err error) {
 	} else {
 		err = checkFilterOIDs(pre, ``)
 		cerr = assertionValueRunes(after, true)
-		filter = EqualityMatchFilter{
+		filter = FilterEqualityMatch{
 			Desc:  AttributeDescription(pre),
 			Value: AssertionValue(after)}
 	}
@@ -992,7 +992,7 @@ func parseExtensibleMatch(a, b string) (filter Filter, err error) {
 	sdn := hasPfx(a, `:dn:`) || hasPfx(a, `:DN:`)
 
 	val := AssertionValue(b)
-	_filter := ExtensibleMatchFilter{}
+	_filter := FilterExtensibleMatch{}
 
 	if !scol {
 		if !valueIsDNAttrs(a) {
@@ -1042,7 +1042,7 @@ BER returns the BER encoding of the receiver instance alongside an error.
 To decode the return *[ber.Packet], pass it to [RFC4515.Filter] as the
 input value.
 */
-func (r AndFilter) BER() (packet *ber.Packet, err error) {
+func (r FilterAnd) BER() (packet *ber.Packet, err error) {
 	if r.IsZero() || r.Len() == 0 {
 		err = nilBEREncodeErr
 		return
@@ -1071,7 +1071,7 @@ BER returns the BER encoding of the receiver instance alongside an error.
 To decode the return *[ber.Packet], pass it to [RFC4515.Filter] as the
 input value.
 */
-func (r OrFilter) BER() (packet *ber.Packet, err error) {
+func (r FilterOr) BER() (packet *ber.Packet, err error) {
 	if r.IsZero() || r.Len() == 0 {
 		err = nilBEREncodeErr
 		return
@@ -1099,7 +1099,7 @@ BER returns the BER encoding of the receiver instance alongside an error.
 To decode the return *[ber.Packet], pass it to [RFC4515.Filter] as the
 input value.
 */
-func (r NotFilter) BER() (packet *ber.Packet, err error) {
+func (r FilterNot) BER() (packet *ber.Packet, err error) {
 	if r.IsZero() {
 		err = nilBEREncodeErr
 		return
@@ -1125,7 +1125,7 @@ BER returns the BER encoding of the receiver instance alongside an error.
 To decode the return *[ber.Packet], pass it to [RFC4515.Filter] as the
 input value.
 */
-func (r EqualityMatchFilter) BER() (packet *ber.Packet, err error) {
+func (r FilterEqualityMatch) BER() (packet *ber.Packet, err error) {
 	if r.IsZero() {
 		err = nilBEREncodeErr
 		return
@@ -1152,7 +1152,7 @@ BER returns the BER encoding of the receiver instance alongside an error.
 To decode the return *[ber.Packet], pass it to [RFC4515.Filter] as the
 input value.
 */
-func (r ApproximateMatchFilter) BER() (packet *ber.Packet, err error) {
+func (r FilterApproximateMatch) BER() (packet *ber.Packet, err error) {
 	if r.IsZero() {
 		err = nilBEREncodeErr
 		return
@@ -1179,7 +1179,7 @@ BER returns the BER encoding of the receiver instance alongside an error.
 To decode the return *[ber.Packet], pass it to [RFC4515.Filter] as the
 input value.
 */
-func (r GreaterOrEqualFilter) BER() (packet *ber.Packet, err error) {
+func (r FilterGreaterOrEqual) BER() (packet *ber.Packet, err error) {
 	if r.IsZero() {
 		err = nilBEREncodeErr
 		return
@@ -1206,7 +1206,7 @@ BER returns the BER encoding of the receiver instance alongside an error.
 To decode the return *[ber.Packet], pass it to [RFC4515.Filter] as the
 input value.
 */
-func (r LessOrEqualFilter) BER() (packet *ber.Packet, err error) {
+func (r FilterLessOrEqual) BER() (packet *ber.Packet, err error) {
 	if r.IsZero() {
 		err = nilBEREncodeErr
 		return
@@ -1233,7 +1233,7 @@ BER returns the BER encoding of the receiver instance alongside an error.
 To decode the return *[ber.Packet], pass it to [RFC4515.Filter] as the
 input value.
 */
-func (r PresentFilter) BER() (packet *ber.Packet, err error) {
+func (r FilterPresent) BER() (packet *ber.Packet, err error) {
 	if r.IsZero() {
 		err = nilBEREncodeErr
 		return
@@ -1254,7 +1254,7 @@ BER returns the BER encoding of the receiver instance alongside an error.
 To decode the return *[ber.Packet], pass it to [RFC4515.Filter] as the
 input value.
 */
-func (r SubstringsFilter) BER() (packet *ber.Packet, err error) {
+func (r FilterSubstrings) BER() (packet *ber.Packet, err error) {
 	if r.IsZero() {
 		err = nilBEREncodeErr
 		return
@@ -1298,13 +1298,13 @@ func (r SubstringsFilter) BER() (packet *ber.Packet, err error) {
 	return
 }
 
-func unmarshalPresentFilterBER(packet *ber.Packet) (item Filter, err error) {
+func unmarshalFilterPresentBER(packet *ber.Packet) (item Filter, err error) {
 
 	if str, ok := packet.Value.(AttributeDescription); !ok {
 		item = invalidFilter{}
 		err = errorTxt("Invalid or absent AttributeDescription; cannot unmarshal")
 	} else {
-		item = PresentFilter{Desc: AttributeDescription(str)}
+		item = FilterPresent{Desc: AttributeDescription(str)}
 	}
 
 	return
@@ -1329,9 +1329,9 @@ func unmarshalGeLeFilterBER(packet *ber.Packet) (item Filter, err error) {
 		item = invalidFilter{}
 	} else {
 		if typ == "greaterOrEqual" {
-			item = GreaterOrEqualFilter{Desc: AttributeDescription(a), Value: AssertionValue(v)}
+			item = FilterGreaterOrEqual{Desc: AttributeDescription(a), Value: AssertionValue(v)}
 		} else if typ == "lessOrEqual" {
-			item = LessOrEqualFilter{Desc: AttributeDescription(a), Value: AssertionValue(v)}
+			item = FilterLessOrEqual{Desc: AttributeDescription(a), Value: AssertionValue(v)}
 		} else {
 			err = errorTxt("Invalid or absent type identifier; cannot unmarshal")
 			item = invalidFilter{}
@@ -1358,7 +1358,7 @@ func unmarshalApproxFilterBER(packet *ber.Packet) (item Filter, err error) {
 		err = errorTxt("Invalid or absent Approx descr or value; cannot unmarshal")
 		item = invalidFilter{}
 	} else {
-		item = ApproximateMatchFilter{Desc: AttributeDescription(a), Value: AssertionValue(v)}
+		item = FilterApproximateMatch{Desc: AttributeDescription(a), Value: AssertionValue(v)}
 	}
 
 	return
@@ -1372,7 +1372,7 @@ func unmarshalExtensibleFilterBER(packet *ber.Packet) (item Filter, err error) {
 		return
 	}
 
-	_item := ExtensibleMatchFilter{}
+	_item := FilterExtensibleMatch{}
 
 	var val bool
 	for i := 0; i < lct && _item.Choice() != "invalid"; i++ {
@@ -1422,13 +1422,13 @@ func unmarshalEqualityFilterBER(packet *ber.Packet) (item Filter, err error) {
 		err = errorTxt("Invalid or absent Equality descr or value; cannot unmarshal")
 		item = invalidFilter{}
 	} else {
-		item = EqualityMatchFilter{Desc: AttributeDescription(a), Value: AssertionValue(v)}
+		item = FilterEqualityMatch{Desc: AttributeDescription(a), Value: AssertionValue(v)}
 	}
 
 	return
 }
 
-func unmarshalSubstringsFilterBER(packet *ber.Packet) (item Filter, err error) {
+func unmarshalFilterSubstringsBER(packet *ber.Packet) (item Filter, err error) {
 	item = invalidFilter{}
 	if len(packet.Children) != 2 {
 		err = errorTxt("Unexpected number of AttributeType instances (want:2); cannot unmarshal")
@@ -1444,7 +1444,7 @@ func unmarshalSubstringsFilterBER(packet *ber.Packet) (item Filter, err error) {
 		return
 	}
 
-	_item := SubstringsFilter{
+	_item := FilterSubstrings{
 		Type:       at.Value.(AttributeDescription),
 		Substrings: SubstringAssertion{},
 	}
@@ -1485,7 +1485,7 @@ BER returns the BER encoding of the receiver instance alongside an error.
 To decode the return *[ber.Packet], pass it to [RFC4515.Filter] as the
 input value.
 */
-func (r ExtensibleMatchFilter) BER() (*ber.Packet, error) {
+func (r FilterExtensibleMatch) BER() (*ber.Packet, error) {
 	if r.IsZero() {
 		return nil, nilBEREncodeErr
 	}
@@ -1613,7 +1613,7 @@ func unmarshalFilterBER(packet *ber.Packet) (filter Filter, err error) {
 		"extensibleMatch":
 		filter, err = unmarshalItemFilterBER(packet)
 	case "not":
-		filter, err = unmarshalNotFilterBER(packet)
+		filter, err = unmarshalFilterNotBER(packet)
 	case "and", "or":
 		filter, err = unmarshalSetFilterBER(packet)
 	default:
@@ -1631,9 +1631,9 @@ func unmarshalItemFilterBER(packet *ber.Packet) (item Filter, err error) {
 	case "equalityMatch":
 		item, err = unmarshalEqualityFilterBER(packet)
 	case "present":
-		item, err = unmarshalPresentFilterBER(packet)
+		item, err = unmarshalFilterPresentBER(packet)
 	case "substrings":
-		item, err = unmarshalSubstringsFilterBER(packet)
+		item, err = unmarshalFilterSubstringsBER(packet)
 	case "approxMatch":
 		item, err = unmarshalApproxFilterBER(packet)
 	case "lessOrEqual", "greaterOrEqual":
@@ -1669,16 +1669,16 @@ func unmarshalSetFilterBER(packet *ber.Packet) (filter Filter, err error) {
 
 	if err == nil {
 		if and {
-			filter = AndFilter(filters)
+			filter = FilterAnd(filters)
 		} else {
-			filter = OrFilter(filters)
+			filter = FilterOr(filters)
 		}
 	}
 
 	return
 }
 
-func unmarshalNotFilterBER(packet *ber.Packet) (filter Filter, err error) {
+func unmarshalFilterNotBER(packet *ber.Packet) (filter Filter, err error) {
 	filter = invalidFilter{}
 	if len(packet.Children) != 1 {
 		err = invalidFilterErr
@@ -1687,7 +1687,7 @@ func unmarshalNotFilterBER(packet *ber.Packet) (filter Filter, err error) {
 
 	var nest Filter
 	if nest, err = unmarshalFilterBER(packet.Children[0]); err == nil {
-		filter = NotFilter{nest}
+		filter = FilterNot{nest}
 	}
 
 	return

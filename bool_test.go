@@ -1,6 +1,7 @@
 package dirsyn
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -54,6 +55,13 @@ func TestBoolean_codecov(t *testing.T) {
 	_, _ = booleanMatch(false, true)
 	_, _ = booleanMatch(Boolean{}, true)
 
+}
+
+func ExampleBoolean_SetBytes() {
+	var b Boolean
+	b.SetBytes(0xFF) // TRUE
+	fmt.Println(b)
+	// Output: TRUE
 }
 
 func TestBoolean_Match(t *testing.T) {
