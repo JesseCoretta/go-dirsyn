@@ -1298,15 +1298,15 @@ func (r LDAPSyntax) Match(term string) bool {
 }
 
 /*
-HumanReadable returns a Boolean value indicative of whether the receiver
-instance represents a human readable syntax.
+HR returns a Boolean value indicative of whether the receiver instance
+represents a human readable syntax.
 
 This method is merely a convenient alternative to manually checking the
 underlying Extensions field instance for the presence of an [Extension]
 instance bearing the `X-NOT-HUMAN-READABLE` XString and a BOOLEAN ASN.1
 value of `TRUE`.
 */
-func (r LDAPSyntax) HumanReadable() (hr bool) {
+func (r LDAPSyntax) HR() (hr bool) {
 	// Assume true by default, as most syntaxes
 	// are, in fact, human readable.
 	hr = true

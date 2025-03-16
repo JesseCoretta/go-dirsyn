@@ -93,14 +93,14 @@ func ExampleMatchingRule_Match() {
 	// Output: true
 }
 
-func ExampleLDAPSyntax_HumanReadable() {
+func ExampleLDAPSyntax_HR() {
 	def, idx := exampleSchema.LDAPSyntax(`1.3.6.1.1.15.5`) // X.509 Cert List Exact Assertion
 	if idx == -1 {
 		fmt.Println("No such definition found")
 		return
 	}
 
-	fmt.Println(def.HumanReadable())
+	fmt.Println(def.HR())
 	// Output: false
 }
 
