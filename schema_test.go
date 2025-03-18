@@ -14,7 +14,7 @@ func ExampleAttributeType_SuperChain() {
 	child, _ := exampleSchema.AttributeType(`cn`)
 	supers := child.SuperChain(exampleSchema.AttributeTypes)
 	fmt.Println(supers)
-	// Output: attributeTypes: ( 2.5.4.41  NAME 'name' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC4519' )
+	// Output: attributeTypes: ( 2.5.4.41 NAME 'name' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC4519' )
 }
 
 func ExampleDITStructureRule_SubRules() {
@@ -46,7 +46,7 @@ func ExampleObjectClass_SuperChain() {
 	child, _ := exampleSchema.ObjectClass(`subentry`)
 	supers := child.SuperChain(exampleSchema.ObjectClasses)
 	fmt.Println(supers)
-	// Output: objectClasses: ( 2.5.6.0  NAME 'top' STRUCTURAL MUST objectClass X-ORIGIN 'RFC4512' )
+	// Output: objectClasses: ( 2.5.6.0 NAME 'top' STRUCTURAL MUST objectClass X-ORIGIN 'RFC4512' )
 }
 
 func ExampleObjectClass_AllMust() {
@@ -55,9 +55,9 @@ func ExampleObjectClass_AllMust() {
 		exampleSchema.ObjectClasses)
 	fmt.Println(musts)
 	// Output:
-	// attributeTypes: ( 2.5.4.0  NAME 'objectClass' EQUALITY objectIdentifierMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.38 X-ORIGIN 'RFC4512' )
-	// attributeTypes: ( 2.5.4.3  NAME ( 'cn' 'commonName' ) DESC 'RFC4519: common name(s) for which the entity is known by' SUP name X-ORIGIN 'RFC4519' )
-	// attributeTypes: ( 2.5.18.6  NAME 'subtreeSpecification' SYNTAX 1.3.6.1.4.1.1466.115.121.1.45 SINGLE-VALUE USAGE directoryOperation X-ORIGIN 'RFC3672' )
+	// attributeTypes: ( 2.5.4.0 NAME 'objectClass' EQUALITY objectIdentifierMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.38 X-ORIGIN 'RFC4512' )
+	// attributeTypes: ( 2.5.4.3 NAME ( 'cn' 'commonName' ) DESC 'RFC4519: common name(s) for which the entity is known by' SUP name X-ORIGIN 'RFC4519' )
+	// attributeTypes: ( 2.5.18.6 NAME 'subtreeSpecification' SYNTAX 1.3.6.1.4.1.1466.115.121.1.45 SINGLE-VALUE USAGE directoryOperation X-ORIGIN 'RFC3672' )
 }
 
 func ExampleObjectClass_AllMay() {
@@ -66,10 +66,10 @@ func ExampleObjectClass_AllMay() {
 		exampleSchema.ObjectClasses)
 	fmt.Println(musts)
 	// Output:
-	// attributeTypes: ( 2.5.4.13  NAME 'description' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC4519' )
-	// attributeTypes: ( 2.5.4.7  NAME ( 'l' 'localityName' ) SUP name X-ORIGIN 'RFC4519' )
-	// attributeTypes: ( 2.5.4.11  NAME ( 'ou' 'organizationalUnitName' ) SUP name X-ORIGIN 'RFC4519' )
-	// attributeTypes: ( 2.5.4.34  NAME 'seeAlso' SUP distinguishedName X-ORIGIN 'RFC4519' )
+	// attributeTypes: ( 2.5.4.13 NAME 'description' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN 'RFC4519' )
+	// attributeTypes: ( 2.5.4.7 NAME ( 'l' 'localityName' ) SUP name X-ORIGIN 'RFC4519' )
+	// attributeTypes: ( 2.5.4.11 NAME ( 'ou' 'organizationalUnitName' ) SUP name X-ORIGIN 'RFC4519' )
+	// attributeTypes: ( 2.5.4.34 NAME 'seeAlso' SUP distinguishedName X-ORIGIN 'RFC4519' )
 }
 
 func ExampleSubschemaSubentry_LDAPSyntax() {

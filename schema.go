@@ -1581,7 +1581,7 @@ String returns the string representation of the receiver instance.
 */
 func (r MatchingRule) String() (def string) {
 	if r.Valid() {
-		def = `( ` + r.NumericOID + ` `
+		def = `( ` + r.NumericOID
 		def += definitionName(r.Name)
 		def += definitionDescription(r.Description)
 		def += stringBooleanClause(`OBSOLETE`, r.Obsolete)
@@ -1718,7 +1718,7 @@ String returns the string representation of the receiver instance.
 */
 func (r AttributeType) String() (def string) {
 	if r.Valid() {
-		def = `( ` + r.NumericOID + ` `
+		def = `( ` + r.NumericOID
 		def += definitionName(r.Name)
 		def += definitionDescription(r.Description)
 		def += stringBooleanClause(`OBSOLETE`, r.Obsolete)
@@ -1928,7 +1928,7 @@ String returns the string representation of the receiver instance.
 */
 func (r MatchingRuleUse) String() (def string) {
 	if r.Valid() {
-		def = `( ` + r.NumericOID + ` `
+		def = `( ` + r.NumericOID
 		def += definitionName(r.Name)
 		def += definitionDescription(r.Description)
 		def += stringBooleanClause(`OBSOLETE`, r.Obsolete)
@@ -2085,7 +2085,7 @@ String returns the string representation of the receiver instance.
 */
 func (r ObjectClass) String() (def string) {
 	if r.Valid() {
-		def = `( ` + r.NumericOID + ` `
+		def = `( ` + r.NumericOID
 		def += definitionName(r.Name)
 		def += definitionDescription(r.Description)
 		def += stringBooleanClause(`OBSOLETE`, r.Obsolete)
@@ -2396,7 +2396,7 @@ String returns the string representation of the receiver instance.
 */
 func (r DITContentRule) String() (def string) {
 	if r.Valid() {
-		def = `( ` + r.NumericOID + ` `
+		def = `( ` + r.NumericOID
 		def += definitionName(r.Name)
 		def += definitionDescription(r.Description)
 		def += stringBooleanClause(`OBSOLETE`, r.Obsolete)
@@ -2574,7 +2574,7 @@ String returns the string representation of the receiver instance.
 */
 func (r NameForm) String() (def string) {
 	if r.Valid() {
-		def = `( ` + r.NumericOID + ` `
+		def = `( ` + r.NumericOID
 		def += definitionName(r.Name)
 		def += definitionDescription(r.Description)
 		def += stringBooleanClause(`OBSOLETE`, r.Obsolete)
@@ -2745,7 +2745,7 @@ String returns the string representation of the receiver instance.
 */
 func (r DITStructureRule) String() (def string) {
 	if r.Valid() {
-		def = `( ` + r.RuleID + ` `
+		def = `( ` + r.RuleID
 		def += definitionName(r.Name)
 		def += definitionDescription(r.Description)
 		def += stringBooleanClause(`OBSOLETE`, r.Obsolete)
