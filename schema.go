@@ -3456,7 +3456,7 @@ func stringExtensions(exts map[int]Extension) (s string) {
 
 func stringBooleanClause(token string, b bool) (clause string) {
 	if b {
-		clause = token
+		clause = ` ` + token
 	}
 
 	return
