@@ -46,7 +46,7 @@ func TestNumericString_NumericStringMatch(t *testing.T) {
 }
 
 func TestNumericString_OrderingMatch(t *testing.T) {
-	result, err := numericStringOrderingMatch(`01 47 47`, `01 37 47`)
+	result, err := numericStringOrderingMatch(`01 47 47`, `01 37 47`, LessOrEqual)
 	if err != nil {
 		t.Errorf("%s failed: %v", t.Name(), err)
 	} else if !result.False() {

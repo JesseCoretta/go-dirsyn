@@ -22,7 +22,7 @@ func TestGeneralizedTimeOrderingMatch(t *testing.T) {
 
 	var result Boolean
 	// GreaterOrEqual
-	result, _ = generalizedTimeOrderingMatch(gt2, gt1) // >=
+	result, _ = generalizedTimeOrderingMatch(gt2, gt1, GreaterOrEqual) // >=
 	if result.True() {
 		t.Errorf("%s [GE] failed:\nwant: %s\ngot:  %s",
 			t.Name(), `FALSE`, result)
@@ -31,7 +31,7 @@ func TestGeneralizedTimeOrderingMatch(t *testing.T) {
 	//t.Logf("%s>=%s\n", gt2,gt1)
 
 	// LessOrEqual
-	result, _ = generalizedTimeOrderingMatch(gt1, gt2) // <=
+	result, _ = generalizedTimeOrderingMatch(gt2, gt1, LessOrEqual) // <=
 	if result.False() {
 		t.Errorf("%s [LE] failed:\nwant: %s\ngot:  %s",
 			t.Name(), `TRUE`, result)
@@ -40,8 +40,8 @@ func TestGeneralizedTimeOrderingMatch(t *testing.T) {
 	//t.Logf("%s<=%s\n", gt1,gt2)
 
 	// Equal (via LE)
-	result, _ = generalizedTimeOrderingMatch(gt1, gt1) // >= // equal
-	if result.True() {
+	result, _ = generalizedTimeOrderingMatch(gt1, gt1, GreaterOrEqual) // >= // equal
+	if !result.True() {
 		t.Errorf("%s [EQ] failed:\nwant: %s\ngot:  %s",
 			t.Name(), `TRUE`, result)
 		return
@@ -69,11 +69,11 @@ func TestGeneralizedTime_codecov(t *testing.T) {
 		return
 	}
 
-	_, _ = timeMatch(`20210404041113Z`, `20210404041113Z`, 0)
-	_, _ = timeMatch(`9911040404`, `9901160801`, 0)
-	_, _ = timeMatch(a, b, 2)
-	_, _ = timeMatch(`127`, b, 2)
-	_, _ = timeMatch(a, b, -1)
+	_, _ = timeMatch(`20210404041113Z`, `20210404041113Z`)
+	_, _ = timeMatch(`9911040404`, `9901160801`)
+	_, _ = timeMatch(a, b)
+	_, _ = timeMatch(`127`, b)
+	_, _ = timeMatch(a, b)
 }
 
 func TestUTCTime(t *testing.T) {
@@ -194,8 +194,8 @@ func TestGeneralizedTimeMatchingRules(t *testing.T) {
 			return bewl.True()
 		}
 
-		tOM := func(a, b any) bool {
-			bewl, _ := generalizedTimeOrderingMatch(a, b)
+		tOM := func(a, b any, operator byte) bool {
+			bewl, _ := generalizedTimeOrderingMatch(a, b, operator)
 			return bewl.True()
 		}
 
@@ -207,16 +207,16 @@ func TestGeneralizedTimeMatchingRules(t *testing.T) {
 			results[2] = try.R[2] == tM(A, B)
 			results[3] = try.R[3] == tM(A, B.String())
 		case 2:
-			results[0] = try.R[0] == tOM(AT, B)
-			results[1] = try.R[1] == tOM(BT, A)
-			results[2] = try.R[2] == tOM(A, B)
-			results[3] = try.R[3] == tOM(A, B.String())
+			results[0] = try.R[0] == tOM(AT, B, GreaterOrEqual)
+			results[1] = try.R[1] == tOM(A, BT, LessOrEqual)
+			results[2] = try.R[2] == tOM(A, B, GreaterOrEqual)
+			results[3] = try.R[3] == tOM(A, B.String(), GreaterOrEqual)
 		}
 
 		for idx2, res := range results {
 			if !res {
 				t.Errorf("%s[%d] %s failed [gen time]:\nwant: %t\ngot:  %t",
-					t.Name(), idx, assertions[idx], try.R[idx2], res)
+					t.Name(), idx2, assertions[idx], try.R[idx2], res)
 			}
 		}
 	}

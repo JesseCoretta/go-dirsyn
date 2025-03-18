@@ -250,7 +250,7 @@ OID: 2.5.13.27.
 [§ 4.2.16 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-4.2.16
 */
 func generalizedTimeMatch(a, b any) (result Boolean, err error) {
-	result, err = timeMatch(a, b, 0)
+	result, err = timeMatch(a, b)
 	return
 }
 
@@ -261,12 +261,12 @@ OID: 2.5.13.28.
 
 [§ 4.2.17 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-4.2.17
 */
-func generalizedTimeOrderingMatch(a, b any) (result Boolean, err error) {
-	result, err = timeMatch(a, b, 2)
+func generalizedTimeOrderingMatch(a, b any, operator byte) (result Boolean, err error) {
+	result, err = timeMatch(a, b, operator)
 	return
 }
 
-func timeMatch(rcv, assert any, typ int) (result Boolean, err error) {
+func timeMatch(rcv, assert any, operator ...byte) (result Boolean, err error) {
 	var c time.Time
 	var utc bool
 
@@ -295,20 +295,20 @@ func timeMatch(rcv, assert any, typ int) (result Boolean, err error) {
 	}
 
 	if err == nil {
-		var funk func(time.Time) bool
-		switch typ {
-		case 0:
-			funk = func(thyme time.Time) bool {
+		if len(operator) == 1 {
+			if operator[0] == GreaterOrEqual {
+				result.Set(compareTimes(assert, utc, func(thyme time.Time) bool {
+					return c.Before(thyme) || c.Equal(thyme)
+				}))
+			} else {
+				result.Set(compareTimes(assert, utc, func(thyme time.Time) bool {
+					return c.After(thyme) || c.Equal(thyme)
+				}))
+			}
+		} else {
+			result.Set(compareTimes(assert, utc, func(thyme time.Time) bool {
 				return c.Equal(thyme)
-			}
-			result.Set(compareTimes(assert, utc, funk))
-		case 2:
-			funk = func(thyme time.Time) bool {
-				return c.Before(thyme)
-			}
-			result.Set(compareTimes(assert, utc, funk))
-		default:
-			err = errorTxt("Invalid time format or value")
+			}))
 		}
 	}
 

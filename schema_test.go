@@ -335,15 +335,133 @@ func ExampleSubschemaSubentry_MatchingRule() {
 }
 
 func ExampleMatchingRule_EqualityMatch_caseExactMatch() {
+	// obtain caseExactMatch matchingRule instance
 	mr, idx := exampleSchema.MatchingRule(`caseExactMatch`)
 	if idx == -1 {
 		fmt.Println("No such definition found")
 		return
 	}
 
-	matched := mr.EqualityMatch(`thisIsText`, `ThisIsText`)
+	matched, err := mr.EqualityMatch(`thisIsText`, `ThisIsText`)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
 	fmt.Println(matched)
 	// Output: FALSE
+}
+
+func ExampleMatchingRule_EqualityMatch_integerMatch() {
+	// obtain integerMatch matchingRule instance
+	mr, idx := exampleSchema.MatchingRule(`integerMatch`)
+	if idx == -1 {
+		fmt.Println("No such definition found")
+		return
+	}
+
+	matched, err := mr.EqualityMatch(2, 22)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	fmt.Println(matched)
+	// Output: FALSE
+}
+
+func ExampleMatchingRule_SubstringsMatch_caseExactSubstringsMatch() {
+	// obtain caseExactSubstringsMatch matchingRule instance
+	mr, idx := exampleSchema.MatchingRule(`caseExactSubstringsMatch`)
+	if idx == -1 {
+		fmt.Println("No such definition found")
+		return
+	}
+
+	matched, err := mr.SubstringsMatch(`thisIsText`, `*HisIsT*xt`)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	fmt.Println(matched)
+	// Output: FALSE
+}
+
+func ExampleMatchingRule_OrderingMatch_integerOrderingMatchGreaterOrEqual() {
+	// obtain integerOrderingMatch matchingRule instance
+	mr, idx := exampleSchema.MatchingRule(`integerOrderingMatch`)
+	if idx == -1 {
+		fmt.Println("No such definition found")
+		return
+	}
+
+	// Greater or equal (1>=2)
+	matched, err := mr.OrderingMatch(1, 2, GreaterOrEqual)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	fmt.Println(matched)
+	// Output: TRUE
+}
+
+func ExampleMatchingRule_OrderingMatch_integerOrderingMatchLessOrEqual() {
+	// obtain integerOrderingMatch matchingRule instance
+	mr, idx := exampleSchema.MatchingRule(`integerOrderingMatch`)
+	if idx == -1 {
+		fmt.Println("No such definition found")
+		return
+	}
+
+	// Less or equal (1<=2)
+	matched, err := mr.OrderingMatch(1, 2, LessOrEqual)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	fmt.Println(matched)
+	// Output: TRUE
+}
+
+func ExampleMatchingRule_OrderingMatch_caseExactOrderingMatchGreaterOrEqual() {
+	// obtain caseExactOrderingMatch matchingRule instance
+	mr, idx := exampleSchema.MatchingRule(`caseExactOrderingMatch`)
+	if idx == -1 {
+		fmt.Println("No such definition found")
+		return
+	}
+
+	// Greater or equal (actual>=assertion)
+	matched, err := mr.OrderingMatch(`ThisIsText`, `thisIsText`, GreaterOrEqual)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	fmt.Println(matched)
+	// Output: FALSE
+}
+
+func ExampleMatchingRule_OrderingMatch_caseExactOrderingMatchLessOrEqual() {
+	// obtain caseExactOrderingMatch matchingRule instance
+	mr, idx := exampleSchema.MatchingRule(`caseExactOrderingMatch`)
+	if idx == -1 {
+		fmt.Println("No such definition found")
+		return
+	}
+
+	// Less or equal (actual<=assertion)
+	matched, err := mr.OrderingMatch(`thisIsText`, `ThisIsText`, LessOrEqual)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	fmt.Println(matched)
+	// Output: TRUE
 }
 
 func ExampleSubschemaSubentry_SuperiorStructureRules() {

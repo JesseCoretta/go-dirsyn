@@ -18,4 +18,5 @@ var (
 	endOfFilterErr    error = mkerr("Unexpected end of filter")
 	invalidFilterErr  error = mkerr("Invalid or malformed filter")
 	emptyFilterSetErr error = mkerr("Zero or invalid filter SET")
+	invalidMR         error = mkerr("Invalid or incompatible matching rule")
 )

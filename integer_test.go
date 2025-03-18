@@ -93,27 +93,24 @@ func TestInteger_codecov(t *testing.T) {
 
 	var result Boolean
 	// LessOrEqual
-	result, _ = integerOrderingMatch(1001, 101) // <=
+	result, _ = integerOrderingMatch(1001, 101, LessOrEqual) // <=
 	if !result.False() {
 		t.Errorf("%s [LE] failed:\nwant: %s\ngot:  %s",
 			t.Name(), `FALSE`, result)
-		return
 	}
 
 	// GreaterOrEqual
-	result, _ = integerOrderingMatch(10, 11) // >=
+	result, _ = integerOrderingMatch(10, 11, GreaterOrEqual) // >=
 	if !result.True() {
 		t.Errorf("%s [GE] failed:\nwant: %s\ngot:  %s",
 			t.Name(), `TRUE`, result)
-		return
 	}
 
 	// Equal (via LE)
-	result, _ = integerOrderingMatch(1, 1) // <= (==)
+	result, _ = integerOrderingMatch(1, 1, LessOrEqual) // <= (==)
 	if !result.True() {
 		t.Errorf("%s [EQ] failed:\nwant: %s\ngot:  %s",
 			t.Name(), `TRUE`, result)
-		return
 	}
 
 	isIntegerType(int32(3))

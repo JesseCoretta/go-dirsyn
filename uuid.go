@@ -5,7 +5,7 @@ import (
 )
 
 /*
-UUID aliases [uuid.UUID] to implement RFC4530.
+UUID aliases [uuid.UUID] to implement RFC 4530.
 
 From [§ 3 of RFC 4122]:
 

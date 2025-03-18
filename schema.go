@@ -1328,8 +1328,8 @@ func (r LDAPSyntax) HR() (hr bool) {
 Verify returns an instance of [Boolean] following an analysis of input
 value x against the underlying syntax.
 
-Not to be confused with [LDAPSyntax.Valid] which only checks
-the validity of a syntax definition itself -- not a value.
+Not to be confused with [LDAPSyntax.Valid] which only checks the validity
+of a syntax definition itself -- not an assertion value.
 */
 func (r LDAPSyntax) Verify(x any) (result Boolean) {
 	if xpat := r.xPattern(); xpat != "" {
@@ -1441,17 +1441,109 @@ type MatchingRule struct {
 }
 
 /*
-EqualityMatch performs an equality match between the actual and assertion input
-values. The actual value represents the value that would ostensibly be derived
-from an LDAP DIT entry, while the assertion value represents the test value that
+EqualityMatch returns a [Boolean] instance alongside an error following an
+attempt to perform an equality match between the actual and assertion input
+values.
+
+The actual value represents the value that would ostensibly be derived from
+an LDAP DIT entry, while the assertion value represents the test value that
 would be input by a requesting user.
 */
-func (r MatchingRule) EqualityMatch(actual, assertion any) (result Boolean) {
-	if funk, found := matchingRuleAssertions[r.NumericOID]; found {
-		result, _ = funk(actual, assertion)
+func (r MatchingRule) EqualityMatch(actual, assertion any) (result Boolean, err error) {
+	if r.isEqualityRule() {
+		result, err = r.executeAssertion(actual, assertion)
+	} else {
+		err = invalidMR
 	}
 
 	return
+}
+
+/*
+SubstringsMatch returns a [Boolean] instance alongside an error following an
+attempt to perform a substrings match between the actual and assertion input
+values.
+
+The actual value represents the value that would ostensibly be derived from
+an LDAP DIT entry, while the assertion value represents the test value that
+would be input by a requesting user.
+*/
+func (r MatchingRule) SubstringsMatch(actual, assertion any) (result Boolean, err error) {
+	if r.isSubstringRule() {
+		result, err = r.executeAssertion(actual, assertion)
+	} else {
+		err = invalidMR
+	}
+
+	return
+}
+
+/*
+OrderingMatch returns a [Boolean] instance alongside an error following an
+attempt to compare lo and hi in terms of ordering.
+
+Comparison behavior is dictated through use the operator input byte value.
+See the [GreaterOrEqual] and [LessOrEqual] constants for details.
+
+The actual value represents the value that would ostensibly be derived from
+an LDAP DIT entry, while the assertion value represents the test value that
+would be input by a requesting user.
+*/
+func (r MatchingRule) OrderingMatch(actual, assertion any, operator byte) (result Boolean, err error) {
+	if r.isOrderingRule() {
+		result, err = r.executeAssertion(actual, assertion, operator)
+	} else {
+		err = invalidMR
+	}
+
+	return
+}
+
+/*
+executeAssertion is the private handler method for EQUALITY, SUBSTR and
+ORDERING matching rule operations.
+*/
+func (r MatchingRule) executeAssertion(actual, assertion any, operator ...byte) (result Boolean, err error) {
+	if funk, found := matchingRuleAssertions[r.NumericOID]; found {
+		switch funk.kind() {
+		case `EQUALITY`:
+			result, err = funk.(EqualityRuleAssertion)(actual, assertion)
+		case `SUBSTR`:
+			result, err = funk.(SubstringsRuleAssertion)(actual, assertion)
+		case `ORDERING`:
+			if len(operator) == 1 {
+				result, err = funk.(OrderingRuleAssertion)(actual, assertion, operator[0])
+			} else {
+				err = invalidMR
+			}
+		default:
+			err = invalidMR
+		}
+	} else {
+		err = invalidMR
+	}
+
+	return
+}
+
+func (r MatchingRule) isSubstringRule() (is bool) {
+	if len(r.Name) > 0 {
+		is = cntns(lc(r.Name[0]), `substring`)
+	}
+
+	return
+}
+
+func (r MatchingRule) isOrderingRule() (is bool) {
+	if len(r.Name) > 0 {
+		is = cntns(lc(r.Name[0]), `ordering`)
+	}
+
+	return
+}
+
+func (r MatchingRule) isEqualityRule() (is bool) {
+	return !r.isOrderingRule() && !r.isSubstringRule()
 }
 
 /*

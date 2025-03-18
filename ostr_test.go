@@ -45,7 +45,7 @@ func TestOctetString(t *testing.T) {
 		return
 	}
 
-	result, err = octetStringOrderingMatch(octet1, octet2)
+	result, err = octetStringOrderingMatch(octet1, octet2, GreaterOrEqual)
 	if err != nil {
 		t.Errorf("%s failed: %v", t.Name(), err)
 	} else if !result.True() {
@@ -58,11 +58,11 @@ func TestOctetString(t *testing.T) {
 	_, _ = octetStringMatch([]byte{}, []byte{0x0})
 	_, _ = octetStringMatch([]byte{0x0}, []byte{})
 
-	_, _ = octetStringOrderingMatch([]byte{}, []byte{})
-	_, _ = octetStringOrderingMatch([]byte{}, struct{}{})
-	_, _ = octetStringOrderingMatch(struct{}{}, []byte{})
-	_, _ = octetStringOrderingMatch([]byte{0x0}, []byte{0x1, 0x2})
-	_, _ = octetStringOrderingMatch([]byte{0x1}, []byte{})
+	_, _ = octetStringOrderingMatch([]byte{}, []byte{}, LessOrEqual)
+	_, _ = octetStringOrderingMatch([]byte{}, struct{}{}, LessOrEqual)
+	_, _ = octetStringOrderingMatch(struct{}{}, []byte{}, LessOrEqual)
+	_, _ = octetStringOrderingMatch([]byte{0x0}, []byte{0x1, 0x2}, LessOrEqual)
+	_, _ = octetStringOrderingMatch([]byte{0x1}, []byte{}, LessOrEqual)
 
 	_ = octetString([]byte{})
 	_ = octetString([]byte{0x0, 0x1, 0x2})

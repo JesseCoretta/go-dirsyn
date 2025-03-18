@@ -109,7 +109,7 @@ func octetStringMatch(a, b any) (result Boolean, err error) {
 	return
 }
 
-func octetStringOrderingMatch(a, b any) (result Boolean, err error) {
+func octetStringOrderingMatch(a, b any, operator byte) (result Boolean, err error) {
 	var str1, str2 []byte
 
 	if str1, err = assertOctetString(a); err != nil {
@@ -127,18 +127,33 @@ func octetStringOrderingMatch(a, b any) (result Boolean, err error) {
 
 	// Compare octet strings from the first octet to the last
 	for i := 0; i < mLen; i++ {
-		if str2[i] < str1[i] {
-			result.Set(true)
-			return
-		} else if str2[i] > str1[i] {
-			result.Set(false)
-			return
+		if operator == GreaterOrEqual {
+			if str2[i] < str1[i] {
+				result.Set(true)
+				return
+			} else if str2[i] > str1[i] {
+				result.Set(false)
+				return
+			}
+		} else {
+			if str1[i] < str2[i] {
+				result.Set(true)
+				return
+			} else if str1[i] > str2[i] {
+				result.Set(false)
+				return
+			}
 		}
 	}
 
 	// If the strings are identical up to the length of the
 	// shorter string, the shorter string precedes the longer
 	// string
-	result.Set(len(str2) < len(str1))
+	if operator == GreaterOrEqual {
+		result.Set(len(str2) < len(str1))
+	} else {
+		result.Set(len(str2) > len(str1))
+	}
+
 	return
 }

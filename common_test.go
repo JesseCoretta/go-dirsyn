@@ -43,14 +43,14 @@ func TestMisc_codecov(t *testing.T) {
 	_, _ = caseExactMatch(`That`, `That`)
 	_, _ = caseExactMatch(`That`, struct{}{})
 	_, _ = caseExactMatch(struct{}{}, nil)
-	_, _ = caseIgnoreOrderingMatch(`abc`, `xyz`)
-	_, _ = caseIgnoreOrderingMatch(`abc`, `abc`)
-	_, _ = caseIgnoreOrderingMatch(`abc`, nil)
-	_, _ = caseIgnoreOrderingMatch(nil, `xyz`)
-	_, _ = caseExactOrderingMatch(`abc`, `xyz`)
-	_, _ = caseExactOrderingMatch(`abc`, `abc`)
-	_, _ = caseExactOrderingMatch(`abc`, nil)
-	_, _ = caseExactOrderingMatch(nil, `xyz`)
+	_, _ = caseIgnoreOrderingMatch(`abc`, `xyz`, GreaterOrEqual)
+	_, _ = caseIgnoreOrderingMatch(`abc`, `abc`, GreaterOrEqual)
+	_, _ = caseIgnoreOrderingMatch(`abc`, nil, GreaterOrEqual)
+	_, _ = caseIgnoreOrderingMatch(nil, `xyz`, GreaterOrEqual)
+	_, _ = caseExactOrderingMatch(`abc`, `xyz`, GreaterOrEqual)
+	_, _ = caseExactOrderingMatch(`abc`, `abc`, GreaterOrEqual)
+	_, _ = caseExactOrderingMatch(`abc`, nil, GreaterOrEqual)
+	_, _ = caseExactOrderingMatch(nil, `xyz`, GreaterOrEqual)
 }
 
 func writeTemporaryFile(name string, content []byte) (file *os.File, err error) {

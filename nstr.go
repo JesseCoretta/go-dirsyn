@@ -107,10 +107,14 @@ func numericStringMatch(a, b any) (result Boolean, err error) {
 	return
 }
 
-func numericStringOrderingMatch(a, b any) (result Boolean, err error) {
+func numericStringOrderingMatch(a, b any, operator byte) (result Boolean, err error) {
 	var str1, str2 string
 	if str1, str2, err = prepareNumericStringAssertion(a, b); err == nil {
-		result.Set(str1 < str2)
+		if operator == GreaterOrEqual {
+			result.Set(str1 >= str2)
+		} else {
+			result.Set(str1 <= str2)
+		}
 	}
 
 	return

@@ -295,21 +295,29 @@ func caseBasedMatch(a, b any, caseExact bool) (result Boolean, err error) {
 	return
 }
 
-func caseIgnoreOrderingMatch(a, b any) (Boolean, error) {
-	return caseBasedOrderingMatch(a, b, false)
+func caseIgnoreOrderingMatch(a, b any, operator byte) (Boolean, error) {
+	return caseBasedOrderingMatch(a, b, false, operator)
 }
 
-func caseExactOrderingMatch(a, b any) (Boolean, error) {
-	return caseBasedOrderingMatch(a, b, true)
+func caseExactOrderingMatch(a, b any, operator byte) (Boolean, error) {
+	return caseBasedOrderingMatch(a, b, true, operator)
 }
 
-func caseBasedOrderingMatch(a, b any, caseExact bool) (result Boolean, err error) {
+func caseBasedOrderingMatch(a, b any, caseExact bool, operator byte) (result Boolean, err error) {
 	var str1, str2 string
 	if str1, str2, err = prepareNumericStringAssertion(a, b); err == nil {
 		if caseExact {
-			result.Set(str1 < str2)
+			if operator == GreaterOrEqual {
+				result.Set(str1 >= str2)
+			} else {
+				result.Set(str2 <= str1)
+			}
 		} else {
-			result.Set(lc(str1) < lc(str2))
+			if operator == GreaterOrEqual {
+				result.Set(lc(str1) >= lc(str2))
+			} else {
+				result.Set(lc(str2) <= lc(str1))
+			}
 		}
 	}
 
@@ -362,47 +370,104 @@ var syntaxVerifiers map[string]SyntaxVerification = map[string]SyntaxVerificatio
 }
 
 /*
-MatchingRuleAssertion defines a closure signature held by qualifying
-function instances intended to implement a particular Matching Rule.
+EqualityRuleAssertion defines a closure signature held by qualifying
+function instances intended to implement an Equality MatchingRuleAssertion.
 
 The semantics of the MatchingRuleAssertion are discussed in [§ 4.1 of
 RFC 4517].
 
 [§ 4.1 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-4.1
 */
-type MatchingRuleAssertion func(any, any) (Boolean, error)
+type EqualityRuleAssertion func(any, any) (Boolean, error)
 
-var matchingRuleAssertions map[string]MatchingRuleAssertion = map[string]MatchingRuleAssertion{
-	"2.5.13.0":                   objectIdentifierMatch,
-	"2.5.13.1":                   distinguishedNameMatch,
-	"2.5.13.2":                   caseIgnoreMatch,
-	"2.5.13.3":                   caseIgnoreOrderingMatch,
-	"2.5.13.4":                   caseIgnoreSubstringsMatch,
-	"2.5.13.5":                   caseExactMatch,
-	"2.5.13.6":                   caseExactOrderingMatch,
-	"2.5.13.7":                   caseExactSubstringsMatch,
-	"2.5.13.8":                   numericStringMatch,
-	"2.5.13.9":                   numericStringOrderingMatch,
-	"2.5.13.10":                  numericStringSubstringsMatch,
-	"2.5.13.11":                  caseIgnoreListMatch,
-	"2.5.13.12":                  caseIgnoreListSubstringsMatch,
-	"2.5.13.13":                  booleanMatch,
-	"2.5.13.14":                  integerMatch,
-	"2.5.13.15":                  integerOrderingMatch,
-	"2.5.13.16":                  bitStringMatch,
-	"2.5.13.17":                  octetStringMatch,
-	"2.5.13.18":                  octetStringOrderingMatch,
-	"2.5.13.20":                  telephoneNumberMatch,
-	"2.5.13.21":                  telephoneNumberSubstringsMatch,
-	"2.5.13.23":                  uniqueMemberMatch,
-	"2.5.13.27":                  generalizedTimeMatch,
-	"2.5.13.28":                  generalizedTimeOrderingMatch,
-	"2.5.13.29":                  integerFirstComponentMatch,
-	"2.5.13.30":                  objectIdentifierFirstComponentMatch,
-	"2.5.13.31":                  directoryStringFirstComponentMatch,
-	"2.5.13.32":                  wordMatch,
-	"2.5.13.33":                  keywordMatch,
-	"1.3.6.1.4.1.1466.109.114.1": caseExactIA5Match,
-	"1.3.6.1.4.1.1466.109.114.2": caseIgnoreIA5Match,
-	"1.3.6.1.4.1.1466.109.114.3": caseIgnoreIA5SubstringsMatch,
+func (r EqualityRuleAssertion) isMatchingRuleAssertionFunction() {}
+func (r EqualityRuleAssertion) kind() string                     { return `EQUALITY` }
+
+/*
+SubstringsRuleAssertion defines a closure signature held by qualifying
+function instances intended to implement a Substrings MatchingRuleAssertion.
+
+The semantics of the MatchingRuleAssertion are discussed in [§ 4.1 of
+RFC 4517].
+
+[§ 4.1 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-4.1
+*/
+type SubstringsRuleAssertion func(any, any) (Boolean, error)
+
+func (r SubstringsRuleAssertion) isMatchingRuleAssertionFunction() {}
+func (r SubstringsRuleAssertion) kind() string                     { return `SUBSTR` }
+
+/*
+OrderingRuleAssertion defines a closure signature held by qualifying
+function instances intended to implement an Ordering MatchingRuleAssertion.
+
+The semantics of the MatchingRuleAssertion are discussed in [§ 4.1 of
+RFC 4517].
+
+[§ 4.1 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-4.1
+*/
+type OrderingRuleAssertion func(any, any, byte) (Boolean, error)
+
+func (r OrderingRuleAssertion) isMatchingRuleAssertionFunction() {}
+func (r OrderingRuleAssertion) kind() string                     { return `ORDERING` }
+
+/*
+matchingRuleAssertion is a private interface type which is qualified
+through instances of EqualityRuleAssertion, SubstringsRuleAssertion
+and OrderingRuleAssertion closure functions.
+*/
+type matchingRuleAssertion interface {
+	// kind returns the string literal
+	// EQUALITY, SUBSTR or ORDERING.
+	kind() string
+
+	// Differentiate from other interfaces
+	isMatchingRuleAssertionFunction()
+}
+
+/*
+GreaterOrEqual (>=), when input to an [OrderingRuleAssertion] function,
+results in a greater or equal (GE) comparison.
+*/
+const GreaterOrEqual byte = 0x0
+
+/*
+LessOrEqual (<=), when input to an [OrderingRuleAssertion] function,
+results in a less or equal (LE) comparison.
+*/
+const LessOrEqual byte = 0x1
+
+var matchingRuleAssertions map[string]matchingRuleAssertion = map[string]matchingRuleAssertion{
+	"2.5.13.0":                   EqualityRuleAssertion(objectIdentifierMatch),
+	"2.5.13.1":                   EqualityRuleAssertion(distinguishedNameMatch),
+	"2.5.13.2":                   EqualityRuleAssertion(caseIgnoreMatch),
+	"2.5.13.3":                   OrderingRuleAssertion(caseIgnoreOrderingMatch),
+	"2.5.13.4":                   SubstringsRuleAssertion(caseIgnoreSubstringsMatch),
+	"2.5.13.5":                   EqualityRuleAssertion(caseExactMatch),
+	"2.5.13.6":                   OrderingRuleAssertion(caseExactOrderingMatch),
+	"2.5.13.7":                   SubstringsRuleAssertion(caseExactSubstringsMatch),
+	"2.5.13.8":                   EqualityRuleAssertion(numericStringMatch),
+	"2.5.13.9":                   OrderingRuleAssertion(numericStringOrderingMatch),
+	"2.5.13.10":                  SubstringsRuleAssertion(numericStringSubstringsMatch),
+	"2.5.13.11":                  EqualityRuleAssertion(caseIgnoreListMatch),
+	"2.5.13.12":                  SubstringsRuleAssertion(caseIgnoreListSubstringsMatch),
+	"2.5.13.13":                  EqualityRuleAssertion(booleanMatch),
+	"2.5.13.14":                  EqualityRuleAssertion(integerMatch),
+	"2.5.13.15":                  OrderingRuleAssertion(integerOrderingMatch),
+	"2.5.13.16":                  EqualityRuleAssertion(bitStringMatch),
+	"2.5.13.17":                  EqualityRuleAssertion(octetStringMatch),
+	"2.5.13.18":                  OrderingRuleAssertion(octetStringOrderingMatch),
+	"2.5.13.20":                  EqualityRuleAssertion(telephoneNumberMatch),
+	"2.5.13.21":                  SubstringsRuleAssertion(telephoneNumberSubstringsMatch),
+	"2.5.13.23":                  EqualityRuleAssertion(uniqueMemberMatch),
+	"2.5.13.27":                  EqualityRuleAssertion(generalizedTimeMatch),
+	"2.5.13.28":                  OrderingRuleAssertion(generalizedTimeOrderingMatch),
+	"2.5.13.29":                  EqualityRuleAssertion(integerFirstComponentMatch),
+	"2.5.13.30":                  EqualityRuleAssertion(objectIdentifierFirstComponentMatch),
+	"2.5.13.31":                  EqualityRuleAssertion(directoryStringFirstComponentMatch),
+	"2.5.13.32":                  EqualityRuleAssertion(wordMatch),
+	"2.5.13.33":                  EqualityRuleAssertion(keywordMatch),
+	"1.3.6.1.4.1.1466.109.114.1": EqualityRuleAssertion(caseExactIA5Match),
+	"1.3.6.1.4.1.1466.109.114.2": EqualityRuleAssertion(caseIgnoreIA5Match),
+	"1.3.6.1.4.1.1466.109.114.3": SubstringsRuleAssertion(caseIgnoreIA5SubstringsMatch),
 }

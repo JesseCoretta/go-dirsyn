@@ -275,7 +275,7 @@ OID: 2.5.13.14
 [§ 4.2.19 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-4.2.19
 */
 func integerMatch(a, b any) (Boolean, error) {
-	return integerMatchingRule(a, b, true)
+	return integerMatchingRule(a, b)
 }
 
 /*
@@ -285,8 +285,8 @@ OID: 2.5.13.15
 
 [§ 4.2.20 of RFC 4517]: https://datatracker.ietf.org/doc/html/rfc4517#section-4.2.20
 */
-func integerOrderingMatch(a, b any) (Boolean, error) {
-	return integerMatchingRule(a, b, false)
+func integerOrderingMatch(a, b any, operator byte) (Boolean, error) {
+	return integerMatchingRule(a, b, operator)
 }
 
 /*
@@ -325,7 +325,7 @@ func integerFirstComponentMatch(a, b any) (result Boolean, err error) {
 	return
 }
 
-func integerMatchingRule(a, b any, equality bool) (Boolean, error) {
+func integerMatchingRule(a, b any, operator ...byte) (Boolean, error) {
 	var result Boolean
 
 	bint1, err1 := assertNumber(a)
@@ -340,16 +340,24 @@ func integerMatchingRule(a, b any, equality bool) (Boolean, error) {
 	}
 	i2 := Integer(*bint2)
 
-	result.Set(compareIntegerInteger(i1, i2, equality))
+	result.Set(compareIntegerInteger(i1, i2, operator...))
 
 	return result, nil
 }
 
-func compareIntegerInteger(i, tv Integer, equality bool) (is bool) {
-	is = i.Cast().Cmp(tv.Cast()) == 0
-	if !equality {
-		is = i.Cast().Cmp(tv.Cast()) == 0 ||
-			i.Cast().Cmp(tv.Cast()) == -1
+func compareIntegerInteger(i, tv Integer, operator ...byte) (is bool) {
+	cmp := i.Cast().Cmp(tv.Cast())
+
+	switch len(operator) {
+	case 0:
+		is = cmp == 0
+	default:
+		if operator[0] == GreaterOrEqual {
+			is = 0 >= cmp
+		} else {
+			is = cmp <= 0
+		}
 	}
+
 	return
 }
