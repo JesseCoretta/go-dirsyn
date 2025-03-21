@@ -2345,7 +2345,11 @@ func definitionName(name []string) (def string) {
 	return
 }
 
-func definitionMVDescriptors(key string, src any) (clause string) {
+func definitionMVDescriptors(key string, src any, dsr ...bool) (clause string) {
+	var isDsr bool
+	if len(dsr) > 0 {
+		isDsr = dsr[0]
+	}
 	switch tv := src.(type) {
 	case string:
 		if len(tv) > 0 {
@@ -2353,7 +2357,11 @@ func definitionMVDescriptors(key string, src any) (clause string) {
 		}
 	case []string:
 		if len(tv) > 0 {
-			clause += ` ` + uc(key) + ` ` + stringDescrs(tv, ` $ `)
+			delim := ` $ `
+			if isDsr {
+				delim = ` `
+			}
+			clause += ` ` + uc(key) + ` ` + stringDescrs(tv, delim)
 		}
 	}
 
@@ -2897,7 +2905,7 @@ func (r DITStructureRule) String() (def string) {
 		def += definitionDescription(r.Description)
 		def += stringBooleanClause(`OBSOLETE`, r.Obsolete)
 		def += definitionMVDescriptors(`FORM`, r.Form)
-		def += definitionMVDescriptors(`SUP`, r.SuperRules)
+		def += definitionMVDescriptors(`SUP`, r.SuperRules, true)
 		def += stringExtensions(r.Extensions)
 		def += ` )`
 	}
