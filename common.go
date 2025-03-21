@@ -1,6 +1,7 @@
 package dirsyn
 
 import (
+	"bytes"
 	"encoding/asn1"
 	"encoding/base64"
 	"encoding/hex"
@@ -22,18 +23,24 @@ var (
 	cntns      func(string, string) bool                 = strings.Contains
 	mkerr      func(string) error                        = errors.New
 	fields     func(string) []string                     = strings.Fields
+	bfields    func([]byte) [][]byte                     = bytes.Fields
 	trimS      func(string) string                       = strings.TrimSpace
 	trimL      func(string, string) string               = strings.TrimLeft
 	trimR      func(string, string) string               = strings.TrimRight
 	trimPfx    func(string, string) string               = strings.TrimPrefix
 	trimSfx    func(string, string) string               = strings.TrimSuffix
+	btrimS     func([]byte) []byte                       = bytes.TrimSpace
 	hasPfx     func(string, string) bool                 = strings.HasPrefix
 	hasSfx     func(string, string) bool                 = strings.HasSuffix
+	bhasPfx    func([]byte, []byte) bool                 = bytes.HasPrefix
+	bhasSfx    func([]byte, []byte) bool                 = bytes.HasSuffix
 	join       func([]string, string) string             = strings.Join
+	bsplit     func([]byte, []byte) [][]byte             = bytes.Split
 	split      func(string, string) []string             = strings.Split
 	splitN     func(string, string, int) []string        = strings.SplitN
 	idxr       func(string, rune) int                    = strings.IndexRune
 	repAll     func(string, string, string) string       = strings.ReplaceAll
+	brepAll    func([]byte, []byte, []byte) []byte       = bytes.ReplaceAll
 	puint      func(string, int, int) (uint64, error)    = strconv.ParseUint
 	fuint      func(uint64, int) string                  = strconv.FormatUint
 	hexdec     func(string) ([]byte, error)              = hex.DecodeString
@@ -46,11 +53,14 @@ var (
 	asn1ump    func([]byte, any, string) ([]byte, error) = asn1.UnmarshalWithParams
 	streqf     func(string, string) bool                 = strings.EqualFold
 	stridx     func(string, string) int                  = strings.Index
+	bidx       func([]byte, []byte) int                  = bytes.Index
 	strlidx    func(string, string) int                  = strings.LastIndex
 	strcnt     func(string, string) int                  = strings.Count
 	trim       func(string, string) string               = strings.Trim
 	uc         func(string) string                       = strings.ToUpper
 	lc         func(string) string                       = strings.ToLower
+	blc        func([]byte) []byte                       = bytes.ToLower
+	buc        func([]byte) []byte                       = bytes.ToUpper
 	readFile   func(string) ([]byte, error)              = os.ReadFile
 	newBigInt  func(int64) *big.Int                      = big.NewInt
 	valOf      func(any) reflect.Value                   = reflect.ValueOf
@@ -68,14 +78,89 @@ func streq(a, b string) bool {
 }
 
 /*
-for firstComponent matches
+removeComments is a private function which returns the input
+[]byte instance, devoid of all all Bash or Go style comments.
+*/
+func removeComments(input []byte) []byte {
+
+	var (
+		output         bytes.Buffer
+		inLineComment  bool
+		inBlockComment bool
+	)
+
+	for i := 0; i < len(input); i++ {
+		// Check for start of a block comment
+		if isNotInComment(inLineComment, inBlockComment) && i+1 < len(input) &&
+			isMultiLineCommentOpen(input[i], input[i+1]) {
+			inBlockComment = true
+			i++ // Skip the next character (*)
+			continue
+		}
+
+		// Check for end of a block comment
+		if inBlockComment && i+1 < len(input) &&
+			isMultiLineCommentClose(input[i], input[i+1]) {
+			inBlockComment = false
+			i++ // Skip the next character (/)
+			continue
+		}
+
+		// Check for start of a line comment (#)
+		if isNotInComment(inLineComment, inBlockComment) && input[i] == '#' {
+			inLineComment = true
+			continue
+		}
+
+		// Check for start of a line comment (//)
+		if isNotInComment(inLineComment, inBlockComment) && i+1 < len(input) &&
+			isSingleLineComment(input[i], input[i+1]) {
+			inLineComment = true
+			i++ // Skip the next character (/)
+			continue
+		}
+
+		// Handle line breaks to terminate line comments
+		inLineComment = inLineComment && isLinebreak(input[i])
+
+		// Write to output if not inside a comment
+		if isNotInComment(inLineComment, inBlockComment) {
+			output.WriteByte(input[i])
+		}
+	}
+
+	return output.Bytes()
+}
+
+func isLinebreak(char byte) bool {
+	return char == '\n' || char == '\r'
+}
+
+func isMultiLineCommentOpen(char1, char2 byte) bool {
+	return char1 == '/' && char2 == '*'
+}
+
+func isMultiLineCommentClose(char1, char2 byte) bool {
+	return char1 == '*' && char2 == '/'
+}
+
+func isNotInComment(inLine, inBlock bool) bool {
+	return !inLine && !inBlock
+}
+
+func isSingleLineComment(char1, char2 byte) bool {
+	return char1 == '/' && char2 == '/'
+}
+
+/*
+assertFirstStructField is a private function used for
+firstComponent EQUALITY matching, in which the first
+struct (ASN.1 SEQUENCE) field is matched.
 */
 func assertFirstStructField(x any) (first any) {
-	value := valOf(x)
 	if isStruct(x) {
-		typ := typeOf(x)
-		if typ.NumField() > 0 {
-			first = value.Field(0).Interface()
+		if typ := typeOf(x); typ.NumField() > 0 {
+			first = valOf(x).Field(0).Interface()
 		}
 	}
 
@@ -83,8 +168,9 @@ func assertFirstStructField(x any) (first any) {
 }
 
 /*
-isStruct returns a boolean value indicative of whether
-kind reflection revealed the presence of a struct type.
+isStruct is a private function which returns a Boolean
+value indicative of whether kind reflection revealed
+the presence of a struct type.
 */
 func isStruct(x any) (is bool) {
 	if x != nil {
@@ -94,8 +180,24 @@ func isStruct(x any) (is bool) {
 	return
 }
 
+/*
+newStrBuilder is a private function which returns an
+instance of strings.Builder. This is merely a convenience
+wrapper which avoids the need for multiple import calls
+of the bytes package.
+*/
 func newStrBuilder() strings.Builder {
 	return strings.Builder{}
+}
+
+/*
+newBytesBuffer is a private function which returns an
+instance of bytes.Buffer. This is merely a convenience
+wrapper which avoids the need for multiple import calls
+of the bytes package.
+*/
+func newBytesBuffer() bytes.Buffer {
+	return bytes.Buffer{}
 }
 
 func escapeString(x string) (esc string) {
@@ -118,6 +220,11 @@ func escapeString(x string) (esc string) {
 	return
 }
 
+/*
+uitoa is a private function which facilitates the
+unsigned equivalent of strconv.Itoa. Input x must
+be either an instance of uint or uint64.
+*/
 func uitoa(x any) (s string) {
 	switch tv := x.(type) {
 	case uint:
@@ -180,6 +287,12 @@ func hexDecode(x any) string {
 	return d.String()
 }
 
+/*
+isBase64 is a private function which returns a Boolean
+value indicative of whether input x -- which must be an
+instance of string or []byte -- is a base64 encoded
+value.
+*/
 func isBase64(x any) (is bool) {
 	var raw string
 	switch tv := x.(type) {
@@ -197,12 +310,25 @@ func isBase64(x any) (is bool) {
 	return
 }
 
+/*
+b64dec is a private function which returns an instance of []byte
+alongside an error. The return []byte instance represents the base64
+decoded value of enc.
+*/
 func b64dec(enc []byte) (dec []byte, err error) {
 	dec = make([]byte, base64.StdEncoding.DecodedLen(len(enc)))
 	_, err = base64.StdEncoding.Decode(dec, enc)
 	return
 }
 
+/*
+splitUnescaped returns an instance of []string based upon an attempt
+to split the input str value on separator characters which are NOT
+escaped. Escaped separator values are ignored.
+
+For example, this allows a string to be split on comma (,) while
+ignoring escaped commas (\,).
+*/
 func splitUnescaped(str, sep, esc string) (slice []string) {
 	slice = split(str, sep)
 	for i := len(slice) - 2; i >= 0; i-- {
@@ -215,6 +341,14 @@ func splitUnescaped(str, sep, esc string) (slice []string) {
 	return
 }
 
+/*
+strInSlice returns a Boolean value indicative of the presence of
+r within the input slice value.  The optional variadic input value
+cEM indicates whether the matching process should recognize exact
+case folding.
+
+By default, case is not significant in the matching process.
+*/
 func strInSlice(r string, slice []string, cEM ...bool) (match bool) {
 	var cem bool
 	if len(cEM) > 0 {
@@ -232,10 +366,20 @@ func strInSlice(r string, slice []string, cEM ...bool) (match bool) {
 	return
 }
 
+/*
+isUnsignedNumber is a private function which returns a Boolean
+value indicative of whether input x is an unsigned (non-negative)
+decimal number in string representation.
+*/
 func isUnsignedNumber(x string) bool {
 	return isNumber(x) && !hasPfx(x, `-`)
 }
 
+/*
+isNumber is a private function which returns a Boolean value
+indicative of whether input x represents any signed or unsigned
+decimal number in string representation.
+*/
 func isNumber(x string) bool {
 	x = trimL(x, `-`)
 	for _, c := range x {
@@ -324,6 +468,58 @@ func caseBasedOrderingMatch(a, b any, caseExact bool, operator byte) (result Boo
 	return
 }
 
+/*
+condenseWHSP returns input as a string with all contiguous
+WHSP characters condensed into single space characters.
+
+The input value may be a string or []byte instance.
+
+WHSP is qualified through space or TAB chars (ASCII #32
+and #9 respectively).
+*/
+func condenseWHSP(input any) (a string) {
+	// remove leading and trailing
+	// WHSP characters ...
+	var b string
+	switch tv := input.(type) {
+	case string:
+		b = tv
+	case []byte:
+		b = string(tv)
+	default:
+		return ``
+	}
+
+	b = trimS(b)
+	b = repAll(b, string(rune(10)), string(rune(32)))
+
+	var last bool
+	for i := 0; i < len(b); i++ {
+		c := rune(b[i])
+		switch c {
+		// match space (32) or tab (9)
+		case rune(9), rune(10), rune(32):
+			if !last {
+				last = true
+				a += string(rune(32))
+			}
+		default:
+			if last {
+				last = false
+			}
+			a += string(c)
+		}
+	}
+
+	a = trimS(a)
+	return
+}
+
+/*
+LDAPString implements [4.1.2 of RFC 4511].
+
+[§ 4.1.2 of RFC 4511]: https://datatracker.ietf.org/doc/html/rfc4511#section-4.1.2
+*/
 type LDAPString OctetString
 
 /*

@@ -21,6 +21,139 @@ func (r RFC4512) SubschemaSubentry() *SubschemaSubentry {
 }
 
 /*
+Read returns an error following an attempt to read the specified
+filename into an instance of []byte, which is then fed to the
+[SubschemaSubentry.ReadBytes] method automatically.
+
+The filename MUST end in ".schema", else an error shall be raised.
+*/
+func (r *SubschemaSubentry) ReadFile(file string) (err error) {
+	var data []byte
+
+	if !hasSfx(file, `.schema`) {
+		err = errorTxt("Filename MUST end in `.schema`")
+		return
+	}
+
+	if data, err = readFile(file); err == nil {
+		err = r.ReadBytes(data)
+	}
+
+	return
+}
+
+/*
+ReadBytes returns an error following an attempt parse data ([]byte)
+into the receiver instance. This method exists as a convenient
+alternative to manual parsing of individual definitions, one at a
+time.
+
+Definitions which are dependencies of other definitions should be
+parsed first. For example, the following AttributeTypeDescriptions
+should be parsed in the order shown:
+
+attributeType ( 2.5.4.41 NAME 'name' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )
+attributeType ( 2.5.4.3 NAME 'cn' SUP name )
+
+... as "cn" depends upon "name".
+
+Each definition MUST begin with one (1) of the following keywords:
+
+  - "ldapSyntax" or "ldapSyntaxes"
+  - "matchingRule" or "matchingRules"
+  - "attributeType" or "attributeTypes"
+  - "objectClass" or "objectClasses"
+  - "dITContentRule" or "dITContentRules"
+  - "nameForm" or "nameForms"
+  - "dITStructureRule" or "dITStructureRules"
+
+Case is not significant in the keyword matching process.
+*/
+func (r *SubschemaSubentry) ReadBytes(data []byte) error {
+	keywords := []string{
+		`ldapSyntaxes`, `ldapSyntax`,
+		`matchingRules`, `matchingRule`,
+		`attributeTypes`, `attributeType`,
+		`objectClasses`, `objectClass`,
+		`dITContentRules`, `dITContentRule`,
+		`nameForms`, `nameForm`,
+		`dITStructureRules`, `dITStructureRule`,
+	}
+
+	data = removeComments(data)
+	data = brepAll(data, []byte("$\n"), []byte("$ "))
+	lines := bsplit(data, []byte("\n"))
+
+	var (
+		result [][]byte
+		cur    []byte
+	)
+
+	// Returns a boolean and the keyword IF said
+	// keyword is at the start of the line.
+	isKeywordLine := func(line []byte) (bool, string) {
+		for _, keyword := range keywords {
+			if bhasPfx(line, []byte(keyword)) {
+				return true, keyword
+			}
+		}
+		return false, ""
+	}
+
+	for _, line := range lines {
+		line = []byte(condenseWHSP(line))
+		if len(line) == 0 {
+			continue
+		}
+
+		if isKeyword, _ := isKeywordLine(line); isKeyword {
+			if len(cur) > 0 {
+				result = append(result, cur)
+			}
+			cur = line
+		} else {
+			if len(cur) > 0 {
+				cur = append(cur, ' ')
+				cur = append(cur, line...)
+			}
+		}
+	}
+
+	// Add the final segment
+	if len(cur) > 0 {
+		result = append(result, cur)
+	}
+
+	return r.registerSchemaByCase(result)
+}
+
+func (r *SubschemaSubentry) registerSchemaByCase(defs [][]byte) (err error) {
+	for i := 0; i < len(defs) && err == nil; i++ {
+		def := defs[i]
+		if bhasPfx(blc(def), []byte(`ldapsyntax`)) {
+			err = r.RegisterLDAPSyntax(def)
+		} else if bhasPfx(blc(def), []byte(`matchingrule`)) &&
+			!bhasPfx(blc(def), []byte(`matchingruleuse`)) {
+			err = r.RegisterMatchingRule(def)
+		} else if bhasPfx(blc(def), []byte(`attributetype`)) {
+			err = r.RegisterAttributeType(def)
+		} else if bhasPfx(blc(def), []byte(`objectclass`)) {
+			err = r.RegisterObjectClass(def)
+		} else if bhasPfx(blc(def), []byte(`ditcontentrule`)) {
+			err = r.RegisterDITContentRule(def)
+		} else if bhasPfx(blc(def), []byte(`nameform`)) {
+			err = r.RegisterNameForm(def)
+		} else if bhasPfx(blc(def), []byte(`ditstructurerule`)) {
+			err = r.RegisterDITStructureRule(def)
+		} else {
+			err = errorTxt("Invalid definition: " + string(def))
+		}
+	}
+
+	return
+}
+
+/*
 Definition is an interface type qualified through instances of the
 following types:
 
@@ -213,6 +346,8 @@ func (r *SubschemaSubentry) RegisterLDAPSyntax(input any) (err error) {
 			err = errorTxt("ldapSyntax: Invalid description syntax")
 		}
 		def = tv
+	case []byte:
+		def, err = marshalLDAPSyntax(string(tv))
 	case string:
 		def, err = marshalLDAPSyntax(tv)
 	default:
@@ -251,6 +386,8 @@ func (r *SubschemaSubentry) RegisterMatchingRule(input any) (err error) {
 	switch tv := input.(type) {
 	case MatchingRule:
 		def = tv
+	case []byte:
+		def, err = marshalMatchingRule(string(tv))
 	case string:
 		def, err = marshalMatchingRule(tv)
 	default:
@@ -307,6 +444,8 @@ func (r *SubschemaSubentry) RegisterAttributeType(input any) (err error) {
 	switch tv := input.(type) {
 	case AttributeType:
 		def = tv
+	case []byte:
+		def, err = marshalAttributeType(string(tv))
 	case string:
 		def, err = marshalAttributeType(tv)
 	default:
@@ -408,6 +547,8 @@ func (r *SubschemaSubentry) RegisterObjectClass(input any) (err error) {
 	switch tv := input.(type) {
 	case ObjectClass:
 		def = tv
+	case []byte:
+		def, err = marshalObjectClass(string(tv))
 	case string:
 		def, err = marshalObjectClass(tv)
 	default:
@@ -476,6 +617,8 @@ func (r *SubschemaSubentry) RegisterDITContentRule(input any) (err error) {
 	switch tv := input.(type) {
 	case DITContentRule:
 		def = tv
+	case []byte:
+		def, err = marshalDITContentRule(string(tv))
 	case string:
 		def, err = marshalDITContentRule(tv)
 	default:
@@ -552,6 +695,8 @@ func (r *SubschemaSubentry) RegisterNameForm(input any) (err error) {
 	switch tv := input.(type) {
 	case NameForm:
 		def = tv
+	case []byte:
+		def, err = marshalNameForm(string(tv))
 	case string:
 		def, err = marshalNameForm(tv)
 	default:
@@ -617,6 +762,8 @@ func (r *SubschemaSubentry) RegisterDITStructureRule(input any) (err error) {
 	switch tv := input.(type) {
 	case DITStructureRule:
 		def = tv
+	case []byte:
+		def, err = marshalDITStructureRule(string(tv))
 	case string:
 		def, err = marshalDITStructureRule(tv)
 	default:
@@ -2873,7 +3020,7 @@ func marshalLDAPSyntax(input string) (def LDAPSyntax, err error) {
 					Values:  parseMultiVal(tkz),
 				}
 			} else {
-				err = errorTxt("Unknown token in definition: '" + token + "'")
+				err = errorTxt("ldapSyntax: Unknown token in definition: '" + input + "'")
 			}
 		}
 
@@ -2926,7 +3073,7 @@ func marshalMatchingRule(input string) (def MatchingRule, err error) {
 					Values:  parseMultiVal(tkz),
 				}
 			} else {
-				err = errorTxt("Unknown token in definition: " + token)
+				err = errorTxt("matchingRule: Unknown token in definition: " + token)
 			}
 		}
 
@@ -2979,7 +3126,7 @@ func marshalMatchingRuleUse(input string) (def MatchingRuleUse, err error) {
 					Values:  parseMultiVal(tkz),
 				}
 			} else {
-				err = errorTxt("Unknown token in definition: " + token)
+				err = errorTxt("matchingRuleUse: Unknown token in definition: " + token)
 			}
 		}
 
@@ -3037,7 +3184,7 @@ func marshalAttributeType(input string) (def AttributeType, err error) {
 					Values:  parseMultiVal(tkz),
 				}
 			} else {
-				err = errorTxt("Unknown token in definition: " + token)
+				err = errorTxt("attributeType: Unknown token in definition: " + token)
 			}
 		}
 
@@ -3148,7 +3295,7 @@ func marshalObjectClass(input string) (def ObjectClass, err error) {
 					Values:  parseMultiVal(tkz),
 				}
 			} else {
-				err = errorTxt("Unknown token in definition: " + token)
+				err = errorTxt("objectClass: Unknown token in definition: " + token)
 			}
 		}
 
@@ -3216,7 +3363,7 @@ func marshalDITContentRule(input string) (def DITContentRule, err error) {
 					Values:  parseMultiVal(tkz),
 				}
 			} else {
-				err = errorTxt("Unknown token in definition: " + token)
+				err = errorTxt("dITContentRule: Unknown token in definition: " + token)
 			}
 		}
 
@@ -3273,7 +3420,7 @@ func marshalNameForm(input string) (def NameForm, err error) {
 					Values:  parseMultiVal(tkz),
 				}
 			} else {
-				err = errorTxt("Unknown token in definition: " + token)
+				err = errorTxt("nameForm: Unknown token in definition: " + token)
 			}
 		}
 
@@ -3327,7 +3474,7 @@ func marshalDITStructureRule(input string) (def DITStructureRule, err error) {
 					Values:  parseMultiVal(tkz),
 				}
 			} else {
-				err = errorTxt("Unknown token in definition: " + token)
+				err = errorTxt("dITStructureRule: Unknown token in definition: " + token)
 			}
 		}
 
@@ -3469,7 +3616,7 @@ func trimDefinitionLabelToken(input string) string {
 			rest := input[len(token):]
 
 			// Skip optional colon or space
-			rest = trimL(rest, ": ")
+			rest = trimS(trimL(rest, ":"))
 
 			// Ensure we stop at the opening parenthesis
 			if idx := stridx(rest, "("); idx != -1 {
