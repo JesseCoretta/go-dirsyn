@@ -529,7 +529,7 @@ func TestSubschemaSubentry_codecov(t *testing.T) {
 	_ = exampleSchema.NameFormByIndex(0)
 	_ = exampleSchema.DITStructureRuleByIndex(0)
 
-	var def Definition
+	var def SchemaDefinition
 	def, _ = exampleSchema.LDAPSyntax(`INTEGER`)
 	_ = def.XOrigin()
 

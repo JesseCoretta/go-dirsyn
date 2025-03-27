@@ -9,8 +9,8 @@ import "sync"
 /*
 NewSubschemaSubentry returns a freshly initialized instance of
 *[SubschemaSubentry]. Instances of this type serve as a platform
-upon which individual [Definition] instances may be parsed from
-their respective textual forms into usable instances of [Definition].
+upon which individual textual definitions may be parsed into
+usable instances of [SchemaDefinition].
 */
 func (r RFC4512) SubschemaSubentry() *SubschemaSubentry {
 	sch := &SubschemaSubentry{
@@ -154,8 +154,8 @@ func (r *SubschemaSubentry) registerSchemaByCase(defs [][]byte) (err error) {
 }
 
 /*
-Definition is an interface type qualified through instances of the
-following types:
+SchemaDefinition is an interface type qualified through instances of
+the following types:
 
   - [LDAPSyntax]
   - [MatchingRule]
@@ -166,7 +166,7 @@ following types:
   - [NameForm]
   - [DITStructureRule]
 */
-type Definition interface {
+type SchemaDefinition interface {
 	// OID returns the official ASN.1 OBJECT IDENTIFIER
 	// (numeric OID) belonging to the underlying TYPE --
 	// NOT the individual definition's assigned OID (see
@@ -203,8 +203,8 @@ type Definition interface {
 }
 
 /*
-Definitions is an interface type qualified through instances of the
-following types:
+SchemaDefinitions is an interface type qualified through instances
+of the following types:
 
   - [LDAPSyntaxes]
   - [MatchingRules]
@@ -219,7 +219,7 @@ It is generally discouraged to modify instances of the above types
 directly due to thread safety concerns; instead, perform modifications
 via the appropriate instance of the [SubschemaSubentry] type.
 */
-type Definitions interface {
+type SchemaDefinitions interface {
 	// Len returns the integer length of the receiver instance.
 	Len() int
 
@@ -240,7 +240,7 @@ type Definitions interface {
 	String() string
 
 	// Contains returns an integer index value indicative
-	// of whether the specified Definition -- identified
+	// of whether the specified SchemaDefinition -- identified
 	// by descriptor or numeric OID -- resides within
 	// the receiver instance and what what numerical index.
 	//
@@ -263,7 +263,7 @@ type Definitions interface {
 
 /*
 SubschemaSubentry implements [§ 4.2 of RFC 4512] and contains slice types
-of various [Definition] types.
+of various [SchemaDefinition] types.
 
 Instances of this type are thread safe by way of an internal instance
 of [sync/Mutex]. No special actions are required by users to make use
@@ -812,7 +812,7 @@ func (r *SubschemaSubentry) RegisterDITStructureRule(input any) (err error) {
 
 /*
 Counters returns an instance of [9]uint, each slice representing the
-current number of [Definition] instances of a particular collection,
+current number of [SchemaDefinition] instances of a particular collection,
 while the final slice represents the sum total of the previous eight (8).
 
 Collection indices are as follows:
