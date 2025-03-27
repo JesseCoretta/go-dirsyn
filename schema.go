@@ -3316,9 +3316,12 @@ func marshalObjectClass(input string) (def ObjectClass, err error) {
 }
 
 func parseClassKind(token string) (kind uint8) {
-	k, err := puint(token, 10, 8)
-	if err == nil {
-		kind = uint8(k)
+	switch token {
+	case `STRUCTURAL`:
+	case `AUXILIARY`:
+		kind = uint8(1)
+	case `ABSTRACT`:
+		kind = uint8(2)
 	}
 	return
 }

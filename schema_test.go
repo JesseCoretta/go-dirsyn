@@ -69,7 +69,7 @@ func ExampleObjectClass_SuperChain() {
 	child, _ := exampleSchema.ObjectClass(`subentry`)
 	supers := child.SuperChain(exampleSchema.ObjectClasses)
 	fmt.Println(supers)
-	// Output: objectClasses: ( 2.5.6.0 NAME 'top' STRUCTURAL MUST objectClass )
+	// Output: objectClasses: ( 2.5.6.0 NAME 'top' ABSTRACT MUST objectClass )
 }
 
 func ExampleObjectClass_AllMust() {
