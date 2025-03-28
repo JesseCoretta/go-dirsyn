@@ -28,6 +28,86 @@ func ExampleSubschemaSubentry_ReadBytes() {
 	// Output:
 }
 
+func ExampleSubschemaSubentry_EffectiveSyntax() {
+	title, idx := exampleSchema.AttributeTypes.Get(`title`)
+	if idx == -1 {
+		fmt.Println("Attribute not found!")
+		return
+	}
+
+	// NOTE: The "title" attributeType definition
+	// is a subtype of the "name" attributeType.
+
+	syntax := exampleSchema.EffectiveSyntax(title)
+	fmt.Println(syntax.Identifier())
+	// Output: 1.3.6.1.4.1.1466.115.121.1.15
+
+}
+
+func ExampleSubschemaSubentry_EffectiveEquality() {
+	title, idx := exampleSchema.AttributeTypes.Get(`title`)
+	if idx == -1 {
+		fmt.Println("Attribute not found!")
+		return
+	}
+
+	// NOTE: The "title" attributeType definition
+	// is a subtype of the "name" attributeType.
+
+	equality := exampleSchema.EffectiveEquality(title)
+	fmt.Println(equality.Identifier())
+	// Output: caseIgnoreMatch
+
+}
+
+func ExampleSubschemaSubentry_EffectiveSubstring() {
+	title, idx := exampleSchema.AttributeTypes.Get(`title`)
+	if idx == -1 {
+		fmt.Println("Attribute not found!")
+		return
+	}
+
+	// NOTE: The "title" attributeType definition
+	// is a subtype of the "name" attributeType.
+
+	substr := exampleSchema.EffectiveSubstring(title)
+	fmt.Println(substr.Identifier())
+	// Output: caseIgnoreSubstringsMatch
+
+}
+
+func ExampleSubschemaSubentry_EffectiveOrdering() {
+	dnq, idx := exampleSchema.AttributeTypes.Get(`dnQualifier`)
+	if idx == -1 {
+		fmt.Println("Attribute not found!")
+		return
+	}
+
+	ordering := exampleSchema.EffectiveOrdering(dnq)
+	fmt.Println(ordering.Identifier())
+	// Output: caseIgnoreOrderingMatch
+}
+
+/*
+This example demonstrates a convenient means of counting
+each [SchemaDefinition] by category. The return type (an
+instance of [9]uint) is of the following structure:
+
+	 LDAPSyntaxes
+	 |  MatchingRules
+	 |  |  AttributeTypes
+	 |  |  |  MatchingRuleUses
+	 |  |  |  |
+	 |  |  |  |
+	 |  |  |  |
+	[67 44 96 44 29 0 1 2 283]
+	             |  | | | |
+	             |  | | | Grand Total
+	             |  | | DITStructureRules
+	             |  | NameForms
+	             |  DITContentRules
+	             ObjectClasses
+*/
 func ExampleSubschemaSubentry_Counters() {
 	fmt.Println(exampleSchema.Counters())
 	// Output: [67 44 96 44 29 0 1 2 283]

@@ -154,6 +154,114 @@ func (r *SubschemaSubentry) registerSchemaByCase(defs [][]byte) (err error) {
 }
 
 /*
+EffectiveEquality returns an instance of (EQUALITY) [MatchingRule] which reflects
+the effective matchingRule honored by the input [AttributeType] instance, whether
+direct or by way of a super type in the super chain.
+
+The return instance of [MatchingRule] should NEVER be zero, as all [AttributeType]
+instances are expected to honor a matchingRule in some way.
+
+If the input [AttributeType] instance both possesses its own [MatchingRule] AND is
+a subtype of another (valid) [AttributeType] definition, the local [MatchingRule]
+has precedence and is returned.
+*/
+func (r *SubschemaSubentry) EffectiveEquality(attr AttributeType) (rule MatchingRule) {
+	if s := attr.Equality; len(s) > 0 {
+		// matchingRule is honored locally, so use it.
+		rule, _ = r.MatchingRules.Get(s)
+		return
+	} else if u := attr.SuperType; len(u) > 0 {
+		if sup, sidx := r.AttributeTypes.Get(u); sidx != -1 {
+			// Recurse to the super type.
+			rule = r.EffectiveEquality(sup)
+		}
+	}
+
+	return
+}
+
+/*
+EffectiveSubstring returns an instance of (SUBSTR) [MatchingRule] which reflects
+the effective matchingRule honored by the input [AttributeType] instance, whether
+direct or by way of a super type in the super chain.
+
+The return instance of [MatchingRule] should NEVER be zero, as all [AttributeType]
+instances are expected to honor a matchingRule in some way.
+
+If the input [AttributeType] instance both possesses its own [MatchingRule] AND is
+a subtype of another (valid) [AttributeType] definition, the local [MatchingRule]
+has precedence and is returned.
+*/
+func (r *SubschemaSubentry) EffectiveSubstring(attr AttributeType) (rule MatchingRule) {
+	if s := attr.Substring; len(s) > 0 {
+		// matchingRule is honored locally, so use it.
+		rule, _ = r.MatchingRules.Get(s)
+		return
+	} else if u := attr.SuperType; len(u) > 0 {
+		if sup, sidx := r.AttributeTypes.Get(u); sidx != -1 {
+			// Recurse to the super type.
+			rule = r.EffectiveSubstring(sup)
+		}
+	}
+
+	return
+}
+
+/*
+EffectiveOrdering returns an instance of (ORDERING) [MatchingRule] which reflects
+the effective matchingRule honored by the input [AttributeType] instance, whether
+direct or by way of a super type in the super chain.
+
+The return instance of [MatchingRule] should NEVER be zero, as all [AttributeType]
+instances are expected to honor a matchingRule in some way.
+
+If the input [AttributeType] instance both possesses its own [MatchingRule] AND is
+a subtype of another (valid) [AttributeType] definition, the local [MatchingRule]
+has precedence and is returned.
+*/
+func (r *SubschemaSubentry) EffectiveOrdering(attr AttributeType) (rule MatchingRule) {
+	if s := attr.Ordering; len(s) > 0 {
+		// matchingRule is honored locally, so use it.
+		rule, _ = r.MatchingRules.Get(s)
+		return
+	} else if u := attr.SuperType; len(u) > 0 {
+		if sup, sidx := r.AttributeTypes.Get(u); sidx != -1 {
+			// Recurse to the super type.
+			rule = r.EffectiveOrdering(sup)
+		}
+	}
+
+	return
+}
+
+/*
+EffectiveSyntax returns an instance of [LDAPSyntax] which reflects the effective
+syntax honored by the input [AttributeType] instance, whether direct or by way of
+a super type in the super chain.
+
+The return instance of [LDAPSyntax] should NEVER be zero, as all [AttributeType]
+instances are expected to honor a syntax in some way.
+
+If the input [AttributeType] instance both possesses its own [LDAPSyntax] AND is
+a subtype of another (valid) [AttributeType] definition, the local [LDAPSyntax]
+has precedence and is returned.
+*/
+func (r *SubschemaSubentry) EffectiveSyntax(attr AttributeType) (syntax LDAPSyntax) {
+	if s := attr.Syntax; len(s) > 0 {
+		// Syntax is honored locally, so use it.
+		syntax, _ = r.LDAPSyntaxes.Get(s)
+		return
+	} else if u := attr.SuperType; len(u) > 0 {
+		if sup, sidx := r.AttributeTypes.Get(u); sidx != -1 {
+			// Recurse to the super type.
+			syntax = r.EffectiveSyntax(sup)
+		}
+	}
+
+	return
+}
+
+/*
 SchemaDefinition is an interface type qualified through instances of
 the following types:
 
