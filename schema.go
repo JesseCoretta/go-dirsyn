@@ -165,7 +165,17 @@ If the input [AttributeType] instance both possesses its own [MatchingRule] AND 
 a subtype of another (valid) [AttributeType] definition, the local [MatchingRule]
 has precedence and is returned.
 */
-func (r *SubschemaSubentry) EffectiveEquality(attr AttributeType) (rule MatchingRule) {
+func (r *SubschemaSubentry) EffectiveEquality(at any) (rule MatchingRule) {
+	var attr AttributeType
+	switch tv := at.(type) {
+	case AttributeType:
+		attr = tv
+	case string:
+		attr, _ = r.AttributeTypes.Get(tv)
+	default:
+		return
+	}
+
 	if s := attr.Equality; len(s) > 0 {
 		// matchingRule is honored locally, so use it.
 		rule, _ = r.MatchingRules.Get(s)
@@ -192,7 +202,17 @@ If the input [AttributeType] instance both possesses its own [MatchingRule] AND 
 a subtype of another (valid) [AttributeType] definition, the local [MatchingRule]
 has precedence and is returned.
 */
-func (r *SubschemaSubentry) EffectiveSubstring(attr AttributeType) (rule MatchingRule) {
+func (r *SubschemaSubentry) EffectiveSubstring(at any) (rule MatchingRule) {
+	var attr AttributeType
+	switch tv := at.(type) {
+	case AttributeType:
+		attr = tv
+	case string:
+		attr, _ = r.AttributeTypes.Get(tv)
+	default:
+		return
+	}
+
 	if s := attr.Substring; len(s) > 0 {
 		// matchingRule is honored locally, so use it.
 		rule, _ = r.MatchingRules.Get(s)
@@ -219,7 +239,17 @@ If the input [AttributeType] instance both possesses its own [MatchingRule] AND 
 a subtype of another (valid) [AttributeType] definition, the local [MatchingRule]
 has precedence and is returned.
 */
-func (r *SubschemaSubentry) EffectiveOrdering(attr AttributeType) (rule MatchingRule) {
+func (r *SubschemaSubentry) EffectiveOrdering(at any) (rule MatchingRule) {
+	var attr AttributeType
+	switch tv := at.(type) {
+	case AttributeType:
+		attr = tv
+	case string:
+		attr, _ = r.AttributeTypes.Get(tv)
+	default:
+		return
+	}
+
 	if s := attr.Ordering; len(s) > 0 {
 		// matchingRule is honored locally, so use it.
 		rule, _ = r.MatchingRules.Get(s)
@@ -246,7 +276,17 @@ If the input [AttributeType] instance both possesses its own [LDAPSyntax] AND is
 a subtype of another (valid) [AttributeType] definition, the local [LDAPSyntax]
 has precedence and is returned.
 */
-func (r *SubschemaSubentry) EffectiveSyntax(attr AttributeType) (syntax LDAPSyntax) {
+func (r *SubschemaSubentry) EffectiveSyntax(at any) (syntax LDAPSyntax) {
+	var attr AttributeType
+	switch tv := at.(type) {
+	case AttributeType:
+		attr = tv
+	case string:
+		attr, _ = r.AttributeTypes.Get(tv)
+	default:
+		return
+	}
+
 	if s := attr.Syntax; len(s) > 0 {
 		// Syntax is honored locally, so use it.
 		syntax, _ = r.LDAPSyntaxes.Get(s)
