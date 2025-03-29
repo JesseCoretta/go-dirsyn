@@ -88,6 +88,83 @@ func ExampleSubschemaSubentry_EffectiveOrdering() {
 	// Output: caseIgnoreOrderingMatch
 }
 
+func ExampleSubschemaSubentry_Push_lDAPSyntax() {
+	exampleSchema.Push(LDAPSyntax{
+		NumericOID: "1.3.6.1.4.1.56521.999.10.11",
+		Description: "Fake syntax",
+	})
+
+	fmt.Printf("Found definition at index #%d\n",
+		exampleSchema.LDAPSyntaxes.Contains("1.3.6.1.4.1.56521.999.10.11"))
+	// Output: Found definition at index #67
+}
+
+func ExampleSubschemaSubentry_Push_matchingRule() {
+        exampleSchema.Push(MatchingRule{
+                NumericOID: "1.3.6.1.4.1.56521.999.20.11",
+		Name: []string{`fakeRule`},
+                Description: "Fake rule",
+		Syntax: "1.3.6.1.4.1.56521.999.10.11",
+        })
+
+        fmt.Printf("Found definition at index #%d\n",
+                exampleSchema.MatchingRules.Contains("1.3.6.1.4.1.56521.999.20.11"))
+        // Output: Found definition at index #44
+}
+
+func ExampleSubschemaSubentry_Push_attributeType() {
+        exampleSchema.Push(AttributeType{
+                NumericOID: "1.3.6.1.4.1.56521.999.40.11",
+                Name: []string{`fakeType`},
+                Description: "Fake type",
+		SuperType: "description",
+        })
+
+        fmt.Printf("Found definition at index #%d\n",
+                exampleSchema.AttributeTypes.Contains("1.3.6.1.4.1.56521.999.40.11"))
+        // Output: Found definition at index #96
+}
+
+func ExampleSubschemaSubentry_Push_objectClass() {
+        exampleSchema.Push(ObjectClass{
+                NumericOID: "1.3.6.1.4.1.56521.999.50.11",
+                Name: []string{`fakeClass`},
+                Description: "Fake class",
+		Kind: 0,
+                SuperClasses: []string{"top"},
+        })
+
+        fmt.Printf("Found definition at index #%d\n",
+                exampleSchema.ObjectClasses.Contains("1.3.6.1.4.1.56521.999.50.11"))
+        // Output: Found definition at index #29
+}
+
+func ExampleSubschemaSubentry_Push_dITContentRule() {
+        exampleSchema.Push(DITContentRule{
+                NumericOID: "1.3.6.1.4.1.56521.999.50.11",
+                Name: []string{`fakeRule`},
+                Description: "Fake rule",
+		Not: []string{"audio"},
+        })
+
+        fmt.Printf("Found definition at index #%d\n",
+                exampleSchema.DITContentRules.Contains("1.3.6.1.4.1.56521.999.50.11"))
+        // Output: Found definition at index #0
+}
+
+func ExampleSubschemaSubentry_Push_matchingRuleUse() {
+        exampleSchema.Push(MatchingRuleUse{
+                NumericOID: "1.3.6.1.4.1.56521.999.30.11",
+                Name: []string{`fakeRuleUse`},
+                Description: "Fake rule",
+                Applies: []string{"cn"},
+        })
+
+        fmt.Printf("Found definition at index #%d\n",
+                exampleSchema.MatchingRuleUses.Contains("1.3.6.1.4.1.56521.999.30.11"))
+        // Output: Found definition at index #44
+}
+
 /*
 This example demonstrates a convenient means of counting
 each [SchemaDefinition] by category. The return type (an
@@ -110,7 +187,7 @@ instance of [9]uint) is of the following structure:
 */
 func ExampleSubschemaSubentry_Counters() {
 	fmt.Println(exampleSchema.Counters())
-	// Output: [67 44 96 44 29 0 1 2 283]
+	// Output: [68 45 97 45 30 1 1 2 289]
 }
 
 func ExampleAttributeType_SuperChain() {
