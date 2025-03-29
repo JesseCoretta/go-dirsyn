@@ -128,6 +128,10 @@ func (r *SubschemaSubentry) ReadBytes(data []byte) error {
 }
 
 func (r *SubschemaSubentry) Push(defs ...SchemaDefinition) {
+	r.push(false, defs...)
+}
+
+func (r *SubschemaSubentry) push(internal bool, defs ...SchemaDefinition) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
@@ -141,7 +145,9 @@ func (r *SubschemaSubentry) Push(defs ...SchemaDefinition) {
 		case AttributeType:
 			r.AttributeTypes.Push(tv)
 		case MatchingRuleUse:
-			r.MatchingRuleUses.Push(tv)
+			if internal {
+				r.MatchingRuleUses = append(r.MatchingRuleUses, tv)
+			}
 		case ObjectClass:
 			r.ObjectClasses.Push(tv)
 		case DITContentRule:
@@ -152,6 +158,46 @@ func (r *SubschemaSubentry) Push(defs ...SchemaDefinition) {
 			r.DITStructureRules.Push(tv)
 		}
 	}
+}
+
+/*
+Unregister returns an error following an attempt to unregister one
+or more [SchemaDefinition] qualifier instances.
+
+Note that [MatchingRuleUse] instances cannot be unregistered directly.
+Instead, one must unregister the associated [MatchingRule] instance
+to accomplish this.
+*/
+func (r *SubschemaSubentry) Unregister(defs ...SchemaDefinition) (err error) {
+	for i := 0; i < len(defs); i++ {
+		def := defs[i]
+		switch tv := def.(type) {
+		case LDAPSyntax:
+			err = r.UnregisterLDAPSyntax(tv)
+		case MatchingRule:
+			err = r.UnregisterMatchingRule(tv)
+		case AttributeType:
+			err = r.UnregisterAttributeType(tv)
+		case ObjectClass:
+			err = r.UnregisterObjectClass(tv)
+		case DITContentRule:
+			err = r.UnregisterDITContentRule(tv)
+		case NameForm:
+			err = r.UnregisterNameForm(tv)
+		case DITStructureRule:
+			err = r.UnregisterDITStructureRule(tv)
+		}
+
+		if err != nil {
+			// Since this method is variadic, be nice
+			// and include the name or numeric OID of
+			// the definition which raised an error.
+			err = errorTxt(def.Identifier() + " " + err.Error())
+			break
+		}
+	}
+
+	return
 }
 
 func (r *SubschemaSubentry) registerSchemaByCase(defs [][]byte) (err error) {
@@ -509,6 +555,17 @@ func (r SubschemaSubentry) String() (ssse string) {
 	return
 }
 
+func assertLDAPSyntax(x any) (def LDAPSyntax, err error) {
+	switch tv := x.(type) {
+	case LDAPSyntax:
+		def = tv
+	default:
+		def, err = marshalLDAPSyntax(tv)
+	}
+
+	return
+}
+
 /*
 RegisterLDAPSyntax returns an error following an attempt to add a new syntax
 definition to the receiver instance.
@@ -520,19 +577,7 @@ representation (LDAPSyntaxDescription) as described in [§ 4.1.5 of RFC 4512].
 */
 func (r *SubschemaSubentry) RegisterLDAPSyntax(input any) (err error) {
 	var def LDAPSyntax
-
-	switch tv := input.(type) {
-	case LDAPSyntax:
-		def = tv
-	case []byte:
-		def, err = marshalLDAPSyntax(string(tv))
-	case string:
-		def, err = marshalLDAPSyntax(tv)
-	default:
-		err = errorBadType("LDAPSyntax")
-	}
-
-	if err != nil {
+	if def, err = assertLDAPSyntax(input); err != nil {
 		return
 	}
 
@@ -551,8 +596,73 @@ func (r *SubschemaSubentry) RegisterLDAPSyntax(input any) (err error) {
 	return
 }
 
+func (r *SubschemaSubentry) ldapSyntaxDepScan(def LDAPSyntax) (err error) {
+	for i := 0; i < r.MatchingRules.Len(); i++ {
+		if cand := r.MatchingRules[i]; cand.Syntax == def.NumericOID {
+			err = errorTxt(def.Type() + " has matchingRule dependents")
+			return
+		}
+	}
+
+	for i := 0; i < r.AttributeTypes.Len(); i++ {
+		if cand := r.AttributeTypes[i]; cand.Syntax == def.NumericOID {
+			err = errorTxt(def.Type() + " has attributeType dependents")
+			break
+		}
+	}
+
+	return
+}
+
 /*
-RegisterMatchingRule returns an error following an attempt to add a new syntax
+UnregisterLDAPSyntax returns an error following an attempt to remove the
+specified definition from the receiver instance. A successful run will also
+remove the associated [MatchingRuleUse] instance.
+
+Valid input types may be an instance of [LDAPSyntax], or its equivalent string
+representation (LDAPSyntaxDescription) as described in [§ 4.1.5 of RFC 4512].
+
+Note that this process shall fail if the specified definition has dependent
+matchingRule or attributeType definitions.
+
+[§ 4.1.5 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.1.5
+*/
+func (r *SubschemaSubentry) UnregisterLDAPSyntax(input any) (err error) {
+	var def LDAPSyntax
+	if def, err = assertLDAPSyntax(input); err != nil {
+		return
+	}
+
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	_, idx := r.LDAPSyntaxes.Get(def.NumericOID)
+	if idx == -1 {
+		err = errorTxt(def.Type() + " not found")
+		return
+	}
+
+	if err = r.ldapSyntaxDepScan(def); err == nil {
+		r.LDAPSyntaxes = append(r.LDAPSyntaxes[:idx],
+			r.LDAPSyntaxes[idx+1:]...)
+	}
+
+	return
+}
+
+func assertMatchingRule(x any) (def MatchingRule, err error) {
+	switch tv := x.(type) {
+	case MatchingRule:
+		def = tv
+	default:
+		def, err = marshalMatchingRule(tv)
+	}
+
+	return
+}
+
+/*
+RegisterMatchingRule returns an error following an attempt to add a new matchingRule
 definition to the receiver instance.
 
 Valid input types may be an instance of [MatchingRule], or its equivalent string
@@ -562,19 +672,7 @@ representation (MatchingRuleDescription) as described in [§ 4.1.3 of RFC 4512].
 */
 func (r *SubschemaSubentry) RegisterMatchingRule(input any) (err error) {
 	var def MatchingRule
-
-	switch tv := input.(type) {
-	case MatchingRule:
-		def = tv
-	case []byte:
-		def, err = marshalMatchingRule(string(tv))
-	case string:
-		def, err = marshalMatchingRule(tv)
-	default:
-		err = errorBadType("MatchingRule")
-	}
-
-	if err != nil {
+	if def, err = assertMatchingRule(input); err != nil {
 		return
 	}
 
@@ -599,15 +697,81 @@ func (r *SubschemaSubentry) RegisterMatchingRule(input any) (err error) {
 	mru := def.newMatchingRuleUse()
 
 	r.Push(def)
-	if mru.NumericOID != "" {
-		r.Push(mru)
+	r.push(true, mru)
+
+	return
+}
+
+func (r *SubschemaSubentry) matchingRuleDepScan(def MatchingRule) (err error) {
+	// First check to see if an associated matchingRuleUse
+	// instance exists AND still has users...
+	mru, idx := r.MatchingRuleUses.Get(def.NumericOID)
+	if idx != -1 && len(mru.Applies) > 0 {
+		err = errorTxt(def.Type() + " has matchingRuleUse dependents")
+		return
+	}
+
+	// Next check to see if the matchingRule instance
+	// exists AND is used by any attributeType instances
+	// for EQUALITY, ORDERING or SUBSTR.
+	for i := 0; i < r.AttributeTypes.Len() && err == nil; i++ {
+		for _, mrt := range []string{
+			r.AttributeTypes[i].Equality,
+			r.AttributeTypes[i].Ordering,
+			r.AttributeTypes[i].Substring,
+		} {
+			if def.NumericOID == mrt || strInSlice(mrt, def.Name) {
+				err = errorTxt(def.Type() + " has attributeType dependents")
+				break
+			}
+		}
 	}
 
 	return
 }
 
 /*
-RegisterAttributeType returns an error following an attempt to add a new syntax
+UnregisterMatchingRule returns an error following an attempt to remove the
+specified definition from the receiver instance. A successful run will also
+remove the associated [MatchingRuleUse] instance.
+
+Valid input types may be an instance of [MatchingRule], or its equivalent string
+representation (MatchingRuleDescription) as described in [§ 4.1.3 of RFC 4512].
+
+Note that this process shall fail if the specified definition has dependent
+attributeType definitions, as well as if any matchingRuleUse instances exist
+with one or more applied types.
+
+[§ 4.1.3 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.1.3
+*/
+func (r *SubschemaSubentry) UnregisterMatchingRule(input any) (err error) {
+	var def MatchingRule
+	if def, err = assertMatchingRule(input); err != nil {
+		return
+	}
+
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	_, idx := r.MatchingRules.Get(def.NumericOID)
+	if idx == -1 {
+		err = errorTxt(def.Type() + " not found")
+		return
+	}
+
+	if err = r.matchingRuleDepScan(def); err == nil {
+		_, uidx := r.MatchingRuleUses.Get(def.NumericOID)
+		r.MatchingRuleUses = append(r.MatchingRuleUses[:uidx],
+			r.MatchingRuleUses[uidx+1:]...)
+		r.MatchingRules = append(r.MatchingRules[:idx],
+			r.MatchingRules[idx+1:]...)
+	}
+
+	return
+}
+
+/*
+RegisterAttributeType returns an error following an attempt to add a new [AttributeType]
 definition to the receiver instance.
 
 Valid input types may be an instance of [AttributeType], or its equivalent string
@@ -617,19 +781,7 @@ representation (AttributeTypeDescription) as described in [§ 4.1.2 of RFC 4512]
 */
 func (r *SubschemaSubentry) RegisterAttributeType(input any) (err error) {
 	var def AttributeType
-
-	switch tv := input.(type) {
-	case AttributeType:
-		def = tv
-	case []byte:
-		def, err = marshalAttributeType(string(tv))
-	case string:
-		def, err = marshalAttributeType(tv)
-	default:
-		err = errorBadType("AttributeType")
-	}
-
-	if err != nil {
+	if def, err = assertAttributeType(input); err != nil {
 		return
 	}
 
@@ -688,13 +840,213 @@ func (r *SubschemaSubentry) RegisterAttributeType(input any) (err error) {
 	return
 }
 
-func (r *SubschemaSubentry) updateMatchingRuleUse(def AttributeType, mrups map[string]string) {
-	name := def.NumericOID
-	if len(def.Name) > 0 {
-		// Use the principal NAME, if set.
-		name = def.Name[0]
+/*
+SuperiorType resolves the super type of id to a proper instance of [AttributeType].
+
+The input string id must be the numeric OID or name of the subordinate
+attribute type.
+
+Note that if a name is used, case-folding is not significant in the
+matching process.
+
+If zero slices are returned, this can mean either the attribute type was
+not found, or that it has no super type of its own.
+*/
+func (r SubschemaSubentry) SuperiorType(id string) (sup AttributeType) {
+	if typ, idx := r.AttributeType(id); idx != -1 {
+		if typ.SuperType != "" {
+			if at, sidx := r.AttributeType(typ.SuperType); sidx != -1 {
+				sup = at
+			}
+		}
 	}
 
+	return
+}
+
+/*
+SubordinateTypes returns slices of [AttributeType], each of which are direct
+subordinate types of the input string id.
+
+The input string id must be the numeric OID or name of the supposed superior
+type.
+
+Note that if a name is used, case-folding is not significant in the matching
+process.
+
+If zero slices are returned, this can mean either the superior type was not
+found, or that it has no subordinate types of its own.
+*/
+func (r SubschemaSubentry) SubordinateTypes(id string) (sub AttributeTypes) {
+	if typ, idx := r.AttributeTypes.Get(id); idx != -1 {
+		for i := 0; i < r.AttributeTypes.Len(); i++ {
+			at := r.AttributeTypes[i]
+			if typ.NumericOID == at.SuperType {
+				sub.Push(at)
+			} else {
+				for n := 0; n < len(typ.Name); n++ {
+					if typ.Name[n] == at.SuperType {
+						sub.Push(at)
+					}
+				}
+			}
+		}
+	}
+
+	return
+}
+
+func (r *SubschemaSubentry) attributeTypeDepScan(def AttributeType) (err error) {
+	if deps := r.SubordinateTypes(def.NumericOID); deps.Len() > 0 {
+		err = errorTxt(def.Type() + " has subordinate attributeType dependents")
+		return
+	}
+
+	for _, err = range []error{
+		r.attributeTypeObjectClassDepScan(def),
+		r.attributeTypeDITContentRuleDepScan(def),
+		r.attributeTypeNameFormDepScan(def),
+	} {
+		if err != nil {
+			break
+		}
+	}
+
+	return
+}
+
+func (r *SubschemaSubentry) attributeTypeObjectClassDepScan(def AttributeType) (err error) {
+	for n := 0; n < r.ObjectClasses.Len(); n++ {
+		for _, slice := range [][]string{
+			r.ObjectClasses[n].Must,
+			r.ObjectClasses[n].May,
+		} {
+			if strInSlice(def.NumericOID, slice) {
+				err = errorTxt(def.Type() + " has objectClass dependents")
+				return
+			}
+			for n := 0; n < len(def.Name); n++ {
+				if strInSlice(def.Name[n], slice) {
+					err = errorTxt(def.Type() + " has objectClass dependents")
+					return
+				}
+			}
+		}
+	}
+
+	return
+}
+
+func (r *SubschemaSubentry) attributeTypeDITContentRuleDepScan(def AttributeType) (err error) {
+	for n := 0; n < r.DITContentRules.Len(); n++ {
+		for _, slice := range [][]string{
+			r.DITContentRules[n].Must,
+			r.DITContentRules[n].May,
+			r.DITContentRules[n].Not,
+		} {
+			if strInSlice(def.NumericOID, slice) {
+				err = errorTxt(def.Type() + " has dITContentRule dependents")
+				return
+			}
+			for n := 0; n < len(def.Name); n++ {
+				if strInSlice(def.Name[n], slice) {
+					err = errorTxt(def.Type() + " has dITContentRule dependents")
+					return
+				}
+			}
+		}
+	}
+
+	return
+}
+
+func (r *SubschemaSubentry) attributeTypeNameFormDepScan(def AttributeType) (err error) {
+	for n := 0; n < r.NameForms.Len(); n++ {
+		for _, slice := range [][]string{
+			r.NameForms[n].Must,
+			r.NameForms[n].May,
+		} {
+			if strInSlice(def.NumericOID, slice) {
+				err = errorTxt(def.Type() + " has nameForm dependents")
+				return
+			}
+			for n := 0; n < len(def.Name); n++ {
+				if strInSlice(def.Name[n], slice) {
+					err = errorTxt(def.Type() + " has nameForm dependents")
+					return
+				}
+			}
+		}
+	}
+
+	return
+}
+
+func assertAttributeType(x any) (def AttributeType, err error) {
+	switch tv := x.(type) {
+	case AttributeType:
+		def = tv
+	default:
+		def, err = marshalAttributeType(tv)
+	}
+
+	return
+}
+
+/*
+UnregisterAttributeType returns an error following an attempt to remove the
+specified definition from the receiver instance. A successful run will also
+remove the target from any applied [MatchingRuleUse] instances.
+
+Valid input types may be an instance of [AttributeType], or its equivalent string
+representation (AttributeTypeDescription) as described in [§ 4.1.2 of RFC 4512].
+
+Note that this process shall fail if the specified definition has dependent
+definitions such as nameForm, objectClass or dITContentRule instances.
+
+[§ 4.1.2 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.1.2
+*/
+func (r *SubschemaSubentry) UnregisterAttributeType(input any) (err error) {
+	var def AttributeType
+	if def, err = assertAttributeType(input); err != nil {
+		return
+	}
+
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	_, idx := r.AttributeTypes.Get(def.NumericOID)
+	if idx == -1 {
+		err = errorTxt(def.Type() + " not found")
+		return
+	}
+
+	if err = r.attributeTypeDepScan(def); err == nil {
+		r.unregisterMatchingRuleUsers(def)
+		r.AttributeTypes = append(r.AttributeTypes[:idx],
+			r.AttributeTypes[idx+1:]...)
+	}
+
+	return
+}
+
+func (r *SubschemaSubentry) unregisterMatchingRuleUsers(def AttributeType) {
+	for i := 0; i < r.MatchingRuleUses.Len(); i++ {
+		mru := r.MatchingRuleUses[i]
+		for a := 0; a < len(mru.Applies); a++ {
+			if def.NumericOID == mru.Applies[a] ||
+				strInSlice(mru.Applies[a], def.Name) {
+				mru.Applies = append(mru.Applies[:a],
+					mru.Applies[a+1:]...)
+				r.MatchingRuleUses = append(r.MatchingRuleUses[:i],
+					r.MatchingRuleUses[i+1:]...)
+			}
+		}
+	}
+}
+
+func (r *SubschemaSubentry) updateMatchingRuleUse(def AttributeType, mrups map[string]string) {
+	name := def.Identifier()
 	// Update appropriate MRUs to include new attr OID
 	for _, v := range mrups {
 		if _, idx := r.MatchingRuleUse(v); idx != -1 {
@@ -707,7 +1059,7 @@ func (r *SubschemaSubentry) updateMatchingRuleUse(def AttributeType, mrups map[s
 }
 
 /*
-RegisterObjectClass returns an error following an attempt to add a new syntax
+RegisterObjectClass returns an error following an attempt to add a new objectClass
 definition to the receiver instance.
 
 Valid input types may be an instance of [ObjectClass], or its equivalent string
@@ -717,19 +1069,7 @@ representation (ObjectClassDescription) as described in [§ 4.1.1 of RFC 4512].
 */
 func (r *SubschemaSubentry) RegisterObjectClass(input any) (err error) {
 	var def ObjectClass
-
-	switch tv := input.(type) {
-	case ObjectClass:
-		def = tv
-	case []byte:
-		def, err = marshalObjectClass(string(tv))
-	case string:
-		def, err = marshalObjectClass(tv)
-	default:
-		err = errorBadType("ObjectClass")
-	}
-
-	if err != nil {
+	if def, err = assertObjectClass(input); err != nil {
 		return
 	}
 
@@ -772,6 +1112,86 @@ func (r *SubschemaSubentry) RegisterObjectClass(input any) (err error) {
 	return
 }
 
+func (r *SubschemaSubentry) objectClassDepScan(def ObjectClass) (err error) {
+	if deps := r.SubordinateClasses(def.NumericOID); deps.Len() > 0 {
+		err = errorTxt(def.Type() + " has subordinate objectClass dependents")
+	} else if def.Kind == 0 {
+		// Scan for dependent nameForm or dITContentRule
+		// instances IF the class is STRUCTURAL ...
+		for n := 0; n < r.NameForms.Len(); n++ {
+			if r.NameForms[n].OC == def.NumericOID ||
+				strInSlice(r.NameForms[n].OC, def.Name) {
+				err = errorTxt(def.Type() + " has nameForm dependents")
+				return
+			}
+		}
+		for d := 0; d < r.DITContentRules.Len(); d++ {
+			if r.DITContentRules[d].NumericOID == def.NumericOID {
+				err = errorTxt(def.Type() + " has dITContentRule dependents")
+				return
+			}
+		}
+	} else if def.Kind == 1 {
+		// Scan for dependent dITContentRule
+		// instances IF the class is AUXILIARY
+		for d := 0; d < r.DITContentRules.Len(); d++ {
+			if strInSlice(def.NumericOID, r.DITContentRules[d].Aux) {
+				err = errorTxt(def.Type() + " has dITContentRule dependents")
+				return
+			}
+			for n := 0; n < len(def.Name); n++ {
+				if strInSlice(def.Name[n], r.DITContentRules[d].Aux) {
+					err = errorTxt(def.Type() + " has dITContentRule dependents")
+					return
+				}
+			}
+		}
+	}
+
+	return
+}
+
+/*
+UnregisterObjectClass returns an error following an attempt to remove the
+specified definition from the receiver instance.
+
+Valid input types may be an instance of [ObjectClass], or its equivalent string
+representation (ObjectClassDescription) as described in [§ 4.1.1 of RFC 4512].
+
+Note that this process shall fail if the specified definition has dependent
+definitions such as nameForm or dITContentRule instances.
+
+[§ 4.1.1 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.1.1
+*/
+func (r *SubschemaSubentry) UnregisterObjectClass(input any) (err error) {
+	var def ObjectClass
+	if def, err = assertObjectClass(input); err != nil {
+		return
+	}
+
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	_, idx := r.ObjectClasses.Get(def.NumericOID)
+	if idx == -1 {
+		err = errorTxt(def.Type() + " not found")
+		return
+	}
+
+	if err = r.objectClassDepScan(def); err == nil {
+		r.ObjectClasses = append(r.ObjectClasses[:idx],
+			r.ObjectClasses[idx+1:]...)
+	}
+
+	return
+}
+
+func (r *SubschemaSubentry) dITContentRuleDepScan(def DITContentRule) (err error) {
+	// present only for consistency; dITContentRules
+	// are not subject to dependency constraints.
+	return
+}
+
 /*
 RegisterDITContentRule returns an error following an attempt to add a new
 [DITContentRule] to the receiver instance.
@@ -784,19 +1204,7 @@ of RFC 4512].
 */
 func (r *SubschemaSubentry) RegisterDITContentRule(input any) (err error) {
 	var def DITContentRule
-
-	switch tv := input.(type) {
-	case DITContentRule:
-		def = tv
-	case []byte:
-		def, err = marshalDITContentRule(string(tv))
-	case string:
-		def, err = marshalDITContentRule(tv)
-	default:
-		err = errorBadType("DITContentRule")
-	}
-
-	if err != nil {
+	if def, err = assertDITContentRule(input); err != nil {
 		return
 	}
 
@@ -849,7 +1257,50 @@ func (r *SubschemaSubentry) RegisterDITContentRule(input any) (err error) {
 }
 
 /*
-RegisterNameForm returns an error following an attempt to add a new syntax
+UnregisterDITContentRule returns an error following an attempt to remove the specified
+definition from the receiver instance.
+
+Valid input types may be an instance of [DITContentRule], or its equivalent string
+representation (DITContentRuleDescription) as described in [§ 4.1.6 of RFC 4512].
+
+[DITContentRule] instances are not subject to any dependency constraints.
+
+[§ 4.1.6 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.1.6
+*/
+func (r *SubschemaSubentry) UnregisterDITContentRule(input any) (err error) {
+	var def NameForm
+	if def, err = assertNameForm(input); err != nil {
+		return
+	}
+
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	_, idx := r.NameForms.Get(def.NumericOID)
+	if idx == -1 {
+		err = errorTxt(def.Type() + " not found")
+		return
+	}
+
+	r.NameForms = append(r.NameForms[:idx],
+		r.NameForms[idx+1:]...)
+
+	return
+}
+
+func assertNameForm(x any) (def NameForm, err error) {
+	switch tv := x.(type) {
+	case NameForm:
+		def = tv
+	default:
+		def, err = marshalNameForm(tv)
+	}
+
+	return
+}
+
+/*
+RegisterNameForm returns an error following an attempt to add a new nameForm
 definition to the receiver instance.
 
 Valid input types may be an instance of [NameForm], or its equivalent string
@@ -859,19 +1310,7 @@ representation (NameFormDescription) as described in [§ 4.1.7.2 of RFC 4512].
 */
 func (r *SubschemaSubentry) RegisterNameForm(input any) (err error) {
 	var def NameForm
-
-	switch tv := input.(type) {
-	case NameForm:
-		def = tv
-	case []byte:
-		def, err = marshalNameForm(string(tv))
-	case string:
-		def, err = marshalNameForm(tv)
-	default:
-		err = errorBadType("NameForm")
-	}
-
-	if err != nil {
+	if def, err = assertNameForm(input); err != nil {
 		return
 	}
 
@@ -912,9 +1351,99 @@ func (r *SubschemaSubentry) RegisterNameForm(input any) (err error) {
 	return
 }
 
+func (r *SubschemaSubentry) nameFormDepScan(def NameForm) (err error) {
+	for i := 0; i < r.DITStructureRules.Len(); i++ {
+		if cand := r.DITStructureRules[i]; cand.Form == def.NumericOID ||
+			strInSlice(cand.Form, def.Name) {
+			err = errorTxt(def.Type() + " has dITStructureRule dependents")
+			break
+		}
+	}
+
+	return
+}
+
 /*
-RegisterDITStructureRule returns an error following an attempt to add a new syntax
-definition to the receiver instance.
+UnregisterNameForm returns an error following an attempt to remove the specified
+definition from the receiver instance.
+
+Valid input types may be an instance of [NameForm], or its equivalent string
+representation (NameFormDescription) as described in [§ 4.1.7.2 of RFC 4512].
+
+Note that this process shall fail if the specified definition has dependent definitions,
+such as instances of [DITStructureRule].
+
+[§ 4.1.7.2 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.1.7.2
+*/
+func (r *SubschemaSubentry) UnregisterNameForm(input any) (err error) {
+	var def NameForm
+	if def, err = assertNameForm(input); err != nil {
+		return
+	}
+
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	_, idx := r.NameForms.Get(def.NumericOID)
+	if idx == -1 {
+		err = errorTxt(def.Type() + " not found")
+		return
+	}
+
+	if err = r.nameFormDepScan(def); err == nil {
+		r.NameForms = append(r.NameForms[:idx],
+			r.NameForms[idx+1:]...)
+	}
+
+	return
+}
+
+/*
+UnregisterDITStructureRule returns an error following an attempt to remove the
+specified definition from the receiver instance.
+
+Valid input types may be an instance of [DITStructureRule], or its equivalent string
+representation (DITStructureRuleDescription) as described in [§ 4.1.7.1 of RFC 4512].
+
+Note that this process shall fail if the specified definition has dependent definitions,
+such as subordinate structure rules.
+
+[§ 4.1.7.1 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.1.7.1
+*/
+func (r *SubschemaSubentry) UnregisterDITStructureRule(input any) (err error) {
+	var def DITStructureRule
+	if def, err = assertDITStructureRule(input); err != nil {
+		return
+	}
+
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	_, idx := r.DITStructureRules.Get(def.RuleID)
+	if idx == -1 {
+		err = errorTxt(def.Type() + " not found")
+		return
+	}
+
+	if err = r.dITStructureRuleDepScan(def); err == nil {
+		r.DITStructureRules = append(r.DITStructureRules[:idx],
+			r.DITStructureRules[idx+1:]...)
+	}
+
+	return
+}
+
+func (r *SubschemaSubentry) dITStructureRuleDepScan(def DITStructureRule) (err error) {
+	if deps := r.SubordinateStructureRules(def.RuleID); deps.Len() > 0 {
+		err = errorTxt(def.Type() + " has subordinate dITStructureRule dependents")
+	}
+
+	return
+}
+
+/*
+RegisterDITStructureRule returns an error following an attempt to add a new structure
+rule definition to the receiver instance.
 
 Valid input types may be an instance of [DITStructureRule], or its equivalent string
 representation (DITStructureRuleDescription) as described in [§ 4.1.7.1 of RFC 4512].
@@ -923,19 +1452,7 @@ representation (DITStructureRuleDescription) as described in [§ 4.1.7.1 of RFC 
 */
 func (r *SubschemaSubentry) RegisterDITStructureRule(input any) (err error) {
 	var def DITStructureRule
-
-	switch tv := input.(type) {
-	case DITStructureRule:
-		def = tv
-	case []byte:
-		def, err = marshalDITStructureRule(string(tv))
-	case string:
-		def, err = marshalDITStructureRule(tv)
-	default:
-		err = errorBadType("DITStructureRule")
-	}
-
-	if err != nil {
+	if def, err = assertDITStructureRule(input); err != nil {
 		return
 	}
 
@@ -1162,8 +1679,8 @@ process.
 If zero slices are returned, this can mean either the superior structure rule
 was not found, or that it has no subordinate rules of its own.
 */
-func (r SubschemaSubentry) SubordinateStructureRules(id string) (sub []DITStructureRule) {
-	if rule, idx := r.DITStructureRule(id); idx != -1 {
+func (r SubschemaSubentry) SubordinateStructureRules(id string) (sub DITStructureRules) {
+	if rule, idx := r.DITStructureRules.Get(id); idx != -1 {
 		for i := 0; i < r.DITStructureRules.Len(); i++ {
 			// NOTE - don't skip the superior rule itself,
 			// as it may be a recursive (self-referencing)
@@ -1182,24 +1699,21 @@ func (r SubschemaSubentry) SubordinateStructureRules(id string) (sub []DITStruct
 SuperiorStructureRules returns slices of [DITStructureRule], each of
 which are direct superior structure rules of the input string id.
 
-The input string id must be the rule ID or name of the subordinate structure rule.
+The input string id must be the rule ID or name of the subordinate
+structure rule.
 
-Note that if a name is used, case-folding is not significant in the matching
-process.
+Note that if a name is used, case-folding is not significant in the
+matching process.
 
-If zero slices are returned, this can mean either the structure rule was not
-found, or that it has no superior rules of its own.
+If zero slices are returned, this can mean either the structure rule
+was not found, or that it has no superior rules of its own.
 */
-func (r SubschemaSubentry) SuperiorStructureRules(id string) (sup []DITStructureRule) {
+func (r SubschemaSubentry) SuperiorStructureRules(id string) (sup DITStructureRules) {
 	if rule, idx := r.DITStructureRule(id); idx != -1 {
 		for i := 0; i < len(rule.SuperRules); i++ {
 			s := rule.SuperRules[i]
-
-			// NOTE - don't skip the superior rule itself,
-			// as it may be a recursive (self-referencing)
-			// structure rule.
 			if dsr, sidx := r.DITStructureRule(s); sidx != -1 {
-				sup = append(sup, dsr)
+				sup.Push(dsr)
 			}
 		}
 	}
@@ -1360,12 +1874,12 @@ func (r MatchingRules) Contains(id string) (idx int) {
 	idx = -1
 	for i := 0; i < r.Len() && idx == -1; i++ {
 		if r[i].NumericOID == id ||
-                        strInSlice(id, r[i].Name) {
+			strInSlice(id, r[i].Name) {
 			idx = i
 		}
 	}
 
-        return
+	return
 }
 
 /*
@@ -1382,11 +1896,11 @@ When executed directly, this method is NOT thread safe; see
 func (r *MatchingRules) Push(defs ...SchemaDefinition) {
 	for i := 0; i < len(defs); i++ {
 		def := defs[i]
-        	if d, ok := def.(MatchingRule); ok {
+		if d, ok := def.(MatchingRule); ok {
 			if def.Valid() && r.Contains(d.NumericOID) == -1 {
-        	                *r = append(*r, d)
-        	        }
-        	}
+				*r = append(*r, d)
+			}
+		}
 	}
 }
 
@@ -1399,12 +1913,12 @@ func (r AttributeTypes) Contains(id string) (idx int) {
 	idx = -1
 	for i := 0; i < r.Len() && idx == -1; i++ {
 		if r[i].NumericOID == id ||
-                        strInSlice(id, r[i].Name) {
+			strInSlice(id, r[i].Name) {
 			idx = i
 		}
 	}
 
-        return
+	return
 }
 
 /*
@@ -1421,12 +1935,12 @@ When executed directly, this method is NOT thread safe; see
 func (r *AttributeTypes) Push(defs ...SchemaDefinition) {
 	for i := 0; i < len(defs); i++ {
 		def := defs[i]
-        	if d, ok := def.(AttributeType); ok {
+		if d, ok := def.(AttributeType); ok {
 			if def.Valid() && r.Contains(d.NumericOID) == -1 {
-        	                *r = append(*r, d)
-        	        }
-        	}
-        }
+				*r = append(*r, d)
+			}
+		}
+	}
 }
 
 /*
@@ -1438,12 +1952,12 @@ func (r MatchingRuleUses) Contains(id string) (idx int) {
 	idx = -1
 	for i := 0; i < r.Len() && idx == -1; i++ {
 		if r[i].NumericOID == id ||
-                        strInSlice(id, r[i].Name) {
+			strInSlice(id, r[i].Name) {
 			idx = i
 		}
 	}
 
-        return
+	return
 }
 
 /*
@@ -1460,11 +1974,11 @@ When executed directly, this method is NOT thread safe; see
 func (r *MatchingRuleUses) Push(defs ...SchemaDefinition) {
 	for i := 0; i < len(defs); i++ {
 		def := defs[i]
-        	if d, ok := def.(MatchingRuleUse); ok {
+		if d, ok := def.(MatchingRuleUse); ok {
 			if d.Valid() && r.Contains(d.NumericOID) == -1 {
-        	                *r = append(*r, d)
-        	        }
-        	}
+				*r = append(*r, d)
+			}
+		}
 	}
 }
 
@@ -1477,12 +1991,12 @@ func (r ObjectClasses) Contains(id string) (idx int) {
 	idx = -1
 	for i := 0; i < r.Len() && idx == -1; i++ {
 		if r[i].NumericOID == id ||
-                        strInSlice(id, r[i].Name) {
+			strInSlice(id, r[i].Name) {
 			idx = i
 		}
 	}
 
-        return
+	return
 }
 
 /*
@@ -1499,11 +2013,11 @@ When executed directly, this method is NOT thread safe; see
 func (r *ObjectClasses) Push(defs ...SchemaDefinition) {
 	for i := 0; i < len(defs); i++ {
 		def := defs[i]
-        	if d, ok := def.(ObjectClass); ok {
+		if d, ok := def.(ObjectClass); ok {
 			if def.Valid() && r.Contains(d.NumericOID) == -1 {
-        	                *r = append(*r, d)
-        	        }
-        	}
+				*r = append(*r, d)
+			}
+		}
 	}
 }
 
@@ -1516,12 +2030,12 @@ func (r DITContentRules) Contains(id string) (idx int) {
 	idx = -1
 	for i := 0; i < r.Len() && idx == -1; i++ {
 		if r[i].NumericOID == id ||
-                        strInSlice(id, r[i].Name) {
+			strInSlice(id, r[i].Name) {
 			idx = i
 		}
 	}
 
-        return
+	return
 }
 
 /*
@@ -1538,12 +2052,13 @@ When executed directly, this method is NOT thread safe; see
 func (r *DITContentRules) Push(defs ...SchemaDefinition) {
 	for i := 0; i < len(defs); i++ {
 		def := defs[i]
-        	if d, ok := def.(DITContentRule); ok {
+		if d, ok := def.(DITContentRule); ok {
 			if def.Valid() && r.Contains(d.NumericOID) == -1 {
-        	                *r = append(*r, d)
-        	        }
-        	}
-}	}
+				*r = append(*r, d)
+			}
+		}
+	}
+}
 
 /*
 Contains returns an integer index value indicative of a [SchemaDefinition]
@@ -1554,12 +2069,12 @@ func (r NameForms) Contains(id string) (idx int) {
 	idx = -1
 	for i := 0; i < r.Len() && idx == -1; i++ {
 		if r[i].NumericOID == id ||
-                        strInSlice(id, r[i].Name) {
+			strInSlice(id, r[i].Name) {
 			idx = i
 		}
 	}
 
-        return
+	return
 }
 
 /*
@@ -1576,11 +2091,11 @@ When executed directly, this method is NOT thread safe; see
 func (r *NameForms) Push(defs ...SchemaDefinition) {
 	for i := 0; i < len(defs); i++ {
 		def := defs[i]
-        	if d, ok := def.(NameForm); ok {
+		if d, ok := def.(NameForm); ok {
 			if def.Valid() && r.Contains(d.NumericOID) == -1 {
-        	                *r = append(*r, d)
-        	        }
-        	}
+				*r = append(*r, d)
+			}
+		}
 	}
 }
 
@@ -1593,12 +2108,12 @@ func (r DITStructureRules) Contains(id string) (idx int) {
 	idx = -1
 	for i := 0; i < r.Len() && idx == -1; i++ {
 		if r[i].RuleID == id ||
-                        strInSlice(id, r[i].Name) {
+			strInSlice(id, r[i].Name) {
 			idx = i
 		}
 	}
 
-        return
+	return
 }
 
 /*
@@ -1615,11 +2130,11 @@ When executed directly, this method is NOT thread safe; see
 func (r *DITStructureRules) Push(defs ...SchemaDefinition) {
 	for i := 0; i < len(defs); i++ {
 		def := defs[i]
-        	if d, ok := def.(DITStructureRule); ok {
-        	        if def.Valid() && r.Contains(d.RuleID) == -1 {
-        	                *r = append(*r, d)
-        	        }
-        	}
+		if d, ok := def.(DITStructureRule); ok {
+			if def.Valid() && r.Contains(d.RuleID) == -1 {
+				*r = append(*r, d)
+			}
+		}
 	}
 }
 
@@ -1714,13 +2229,13 @@ alongside an index of -1 is returned if no match is found.
 Case is not significant in the matching process.
 */
 func (r LDAPSyntaxes) Get(term string) (def LDAPSyntax, idx int) {
-        idx = -1
-        for i := 0; i < r.Len() && idx == -1; i++ {
-                if r[i].Match(term) {
-                        def = r[i]
-                        idx = i
-                }
-        }
+	idx = -1
+	for i := 0; i < r.Len() && idx == -1; i++ {
+		if r[i].Match(term) {
+			def = r[i]
+			idx = i
+		}
+	}
 
 	return
 }
@@ -2146,11 +2661,9 @@ func (r MatchingRule) Identifier() (id string) {
 newMatchingRuleUse initializes and returns a new instance of [MatchingRuleUse].
 */
 func (r MatchingRule) newMatchingRuleUse() (mru MatchingRuleUse) {
-	if r.Valid() {
-		mru.NumericOID = r.NumericOID
-		mru.Description = r.Description
-		mru.Extensions = r.Extensions
-	}
+	mru.NumericOID = r.NumericOID
+	mru.Description = r.Description
+	mru.Extensions = r.Extensions
 
 	return
 }
@@ -2527,18 +3040,18 @@ func (r MatchingRuleUse) Valid() bool {
 	_, err := marshalNumericOID(r.NumericOID)
 
 	/*
-	// TODO: Not sure if we can do this in
-	// this manner ...
-	var bogusNumber int
-	if len(r.Applies) == 0 {
-		bogusNumber++
-	}
-
-	for _, at := range r.Applies {
-		if !oID(at).True() {
+		// TODO: Not sure if we can do this in
+		// this manner ...
+		var bogusNumber int
+		if len(r.Applies) == 0 {
 			bogusNumber++
 		}
-	}
+
+		for _, at := range r.Applies {
+			if !oID(at).True() {
+				bogusNumber++
+			}
+		}
 	*/
 
 	return err == nil //&& bogusNumber == 0
@@ -2586,10 +3099,68 @@ Note that if a name is used, case-folding is not significant in the matching
 process.
 */
 func (r *SubschemaSubentry) ObjectClass(id string) (ObjectClass, int) {
-        r.lock.Lock()
-        defer r.lock.Unlock()
+	r.lock.Lock()
+	defer r.lock.Unlock()
 
-        return r.ObjectClasses.Get(id)
+	return r.ObjectClasses.Get(id)
+}
+
+/*
+SubordinateClasses returns slices of [ObjectClass], each of which are direct
+subordinate classes of the input string id.
+
+The input string id must be the numeric OID or name of the supposed superior
+class.
+
+Note that if a name is used, case-folding is not significant in the matching
+process.
+
+If zero slices are returned, this can mean either the superior class was not
+found, or that it has no subordinate classes of its own.
+*/
+func (r SubschemaSubentry) SubordinateClasses(id string) (sub ObjectClasses) {
+	if class, idx := r.ObjectClasses.Get(id); idx != -1 {
+		for i := 0; i < r.ObjectClasses.Len(); i++ {
+			oc := r.ObjectClasses[i]
+			if strInSlice(class.NumericOID, oc.SuperClasses) {
+				sub.Push(oc)
+			} else {
+				for n := 0; n < len(class.Name); n++ {
+					if strInSlice(class.Name[n], oc.SuperClasses) {
+						sub.Push(oc)
+					}
+				}
+			}
+		}
+	}
+
+	return
+}
+
+/*
+SuperiorClasses returns slices of [ObjectClass], each of which are direct
+superior object classes of the input string id.
+
+The input string id must be the numeric OID or name of the subordinate
+object class.
+
+Note that if a name is used, case-folding is not significant in the
+matching process.
+
+If zero slices are returned, this can mean either the object class was
+not found, or that it has no superior classes of its own.
+*/
+func (r SubschemaSubentry) SuperiorClasses(id string) (sup ObjectClasses) {
+	if class, idx := r.ObjectClass(id); idx != -1 {
+		for i := 0; i < len(class.SuperClasses); i++ {
+			s := class.SuperClasses[i]
+			if oc, sidx := r.ObjectClass(s); sidx != -1 {
+				sup.Push(oc)
+			}
+		}
+	}
+
+	return
 }
 
 /*
@@ -3411,6 +3982,19 @@ func (r DITStructureRule) Valid() bool {
 	return oID(r.Form).True() && num && bogusNumber == 0
 }
 
+func marshalExtension(token, typ string, tkz *schemaTokenizer) (ext Extension, err error) {
+	if tpfx := uc(token); hasPfx(tpfx, "X-") {
+		ext = Extension{
+			XString: tpfx,
+			Values:  parseMultiVal(tkz),
+		}
+	} else {
+		err = errorTxt(typ + ": Unknown token in definition: " + token)
+	}
+
+	return
+}
+
 func lDAPSyntaxDescription(x any) (result Boolean) {
 	if str, err := assertString(x, 9, "LDAPSyntax"); err == nil {
 		_, err = marshalLDAPSyntax(str)
@@ -3419,7 +4003,19 @@ func lDAPSyntaxDescription(x any) (result Boolean) {
 	return
 }
 
-func marshalLDAPSyntax(input string) (def LDAPSyntax, err error) {
+func marshalLDAPSyntax(x any) (def LDAPSyntax, err error) {
+	var input string
+
+	switch tv := x.(type) {
+	case []byte:
+		input = string(tv)
+	case string:
+		input = tv
+	default:
+		err = errorBadType(def.Type())
+		return
+	}
+
 	def.Extensions = make(map[int]Extension)
 
 	input = trimS(trimDefinitionLabelToken(input))
@@ -3430,7 +4026,7 @@ func marshalLDAPSyntax(input string) (def LDAPSyntax, err error) {
 
 	def.NumericOID = tkz.this()
 
-	for tkz.next() {
+	for tkz.next() && err == nil {
 		token := tkz.this()
 		switch token {
 		case ")":
@@ -3440,18 +4036,8 @@ func marshalLDAPSyntax(input string) (def LDAPSyntax, err error) {
 		case "DESC":
 			def.Description = parseSingleVal(tkz)
 		default:
-			if tpfx := uc(token); hasPfx(tpfx, "X-") {
-				def.Extensions[len(def.Extensions)] = Extension{
-					XString: tpfx,
-					Values:  parseMultiVal(tkz),
-				}
-			} else {
-				err = errorTxt("ldapSyntax: Unknown token in definition: '" + input + "'")
-			}
-		}
-
-		if err != nil {
-			break
+			def.Extensions[len(def.Extensions)], err =
+				marshalExtension(token, def.Type(), tkz)
 		}
 	}
 
@@ -3466,18 +4052,28 @@ func matchingRuleDescription(x any) (result Boolean) {
 	return
 }
 
-func marshalMatchingRule(input string) (def MatchingRule, err error) {
+func marshalMatchingRule(x any) (def MatchingRule, err error) {
+	var input string
+
+	switch tv := x.(type) {
+	case []byte:
+		input = string(tv)
+	case string:
+		input = tv
+	default:
+		err = errorBadType(def.Type())
+		return
+	}
+
 	def.Extensions = make(map[int]Extension)
 
 	input = trimS(trimDefinitionLabelToken(input))
 	tkz := newSchemaTokenizer(input)
-	if tkz.next() && tkz.this() == "(" {
-		tkz.next()
-	}
+	tkz.startTokenParen()
 
 	def.NumericOID = tkz.this()
 
-	for tkz.next() {
+	for tkz.next() && err == nil {
 		token := tkz.this()
 		switch token {
 		case ")":
@@ -3493,18 +4089,8 @@ func marshalMatchingRule(input string) (def MatchingRule, err error) {
 		case "SYNTAX":
 			def.Syntax = tkz.nextToken()
 		default:
-			if tpfx := uc(token); hasPfx(tpfx, "X-") {
-				def.Extensions[len(def.Extensions)] = Extension{
-					XString: tpfx,
-					Values:  parseMultiVal(tkz),
-				}
-			} else {
-				err = errorTxt("matchingRule: Unknown token in definition: " + token)
-			}
-		}
-
-		if err != nil {
-			break
+			def.Extensions[len(def.Extensions)], err =
+				marshalExtension(token, def.Type(), tkz)
 		}
 	}
 
@@ -3519,18 +4105,28 @@ func matchingRuleUseDescription(x any) (result Boolean) {
 	return
 }
 
-func marshalMatchingRuleUse(input string) (def MatchingRuleUse, err error) {
+func marshalMatchingRuleUse(x any) (def MatchingRuleUse, err error) {
+	var input string
+
+	switch tv := x.(type) {
+	case []byte:
+		input = string(tv)
+	case string:
+		input = tv
+	default:
+		err = errorBadType(def.Type())
+		return
+	}
+
 	def.Extensions = make(map[int]Extension)
 
 	input = trimS(trimDefinitionLabelToken(input))
 	tkz := newSchemaTokenizer(input)
-	if tkz.next() && tkz.this() == "(" {
-		tkz.next()
-	}
+	tkz.startTokenParen()
 
 	def.NumericOID = tkz.this()
 
-	for tkz.next() {
+	for tkz.next() && err == nil {
 		token := tkz.this()
 		switch token {
 		case ")":
@@ -3546,18 +4142,8 @@ func marshalMatchingRuleUse(input string) (def MatchingRuleUse, err error) {
 		case "APPLIES":
 			def.Applies = parseMultiVal(tkz)
 		default:
-			if tpfx := uc(token); hasPfx(tpfx, "X-") {
-				def.Extensions[len(def.Extensions)] = Extension{
-					XString: tpfx,
-					Values:  parseMultiVal(tkz),
-				}
-			} else {
-				err = errorTxt("matchingRuleUse: Unknown token in definition: " + token)
-			}
-		}
-
-		if err != nil {
-			break
+			def.Extensions[len(def.Extensions)], err =
+				marshalExtension(token, def.Type(), tkz)
 		}
 	}
 
@@ -3572,19 +4158,28 @@ func attributeTypeDescription(x any) (result Boolean) {
 	return
 }
 
-func marshalAttributeType(input string) (def AttributeType, err error) {
+func marshalAttributeType(x any) (def AttributeType, err error) {
+	var input string
+
+	switch tv := x.(type) {
+	case []byte:
+		input = string(tv)
+	case string:
+		input = tv
+	default:
+		err = errorBadType(def.Type())
+		return
+	}
+
 	def.Extensions = make(map[int]Extension)
 
 	input = trimS(trimDefinitionLabelToken(input))
 	tkz := newSchemaTokenizer(input)
-
-	if tkz.next() && tkz.this() == "(" {
-		tkz.next()
-	}
+	tkz.startTokenParen()
 
 	def.NumericOID = tkz.this()
 
-	for tkz.next() {
+	for tkz.next() && err == nil {
 		token := tkz.this()
 		switch token {
 		case ")":
@@ -3604,18 +4199,8 @@ func marshalAttributeType(input string) (def AttributeType, err error) {
 		case "USAGE":
 			def.Usage = tkz.nextToken()
 		default:
-			if tpfx := uc(token); hasPfx(tpfx, "X-") {
-				def.Extensions[len(def.Extensions)] = Extension{
-					XString: tpfx,
-					Values:  parseMultiVal(tkz),
-				}
-			} else {
-				err = errorTxt("attributeType: Unknown token in definition: " + token)
-			}
-		}
-
-		if err != nil {
-			break
+			def.Extensions[len(def.Extensions)], err =
+				marshalExtension(token, def.Type(), tkz)
 		}
 	}
 
@@ -3682,18 +4267,39 @@ func objectClassDescription(x any) (result Boolean) {
 	return
 }
 
-func marshalObjectClass(input string) (def ObjectClass, err error) {
+func assertObjectClass(x any) (def ObjectClass, err error) {
+	switch tv := x.(type) {
+	case ObjectClass:
+		def = tv
+	default:
+		def, err = marshalObjectClass(tv)
+	}
+
+	return
+}
+
+func marshalObjectClass(x any) (def ObjectClass, err error) {
+	var input string
+
+	switch tv := x.(type) {
+	case []byte:
+		input = string(tv)
+	case string:
+		input = tv
+	default:
+		err = errorBadType(def.Type())
+		return
+	}
+
 	def.Extensions = make(map[int]Extension)
 
 	input = trimS(trimDefinitionLabelToken(input))
 	tkz := newSchemaTokenizer(input)
-	if tkz.next() && tkz.this() == "(" {
-		tkz.next()
-	}
+	tkz.startTokenParen()
 
 	def.NumericOID = tkz.this()
 
-	for tkz.next() {
+	for tkz.next() && err == nil {
 		token := tkz.this()
 		switch token {
 		case ")":
@@ -3715,18 +4321,8 @@ func marshalObjectClass(input string) (def ObjectClass, err error) {
 		case "MAY":
 			def.May = parseMultiVal(tkz)
 		default:
-			if tpfx := uc(token); hasPfx(tpfx, "X-") {
-				def.Extensions[len(def.Extensions)] = Extension{
-					XString: tpfx,
-					Values:  parseMultiVal(tkz),
-				}
-			} else {
-				err = errorTxt("objectClass: Unknown token in definition: " + token)
-			}
-		}
-
-		if err != nil {
-			break
+			def.Extensions[len(def.Extensions)], err =
+				marshalExtension(token, def.Type(), tkz)
 		}
 	}
 
@@ -3752,19 +4348,39 @@ func dITContentRuleDescription(x any) (result Boolean) {
 	return
 }
 
-func marshalDITContentRule(input string) (def DITContentRule, err error) {
+func assertDITContentRule(x any) (def DITContentRule, err error) {
+	switch tv := x.(type) {
+	case DITContentRule:
+		def = tv
+	default:
+		def, err = marshalDITContentRule(tv)
+	}
+
+	return
+}
+
+func marshalDITContentRule(x any) (def DITContentRule, err error) {
+	var input string
+
+	switch tv := x.(type) {
+	case []byte:
+		input = string(tv)
+	case string:
+		input = tv
+	default:
+		err = errorBadType(def.Type())
+		return
+	}
+
 	def.Extensions = make(map[int]Extension)
 
 	input = trimS(trimDefinitionLabelToken(input))
 	tkz := newSchemaTokenizer(input)
-
-	if tkz.next() && tkz.this() == "(" {
-		tkz.next() // Move past the opening parenthesis
-	}
+	tkz.startTokenParen()
 
 	def.NumericOID = tkz.this()
 
-	for tkz.next() {
+	for tkz.next() && err == nil {
 		token := tkz.this()
 		switch token {
 		case ")":
@@ -3786,18 +4402,8 @@ func marshalDITContentRule(input string) (def DITContentRule, err error) {
 		case "NOT":
 			def.Not = parseMultiVal(tkz)
 		default:
-			if tpfx := uc(token); hasPfx(tpfx, "X-") {
-				def.Extensions[len(def.Extensions)] = Extension{
-					XString: tpfx,
-					Values:  parseMultiVal(tkz),
-				}
-			} else {
-				err = errorTxt("dITContentRule: Unknown token in definition: " + token)
-			}
-		}
-
-		if err != nil {
-			break
+			def.Extensions[len(def.Extensions)], err =
+				marshalExtension(token, def.Type(), tkz)
 		}
 	}
 
@@ -3812,18 +4418,28 @@ func nameFormDescription(x any) (result Boolean) {
 	return
 }
 
-func marshalNameForm(input string) (def NameForm, err error) {
+func marshalNameForm(x any) (def NameForm, err error) {
+	var input string
+
+	switch tv := x.(type) {
+	case []byte:
+		input = string(tv)
+	case string:
+		input = tv
+	default:
+		err = errorBadType(def.Type())
+		return
+	}
+
 	def.Extensions = make(map[int]Extension)
 
 	input = trimS(trimDefinitionLabelToken(input))
 	tkz := newSchemaTokenizer(input)
-	if tkz.next() && tkz.this() == "(" {
-		tkz.next()
-	}
+	tkz.startTokenParen()
 
 	def.NumericOID = tkz.this()
 
-	for tkz.next() {
+	for tkz.next() && err == nil {
 		token := tkz.this()
 		switch token {
 		case ")":
@@ -3843,18 +4459,8 @@ func marshalNameForm(input string) (def NameForm, err error) {
 		case "MAY":
 			def.May = parseMultiVal(tkz)
 		default:
-			if tpfx := uc(token); hasPfx(tpfx, "X-") {
-				def.Extensions[len(def.Extensions)] = Extension{
-					XString: tpfx,
-					Values:  parseMultiVal(tkz),
-				}
-			} else {
-				err = errorTxt("nameForm: Unknown token in definition: " + token)
-			}
-		}
-
-		if err != nil {
-			break
+			def.Extensions[len(def.Extensions)], err =
+				marshalExtension(token, def.Type(), tkz)
 		}
 	}
 
@@ -3869,18 +4475,39 @@ func dITStructureRuleDescription(x any) (result Boolean) {
 	return
 }
 
-func marshalDITStructureRule(input string) (def DITStructureRule, err error) {
+func assertDITStructureRule(x any) (def DITStructureRule, err error) {
+	switch tv := x.(type) {
+	case DITStructureRule:
+		def = tv
+	default:
+		def, err = marshalDITStructureRule(tv)
+	}
+
+	return
+}
+
+func marshalDITStructureRule(x any) (def DITStructureRule, err error) {
+	var input string
+
+	switch tv := x.(type) {
+	case []byte:
+		input = string(tv)
+	case string:
+		input = tv
+	default:
+		err = errorBadType(def.Type())
+		return
+	}
+
 	def.Extensions = make(map[int]Extension)
 
 	input = trimS(trimDefinitionLabelToken(input))
 	tkz := newSchemaTokenizer(input)
-	if tkz.next() && tkz.this() == "(" {
-		tkz.next()
-	}
+	tkz.startTokenParen()
 
 	def.RuleID = tkz.this()
 
-	for tkz.next() {
+	for tkz.next() && err == nil {
 		switch token := tkz.this(); token {
 		case ")":
 			if tkz.isFinalToken() {
@@ -3897,22 +4524,18 @@ func marshalDITStructureRule(input string) (def DITStructureRule, err error) {
 		case "SUP":
 			def.SuperRules = parseMultiVal(tkz)
 		default:
-			if tpfx := uc(token); hasPfx(tpfx, "X-") {
-				def.Extensions[len(def.Extensions)] = Extension{
-					XString: tpfx,
-					Values:  parseMultiVal(tkz),
-				}
-			} else {
-				err = errorTxt("dITStructureRule: Unknown token in definition: " + token)
-			}
-		}
-
-		if err != nil {
-			break
+			def.Extensions[len(def.Extensions)], err =
+				marshalExtension(token, def.Type(), tkz)
 		}
 	}
 
 	return
+}
+
+func (r *schemaTokenizer) startTokenParen() {
+	if r.next() && r.this() == "(" {
+		r.next()
+	}
 }
 
 func parseMultiVal(tkz *schemaTokenizer) (values []string) {

@@ -28,6 +28,142 @@ func ExampleSubschemaSubentry_ReadBytes() {
 	// Output:
 }
 
+func ExampleSubschemaSubentry_UnregisterAttributeType() {
+	def := `( 1.3.6.1.4.1.56521.999.9.5
+                NAME 'fakeAttribute'
+                SUP name )`
+	err := exampleSchema.UnregisterAttributeType(def)
+	fmt.Println(err == nil) // should fail due to dependencies
+	// Output: false
+}
+
+func ExampleSubschemaSubentry_UnregisterObjectClass() {
+	def := `( 1.3.6.1.4.1.56521.999.10.1
+                NAME 'testClass'
+                DESC 'a fake class'
+                MUST cn
+                MAY ( fakeAttribute $ otherAttribute ) )`
+	err := exampleSchema.UnregisterObjectClass(def)
+	fmt.Println(err == nil) // should succeed (no dependents)
+	// Output: true
+}
+
+func ExampleSubschemaSubentry_Unregister_attributeType() {
+	// First lookup the type in question and obtain
+	// the proper instance.
+	def, idx := exampleSchema.AttributeType("fakeAttribute")
+	if idx == -1 {
+		fmt.Printf("Not found!")
+		return
+	}
+
+	// Now we use the type instance to call Unregister.
+	err := exampleSchema.Unregister(def)
+	fmt.Println(err == nil) // should succeed (no dependents)
+	// Output: true
+}
+
+func ExampleSubschemaSubentry_Unregister_dITContentRule() {
+	// First lookup the rule in question and obtain
+	// the proper instance.
+	_, idx := exampleSchema.DITContentRule("nonexistentRule")
+	fmt.Println(idx == -1) // should fail due to it not existing.
+	// Output: true
+}
+
+func ExampleSubschemaSubentry_Unregister_objectClass() {
+	// First lookup the class in question and obtain
+	// the proper instance.
+	def, idx := exampleSchema.ObjectClass("top")
+	if idx == -1 {
+		fmt.Printf("Not found!")
+		return
+	}
+
+	// Now we use the class instance to call Unregister.
+	err := exampleSchema.Unregister(def)
+	fmt.Println(err == nil) // should fail due to dependencies
+	// Output: false
+}
+
+func ExampleSubschemaSubentry_Unregister_lDAPSyntax() {
+	// First lookup the syntax in question and obtain
+	// the proper instance.
+	booleanSyntax := "1.3.6.1.4.1.1466.115.121.1.7"
+	def, idx := exampleSchema.LDAPSyntax(booleanSyntax)
+	if idx == -1 {
+		fmt.Printf("Not found!")
+		return
+	}
+
+	// Now we use the syntax instance to call Unregister.
+	err := exampleSchema.Unregister(def)
+	fmt.Println(err == nil) // should fail due to dependencies
+	// Output: false
+}
+
+func ExampleSubschemaSubentry_Unregister_unusedLDAPSyntax() {
+	// First lookup the syntax in question and obtain
+	// the proper instance.
+	bootParam := "bootParameterSyntax"
+	def, idx := exampleSchema.LDAPSyntax(bootParam)
+	if idx == -1 {
+		fmt.Printf("Not found!")
+		return
+	}
+
+	// Now we use the syntax instance to call Unregister.
+	err := exampleSchema.Unregister(def)
+	fmt.Println(err == nil) // should succeed
+	// Output: true
+}
+
+func ExampleSubschemaSubentry_Unregister_matchingRule() {
+	// First lookup the rule in question and obtain
+	// the proper instance.
+	def, idx := exampleSchema.MatchingRule("caseIgnoreMatch")
+	if idx == -1 {
+		fmt.Printf("Not found!")
+		return
+	}
+
+	// Now we use the rule instance to call Unregister.
+	err := exampleSchema.Unregister(def)
+	fmt.Println(err == nil) // should fail due to dependencies
+	// Output: false
+}
+
+func ExampleSubschemaSubentry_Unregister_nameForm() {
+	// First lookup the form in question and obtain
+	// the proper instance.
+	nf := "applicationProcessNameForm"
+	def, idx := exampleSchema.NameForm(nf)
+	if idx == -1 {
+		fmt.Printf("Not found!")
+		return
+	}
+
+	// Now we use the form instance to call Unregister.
+	err := exampleSchema.Unregister(def)
+	fmt.Println(err == nil) // should fail due to dependencies
+	// Output: false
+}
+
+func ExampleSubschemaSubentry_Unregister_dITStructureRule() {
+	// First lookup the rule in question and obtain
+	// the proper instance.
+	def, idx := exampleSchema.DITStructureRule("1")
+	if idx == -1 {
+		fmt.Printf("Not found!")
+		return
+	}
+
+	// Now we use the rule instance to call Unregister.
+	err := exampleSchema.Unregister(def)
+	fmt.Println(err == nil) // should fail due to dependencies
+	// Output: false
+}
+
 func ExampleSubschemaSubentry_EffectiveSyntax() {
 	title, idx := exampleSchema.AttributeTypes.Get(`title`)
 	if idx == -1 {
@@ -90,79 +226,66 @@ func ExampleSubschemaSubentry_EffectiveOrdering() {
 
 func ExampleSubschemaSubentry_Push_lDAPSyntax() {
 	exampleSchema.Push(LDAPSyntax{
-		NumericOID: "1.3.6.1.4.1.56521.999.10.11",
+		NumericOID:  "1.3.6.1.4.1.56521.999.10.11",
 		Description: "Fake syntax",
 	})
 
 	fmt.Printf("Found definition at index #%d\n",
 		exampleSchema.LDAPSyntaxes.Contains("1.3.6.1.4.1.56521.999.10.11"))
-	// Output: Found definition at index #67
+	// Output: Found definition at index #66
 }
 
 func ExampleSubschemaSubentry_Push_matchingRule() {
-        exampleSchema.Push(MatchingRule{
-                NumericOID: "1.3.6.1.4.1.56521.999.20.11",
-		Name: []string{`fakeRule`},
-                Description: "Fake rule",
-		Syntax: "1.3.6.1.4.1.56521.999.10.11",
-        })
+	exampleSchema.Push(MatchingRule{
+		NumericOID:  "1.3.6.1.4.1.56521.999.20.11",
+		Name:        []string{`fakeRule`},
+		Description: "Fake rule",
+		Syntax:      "1.3.6.1.4.1.56521.999.10.11",
+	})
 
-        fmt.Printf("Found definition at index #%d\n",
-                exampleSchema.MatchingRules.Contains("1.3.6.1.4.1.56521.999.20.11"))
-        // Output: Found definition at index #44
+	fmt.Printf("Found definition at index #%d\n",
+		exampleSchema.MatchingRules.Contains("1.3.6.1.4.1.56521.999.20.11"))
+	// Output: Found definition at index #44
 }
 
 func ExampleSubschemaSubentry_Push_attributeType() {
-        exampleSchema.Push(AttributeType{
-                NumericOID: "1.3.6.1.4.1.56521.999.40.11",
-                Name: []string{`fakeType`},
-                Description: "Fake type",
-		SuperType: "description",
-        })
+	exampleSchema.Push(AttributeType{
+		NumericOID:  "1.3.6.1.4.1.56521.999.40.11",
+		Name:        []string{`fakeType`},
+		Description: "Fake type",
+		SuperType:   "description",
+	})
 
-        fmt.Printf("Found definition at index #%d\n",
-                exampleSchema.AttributeTypes.Contains("1.3.6.1.4.1.56521.999.40.11"))
-        // Output: Found definition at index #96
+	fmt.Printf("Found definition at index #%d\n",
+		exampleSchema.AttributeTypes.Contains("1.3.6.1.4.1.56521.999.40.11"))
+	// Output: Found definition at index #95
 }
 
 func ExampleSubschemaSubentry_Push_objectClass() {
-        exampleSchema.Push(ObjectClass{
-                NumericOID: "1.3.6.1.4.1.56521.999.50.11",
-                Name: []string{`fakeClass`},
-                Description: "Fake class",
-		Kind: 0,
-                SuperClasses: []string{"top"},
-        })
+	exampleSchema.Push(ObjectClass{
+		NumericOID:   "1.3.6.1.4.1.56521.999.50.11",
+		Name:         []string{`fakeClass`},
+		Description:  "Fake class",
+		Kind:         0,
+		SuperClasses: []string{"top"},
+	})
 
-        fmt.Printf("Found definition at index #%d\n",
-                exampleSchema.ObjectClasses.Contains("1.3.6.1.4.1.56521.999.50.11"))
-        // Output: Found definition at index #29
+	fmt.Printf("Found definition at index #%d\n",
+		exampleSchema.ObjectClasses.Contains("1.3.6.1.4.1.56521.999.50.11"))
+	// Output: Found definition at index #28
 }
 
 func ExampleSubschemaSubentry_Push_dITContentRule() {
-        exampleSchema.Push(DITContentRule{
-                NumericOID: "1.3.6.1.4.1.56521.999.50.11",
-                Name: []string{`fakeRule`},
-                Description: "Fake rule",
-		Not: []string{"audio"},
-        })
+	exampleSchema.Push(DITContentRule{
+		NumericOID:  "1.3.6.1.4.1.56521.999.50.11",
+		Name:        []string{`fakeRule`},
+		Description: "Fake rule",
+		Not:         []string{"audio"},
+	})
 
-        fmt.Printf("Found definition at index #%d\n",
-                exampleSchema.DITContentRules.Contains("1.3.6.1.4.1.56521.999.50.11"))
-        // Output: Found definition at index #0
-}
-
-func ExampleSubschemaSubentry_Push_matchingRuleUse() {
-        exampleSchema.Push(MatchingRuleUse{
-                NumericOID: "1.3.6.1.4.1.56521.999.30.11",
-                Name: []string{`fakeRuleUse`},
-                Description: "Fake rule",
-                Applies: []string{"cn"},
-        })
-
-        fmt.Printf("Found definition at index #%d\n",
-                exampleSchema.MatchingRuleUses.Contains("1.3.6.1.4.1.56521.999.30.11"))
-        // Output: Found definition at index #44
+	fmt.Printf("Found definition at index #%d\n",
+		exampleSchema.DITContentRules.Contains("1.3.6.1.4.1.56521.999.50.11"))
+	// Output: Found definition at index #0
 }
 
 /*
@@ -187,7 +310,7 @@ instance of [9]uint) is of the following structure:
 */
 func ExampleSubschemaSubentry_Counters() {
 	fmt.Println(exampleSchema.Counters())
-	// Output: [68 45 97 45 30 1 1 2 289]
+	// Output: [67 45 96 44 29 1 1 2 285]
 }
 
 func ExampleAttributeType_SuperChain() {
@@ -799,9 +922,9 @@ func TestSubschemaSubentry_codecov(t *testing.T) {
 	_ = matchingRuleUseDescription(`( 2.5.13.10 NAME numericStringSubstringsMatch APPLIES zz )`)
 	_ = attributeTypeDescription(testSchemaDefinitions[0])
 	_ = objectClassDescription(testSchemaDefinitions[4])
-	_ = dITContentRuleDescription(testSchemaDefinitions[10])
+	//_ = dITContentRuleDescription(testSchemaDefinitions[10])
 	_ = nameFormDescription(testSchemaDefinitions[12])
-	_ = dITStructureRuleDescription(testSchemaDefinitions[13])
+	//_ = dITStructureRuleDescription(testSchemaDefinitions[13])
 
 	exampleSchema.RegisterDITContentRule(`()`)
 
