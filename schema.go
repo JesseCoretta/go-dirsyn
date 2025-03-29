@@ -127,27 +127,30 @@ func (r *SubschemaSubentry) ReadBytes(data []byte) error {
 	return r.registerSchemaByCase(result)
 }
 
-func (r *SubschemaSubentry) Push(def SchemaDefinition) {
+func (r *SubschemaSubentry) Push(defs ...SchemaDefinition) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	switch tv := def.(type) {
-	case LDAPSyntax:
-		r.LDAPSyntaxes.Push(tv)
-	case MatchingRule:
-		r.MatchingRules.Push(tv)
-	case AttributeType:
-		r.AttributeTypes.Push(tv)
-	case MatchingRuleUse:
-		r.MatchingRuleUses.Push(tv)
-	case ObjectClass:
-		r.ObjectClasses.Push(tv)
-	case DITContentRule:
-		r.DITContentRules.Push(tv)
-	case NameForm:
-		r.NameForms.Push(tv)
-	case DITStructureRule:
-		r.DITStructureRules.Push(tv)
+	for i := 0; i < len(defs); i++ {
+		def := defs[i]
+		switch tv := def.(type) {
+		case LDAPSyntax:
+			r.LDAPSyntaxes.Push(tv)
+		case MatchingRule:
+			r.MatchingRules.Push(tv)
+		case AttributeType:
+			r.AttributeTypes.Push(tv)
+		case MatchingRuleUse:
+			r.MatchingRuleUses.Push(tv)
+		case ObjectClass:
+			r.ObjectClasses.Push(tv)
+		case DITContentRule:
+			r.DITContentRules.Push(tv)
+		case NameForm:
+			r.NameForms.Push(tv)
+		case DITStructureRule:
+			r.DITStructureRules.Push(tv)
+		}
 	}
 }
 
@@ -433,7 +436,7 @@ type SchemaDefinitions interface {
 	// receiver instance. Uniqueness checks are conducted
 	// automatically using the numeric OID (or rule ID in
 	// the case of a DITStructureRule).
-	Push(SchemaDefinition)
+	Push(...SchemaDefinition)
 
 	// Differentiate from other interfaces.
 	isDefinitions()
@@ -1337,10 +1340,13 @@ evaluate as true:
 When executed directly, this method is NOT thread safe; see
 [SubschemaSubentry.Push] instead.
 */
-func (r *LDAPSyntaxes) Push(def SchemaDefinition) {
-	if d, ok := def.(LDAPSyntax); ok {
-		if d.Valid() && r.Contains(d.NumericOID) == -1 {
-			*r = append(*r, d)
+func (r *LDAPSyntaxes) Push(defs ...SchemaDefinition) {
+	for i := 0; i < len(defs); i++ {
+		def := defs[i]
+		if d, ok := def.(LDAPSyntax); ok {
+			if d.Valid() && r.Contains(d.NumericOID) == -1 {
+				*r = append(*r, d)
+			}
 		}
 	}
 }
@@ -1373,12 +1379,15 @@ evaluate as true:
 When executed directly, this method is NOT thread safe; see
 [SubschemaSubentry.Push] instead.
 */
-func (r *MatchingRules) Push(def SchemaDefinition) {
-        if d, ok := def.(MatchingRule); ok {
-		if def.Valid() && r.Contains(d.NumericOID) == -1 {
-                        *r = append(*r, d)
-                }
-        }
+func (r *MatchingRules) Push(defs ...SchemaDefinition) {
+	for i := 0; i < len(defs); i++ {
+		def := defs[i]
+        	if d, ok := def.(MatchingRule); ok {
+			if def.Valid() && r.Contains(d.NumericOID) == -1 {
+        	                *r = append(*r, d)
+        	        }
+        	}
+	}
 }
 
 /*
@@ -1409,11 +1418,14 @@ evaluate as true:
 When executed directly, this method is NOT thread safe; see
 [SubschemaSubentry.Push] instead.
 */
-func (r *AttributeTypes) Push(def SchemaDefinition) {
-        if d, ok := def.(AttributeType); ok {
-		if def.Valid() && r.Contains(d.NumericOID) == -1 {
-                        *r = append(*r, d)
-                }
+func (r *AttributeTypes) Push(defs ...SchemaDefinition) {
+	for i := 0; i < len(defs); i++ {
+		def := defs[i]
+        	if d, ok := def.(AttributeType); ok {
+			if def.Valid() && r.Contains(d.NumericOID) == -1 {
+        	                *r = append(*r, d)
+        	        }
+        	}
         }
 }
 
@@ -1445,12 +1457,15 @@ evaluate as true:
 When executed directly, this method is NOT thread safe; see
 [SubschemaSubentry.Push] instead.
 */
-func (r *MatchingRuleUses) Push(def SchemaDefinition) {
-        if d, ok := def.(MatchingRuleUse); ok {
-		if d.Valid() && r.Contains(d.NumericOID) == -1 {
-                        *r = append(*r, d)
-                }
-        }
+func (r *MatchingRuleUses) Push(defs ...SchemaDefinition) {
+	for i := 0; i < len(defs); i++ {
+		def := defs[i]
+        	if d, ok := def.(MatchingRuleUse); ok {
+			if d.Valid() && r.Contains(d.NumericOID) == -1 {
+        	                *r = append(*r, d)
+        	        }
+        	}
+	}
 }
 
 /*
@@ -1481,12 +1496,15 @@ evaluate as true:
 When executed directly, this method is NOT thread safe; see
 [SubschemaSubentry.Push] instead.
 */
-func (r *ObjectClasses) Push(def SchemaDefinition) {
-        if d, ok := def.(ObjectClass); ok {
-		if def.Valid() && r.Contains(d.NumericOID) == -1 {
-                        *r = append(*r, d)
-                }
-        }
+func (r *ObjectClasses) Push(defs ...SchemaDefinition) {
+	for i := 0; i < len(defs); i++ {
+		def := defs[i]
+        	if d, ok := def.(ObjectClass); ok {
+			if def.Valid() && r.Contains(d.NumericOID) == -1 {
+        	                *r = append(*r, d)
+        	        }
+        	}
+	}
 }
 
 /*
@@ -1517,13 +1535,15 @@ evaluate as true:
 When executed directly, this method is NOT thread safe; see
 [SubschemaSubentry.Push] instead.
 */
-func (r *DITContentRules) Push(def SchemaDefinition) {
-        if d, ok := def.(DITContentRule); ok {
-		if def.Valid() && r.Contains(d.NumericOID) == -1 {
-                        *r = append(*r, d)
-                }
-        }
-}
+func (r *DITContentRules) Push(defs ...SchemaDefinition) {
+	for i := 0; i < len(defs); i++ {
+		def := defs[i]
+        	if d, ok := def.(DITContentRule); ok {
+			if def.Valid() && r.Contains(d.NumericOID) == -1 {
+        	                *r = append(*r, d)
+        	        }
+        	}
+}	}
 
 /*
 Contains returns an integer index value indicative of a [SchemaDefinition]
@@ -1553,12 +1573,15 @@ evaluate as true:
 When executed directly, this method is NOT thread safe; see
 [SubschemaSubentry.Push] instead.
 */
-func (r *NameForms) Push(def SchemaDefinition) {
-        if d, ok := def.(NameForm); ok {
-		if def.Valid() && r.Contains(d.NumericOID) == -1 {
-                        *r = append(*r, d)
-                }
-        }
+func (r *NameForms) Push(defs ...SchemaDefinition) {
+	for i := 0; i < len(defs); i++ {
+		def := defs[i]
+        	if d, ok := def.(NameForm); ok {
+			if def.Valid() && r.Contains(d.NumericOID) == -1 {
+        	                *r = append(*r, d)
+        	        }
+        	}
+	}
 }
 
 /*
@@ -1589,12 +1612,15 @@ evaluate as true:
 When executed directly, this method is NOT thread safe; see
 [SubschemaSubentry.Push] instead.
 */
-func (r *DITStructureRules) Push(def SchemaDefinition) {
-        if d, ok := def.(DITStructureRule); ok {
-                if def.Valid() && r.Contains(d.RuleID) == -1 {
-                        *r = append(*r, d)
-                }
-        }
+func (r *DITStructureRules) Push(defs ...SchemaDefinition) {
+	for i := 0; i < len(defs); i++ {
+		def := defs[i]
+        	if d, ok := def.(DITStructureRule); ok {
+        	        if def.Valid() && r.Contains(d.RuleID) == -1 {
+        	                *r = append(*r, d)
+        	        }
+        	}
+	}
 }
 
 /*
