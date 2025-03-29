@@ -231,9 +231,6 @@ EffectiveEquality returns an instance of (EQUALITY) [MatchingRule] which reflect
 the effective matchingRule honored by the input [AttributeType] instance, whether
 direct or by way of a super type in the super chain.
 
-The return instance of [MatchingRule] should NEVER be zero, as all [AttributeType]
-instances are expected to honor a matchingRule in some way.
-
 If the input [AttributeType] instance both possesses its own [MatchingRule] AND is
 a subtype of another (valid) [AttributeType] definition, the local [MatchingRule]
 has precedence and is returned.
@@ -268,9 +265,6 @@ EffectiveSubstring returns an instance of (SUBSTR) [MatchingRule] which reflects
 the effective matchingRule honored by the input [AttributeType] instance, whether
 direct or by way of a super type in the super chain.
 
-The return instance of [MatchingRule] should NEVER be zero, as all [AttributeType]
-instances are expected to honor a matchingRule in some way.
-
 If the input [AttributeType] instance both possesses its own [MatchingRule] AND is
 a subtype of another (valid) [AttributeType] definition, the local [MatchingRule]
 has precedence and is returned.
@@ -304,9 +298,6 @@ func (r *SubschemaSubentry) EffectiveSubstring(at any) (rule MatchingRule) {
 EffectiveOrdering returns an instance of (ORDERING) [MatchingRule] which reflects
 the effective matchingRule honored by the input [AttributeType] instance, whether
 direct or by way of a super type in the super chain.
-
-The return instance of [MatchingRule] should NEVER be zero, as all [AttributeType]
-instances are expected to honor a matchingRule in some way.
 
 If the input [AttributeType] instance both possesses its own [MatchingRule] AND is
 a subtype of another (valid) [AttributeType] definition, the local [MatchingRule]
