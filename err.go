@@ -1,5 +1,7 @@
 package dirsyn
 
+import "os"
+
 func errorBadLength(name string, length int) error {
 	return mkerr(`Invalid length '` + fmtInt(int64(length), 10) + `' for ` + name)
 }
@@ -19,4 +21,5 @@ var (
 	invalidFilterErr  error = mkerr("Invalid or malformed filter")
 	emptyFilterSetErr error = mkerr("Zero or invalid filter SET")
 	invalidMR         error = mkerr("Invalid or incompatible matching rule")
+	errNotExist       error = os.ErrNotExist
 )
