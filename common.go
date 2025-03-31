@@ -22,7 +22,7 @@ var (
 	atoi       func(string) (int, error)                 = strconv.Atoi
 	itoa       func(int) string                          = strconv.Itoa
 	cntns      func(string, string) bool                 = strings.Contains
-	erris      func(error, error) bool		     = errors.Is
+	erris      func(error, error) bool                   = errors.Is
 	mkerr      func(string) error                        = errors.New
 	fields     func(string) []string                     = strings.Fields
 	bfields    func([]byte) [][]byte                     = bytes.Fields
@@ -66,7 +66,7 @@ var (
 	blc        func([]byte) []byte                       = bytes.ToLower
 	buc        func([]byte) []byte                       = bytes.ToUpper
 	readFile   func(string) ([]byte, error)              = os.ReadFile
-	ostat      func(string) (os.FileInfo, error)	     = os.Stat
+	ostat      func(string) (os.FileInfo, error)         = os.Stat
 	newBigInt  func(int64) *big.Int                      = big.NewInt
 	valOf      func(any) reflect.Value                   = reflect.ValueOf
 	typeOf     func(any) reflect.Type                    = reflect.TypeOf
@@ -82,9 +82,8 @@ func streq(a, b string) bool {
 	return a == b
 }
 
-
 func removeBashComments(input []byte) (output []byte) {
-	stripComments := func(line string) string{
+	stripComments := func(line string) string {
 		re := regexp.MustCompile("#.*")
 		return re.ReplaceAllString(line, "")
 	}
