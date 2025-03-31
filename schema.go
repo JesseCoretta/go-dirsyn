@@ -4,37 +4,88 @@ package dirsyn
 schema.go implements much of Section 4 of RFC 4512.
 */
 
-import "sync"
+import (
+	"io/fs"
+	"path/filepath"
+	"sync"
+)
 
 /*
 NewSubschemaSubentry returns a freshly initialized instance of
 *[SubschemaSubentry]. Instances of this type serve as a platform
 upon which individual textual definitions may be parsed into
 usable instances of [SchemaDefinition].
+
+The prime variadic argument controls whether to prime, or "pre-load",
+standard [LDAPSyntax] and [MatchingRule] definitions sourced from RFC
+4512, RFC 4523 and RFC 2307 into the receiver instance. The default
+is false, which results in no such definitions being pre-loaded.
 */
-func (r RFC4512) SubschemaSubentry() *SubschemaSubentry {
-	sch := &SubschemaSubentry{
+func (r RFC4512) SubschemaSubentry(prime ...bool) (sch *SubschemaSubentry) {
+	sch = &SubschemaSubentry{
 		lock: &sync.Mutex{},
 	}
-	sch.primeBuiltIns()
-	return sch
+
+	if len(prime) > 0 {
+		if prime[0] {
+			sch.primeBuiltIns()
+		}
+	}
+
+	return
 }
 
 /*
-Read returns an error following an attempt to read the specified
-filename into an instance of []byte, which is then fed to the
-[SubschemaSubentry.ReadBytes] method automatically.
+ReadDirectory recurses all files and folders specified at 'dir',
+returning parsed schema bytes (content) alongside an error.
+
+Only files with an extension of ".schema" will be parsed, but all
+subdirectories will be traversed in search of these files. Files
+not bearing the ".schema" extension will be silently ignored.
+
+File and directory naming schemes MUST guarantee the appropriate
+ordering of any and all sub types, sub rules and sub classes which
+would rely on the presence of dependency definitions (e.g.: 'cn'
+cannot exist without 'name').
+*/
+func (r *SubschemaSubentry) ReadDirectory(dir string) (err error) {
+
+	// remove any number of trailing
+	// slashes from dir.
+	dir = trimR(dir, `/`)
+
+	// avoid panicking if the directory does not exist during
+	// the "walking" process.
+	if _, err = ostat(dir); erris(err, errNotExist) {
+		return
+	}
+
+	// recurse dir path
+	err = filepath.Walk(dir, func(p string, d fs.FileInfo, err error) error {
+		if !d.IsDir() && hasSfx(d.Name(), ".schema") {
+			err = r.ReadFile(p)
+		}
+
+		return err
+	})
+
+	return
+}
+
+/*
+ReadFile returns an error following an attempt to read the
+specified filename into an instance of []byte, which is then
+fed to the [SubschemaSubentry.ReadBytes] method automatically.
 
 The filename MUST end in ".schema", else an error shall be raised.
 */
 func (r *SubschemaSubentry) ReadFile(file string) (err error) {
-	var data []byte
-
 	if !hasSfx(file, `.schema`) {
 		err = errorTxt("Filename MUST end in `.schema`")
 		return
 	}
 
+	var data []byte
 	if data, err = readFile(file); err == nil {
 		err = r.ReadBytes(data)
 	}
@@ -80,7 +131,7 @@ func (r *SubschemaSubentry) ReadBytes(data []byte) error {
 		`dITStructureRules`, `dITStructureRule`,
 	}
 
-	data = removeComments(data)
+	data = removeBashComments(data)
 	data = brepAll(data, []byte("$\n"), []byte("$ "))
 	lines := bsplit(data, []byte("\n"))
 
@@ -93,7 +144,7 @@ func (r *SubschemaSubentry) ReadBytes(data []byte) error {
 	// keyword is at the start of the line.
 	isKeywordLine := func(line []byte) (bool, string) {
 		for _, keyword := range keywords {
-			if bhasPfx(line, []byte(keyword)) {
+			if bhasPfx(blc(line), blc([]byte(keyword))) {
 				return true, keyword
 			}
 		}

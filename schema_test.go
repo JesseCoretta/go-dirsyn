@@ -258,7 +258,7 @@ func ExampleSubschemaSubentry_Push_attributeType() {
 
 	fmt.Printf("Found definition at index #%d\n",
 		exampleSchema.AttributeTypes.Contains("1.3.6.1.4.1.56521.999.40.11"))
-	// Output: Found definition at index #95
+	// Output: Found definition at index #96
 }
 
 func ExampleSubschemaSubentry_Push_objectClass() {
@@ -310,7 +310,7 @@ instance of [9]uint) is of the following structure:
 */
 func ExampleSubschemaSubentry_Counters() {
 	fmt.Println(exampleSchema.Counters())
-	// Output: [67 45 96 44 29 1 1 2 285]
+	// Output: [67 45 97 44 29 1 1 2 286]
 }
 
 func ExampleAttributeType_SuperChain() {
@@ -779,6 +779,19 @@ func ExampleSubschemaSubentry_SubordinateStructureRules() {
 	// Output: Number of subordinate rules: 2
 }
 
+// This is only enabled for local maintainer tests.
+func ExampleSubschemaSubentry_ReadDirectory() {
+	var r RFC4512
+	sch := r.SubschemaSubentry()
+	if err := sch.ReadDirectory(`/home/jc/dev/schema`); err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	fmt.Println(sch.Counters())
+	// Output: [65 44 203 44 51 1 3 0 411]
+}
+
 func TestSubschemaSubentry_codecov(t *testing.T) {
 
 	_ = exampleSchema.OID()
@@ -1189,11 +1202,6 @@ var testSchemaDefinitions []string = []string{
 }
 
 var fileBytes []byte = []byte(`
-/*
-Begin attributeTypes
-
-Derived from RFC 4512, 4519 and 4524.
-*/
 attributeType: ( 2.5.4.1 NAME 'aliasedObjectName'
         EQUALITY distinguishedNameMatch
         SYNTAX 1.3.6.1.4.1.1466.115.121.1.12
@@ -1523,12 +1531,12 @@ attributeType: ( 2.5.18.6 NAME 'subtreeSpecification'
         SINGLE-VALUE
         USAGE directoryOperation
         SYNTAX 1.3.6.1.4.1.1466.115.121.1.45 )
+attributeType: ( 1.3.6.1.4.1.250.1.57
+	NAME 'labeledURI'
+	EQUALITY caseExactMatch
+	SUBSTR caseExactSubstringsMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )
 
-/*
-Begin objectClasses.
-
-Derived from RFCs 4512, 4519 and 4524.
-*/
 objectClass: ( 2.5.6.0 NAME 'top' ABSTRACT MUST objectClass )
 objectClass: ( 2.5.6.1 NAME 'alias'
         SUP top STRUCTURAL
@@ -1740,7 +1748,7 @@ var exampleSchema *SubschemaSubentry
 
 func init() {
 	var r RFC4512
-	exampleSchema = r.SubschemaSubentry()
+	exampleSchema = r.SubschemaSubentry(true)
 	if err := exampleSchema.ReadBytes(fileBytes); err != nil {
 		panic(err)
 	}

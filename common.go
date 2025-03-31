@@ -1,6 +1,7 @@
 package dirsyn
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/asn1"
 	"encoding/base64"
@@ -21,6 +22,7 @@ var (
 	atoi       func(string) (int, error)                 = strconv.Atoi
 	itoa       func(int) string                          = strconv.Itoa
 	cntns      func(string, string) bool                 = strings.Contains
+	erris      func(error, error) bool		     = errors.Is
 	mkerr      func(string) error                        = errors.New
 	fields     func(string) []string                     = strings.Fields
 	bfields    func([]byte) [][]byte                     = bytes.Fields
@@ -29,6 +31,8 @@ var (
 	trimR      func(string, string) string               = strings.TrimRight
 	trimPfx    func(string, string) string               = strings.TrimPrefix
 	trimSfx    func(string, string) string               = strings.TrimSuffix
+	btrimL     func([]byte, string) []byte               = bytes.TrimLeft
+	btrimR     func([]byte, string) []byte               = bytes.TrimRight
 	btrimS     func([]byte) []byte                       = bytes.TrimSpace
 	hasPfx     func(string, string) bool                 = strings.HasPrefix
 	hasSfx     func(string, string) bool                 = strings.HasSuffix
@@ -62,6 +66,7 @@ var (
 	blc        func([]byte) []byte                       = bytes.ToLower
 	buc        func([]byte) []byte                       = bytes.ToUpper
 	readFile   func(string) ([]byte, error)              = os.ReadFile
+	ostat      func(string) (os.FileInfo, error)	     = os.Stat
 	newBigInt  func(int64) *big.Int                      = big.NewInt
 	valOf      func(any) reflect.Value                   = reflect.ValueOf
 	typeOf     func(any) reflect.Type                    = reflect.TypeOf
@@ -75,6 +80,25 @@ func removeWHSP(a string) string {
 
 func streq(a, b string) bool {
 	return a == b
+}
+
+
+func removeBashComments(input []byte) (output []byte) {
+	stripComments := func(line string) string{
+		re := regexp.MustCompile("#.*")
+		return re.ReplaceAllString(line, "")
+	}
+
+	scanner := bufio.NewScanner(bytes.NewReader(input))
+	for scanner.Scan() {
+		line := scanner.Text()
+		strippedLine := stripComments(line)
+		if len(strippedLine) > 0 {
+			output = append(output, []byte(strippedLine+"\n")...)
+		}
+	}
+
+	return
 }
 
 /*
