@@ -1896,13 +1896,11 @@ evaluate as true:
 When executed directly, this method is NOT thread safe; see
 [SubschemaSubentry.Push] instead.
 */
-func (r *LDAPSyntaxes) Push(defs ...SchemaDefinition) {
+func (r *LDAPSyntaxes) Push(defs ...LDAPSyntax) {
 	for i := 0; i < len(defs); i++ {
 		def := defs[i]
-		if d, ok := def.(LDAPSyntax); ok {
-			if d.Valid() && r.Contains(d.NumericOID) == -1 {
-				*r = append(*r, d)
-			}
+		if def.Valid() && r.Contains(def.NumericOID) == -1 {
+			*r = append(*r, def)
 		}
 	}
 }
@@ -1935,13 +1933,11 @@ evaluate as true:
 When executed directly, this method is NOT thread safe; see
 [SubschemaSubentry.Push] instead.
 */
-func (r *MatchingRules) Push(defs ...SchemaDefinition) {
+func (r *MatchingRules) Push(defs ...MatchingRule) {
 	for i := 0; i < len(defs); i++ {
 		def := defs[i]
-		if d, ok := def.(MatchingRule); ok {
-			if def.Valid() && r.Contains(d.NumericOID) == -1 {
-				*r = append(*r, d)
-			}
+		if def.Valid() && r.Contains(def.NumericOID) == -1 {
+			*r = append(*r, def)
 		}
 	}
 }
@@ -1974,13 +1970,11 @@ evaluate as true:
 When executed directly, this method is NOT thread safe; see
 [SubschemaSubentry.Push] instead.
 */
-func (r *AttributeTypes) Push(defs ...SchemaDefinition) {
+func (r *AttributeTypes) Push(defs ...AttributeType) {
 	for i := 0; i < len(defs); i++ {
 		def := defs[i]
-		if d, ok := def.(AttributeType); ok {
-			if def.Valid() && r.Contains(d.NumericOID) == -1 {
-				*r = append(*r, d)
-			}
+		if def.Valid() && r.Contains(def.NumericOID) == -1 {
+			*r = append(*r, def)
 		}
 	}
 }
@@ -2013,13 +2007,11 @@ evaluate as true:
 When executed directly, this method is NOT thread safe; see
 [SubschemaSubentry.Push] instead.
 */
-func (r *MatchingRuleUses) Push(defs ...SchemaDefinition) {
+func (r *MatchingRuleUses) Push(defs ...MatchingRuleUse) {
 	for i := 0; i < len(defs); i++ {
 		def := defs[i]
-		if d, ok := def.(MatchingRuleUse); ok {
-			if d.Valid() && r.Contains(d.NumericOID) == -1 {
-				*r = append(*r, d)
-			}
+		if def.Valid() && r.Contains(def.NumericOID) == -1 {
+			*r = append(*r, def)
 		}
 	}
 }
@@ -2052,13 +2044,11 @@ evaluate as true:
 When executed directly, this method is NOT thread safe; see
 [SubschemaSubentry.Push] instead.
 */
-func (r *ObjectClasses) Push(defs ...SchemaDefinition) {
+func (r *ObjectClasses) Push(defs ...ObjectClass) {
 	for i := 0; i < len(defs); i++ {
 		def := defs[i]
-		if d, ok := def.(ObjectClass); ok {
-			if def.Valid() && r.Contains(d.NumericOID) == -1 {
-				*r = append(*r, d)
-			}
+		if def.Valid() && r.Contains(def.NumericOID) == -1 {
+			*r = append(*r, def)
 		}
 	}
 }
@@ -2091,13 +2081,11 @@ evaluate as true:
 When executed directly, this method is NOT thread safe; see
 [SubschemaSubentry.Push] instead.
 */
-func (r *DITContentRules) Push(defs ...SchemaDefinition) {
+func (r *DITContentRules) Push(defs ...DITContentRule) {
 	for i := 0; i < len(defs); i++ {
 		def := defs[i]
-		if d, ok := def.(DITContentRule); ok {
-			if def.Valid() && r.Contains(d.NumericOID) == -1 {
-				*r = append(*r, d)
-			}
+		if def.Valid() && r.Contains(def.NumericOID) == -1 {
+			*r = append(*r, def)
 		}
 	}
 }
@@ -2130,13 +2118,11 @@ evaluate as true:
 When executed directly, this method is NOT thread safe; see
 [SubschemaSubentry.Push] instead.
 */
-func (r *NameForms) Push(defs ...SchemaDefinition) {
+func (r *NameForms) Push(defs ...NameForm) {
 	for i := 0; i < len(defs); i++ {
 		def := defs[i]
-		if d, ok := def.(NameForm); ok {
-			if def.Valid() && r.Contains(d.NumericOID) == -1 {
-				*r = append(*r, d)
-			}
+		if def.Valid() && r.Contains(def.NumericOID) == -1 {
+			*r = append(*r, def)
 		}
 	}
 }
@@ -2169,13 +2155,11 @@ evaluate as true:
 When executed directly, this method is NOT thread safe; see
 [SubschemaSubentry.Push] instead.
 */
-func (r *DITStructureRules) Push(defs ...SchemaDefinition) {
+func (r *DITStructureRules) Push(defs ...DITStructureRule) {
 	for i := 0; i < len(defs); i++ {
 		def := defs[i]
-		if d, ok := def.(DITStructureRule); ok {
-			if def.Valid() && r.Contains(d.RuleID) == -1 {
-				*r = append(*r, d)
-			}
+		if def.Valid() && r.Contains(def.RuleID) == -1 {
+			*r = append(*r, def)
 		}
 	}
 }

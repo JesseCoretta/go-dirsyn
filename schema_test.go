@@ -1741,4 +1741,6 @@ func init() {
 	if err := exampleSchema.ReadBytes(fileBytes); err != nil {
 		panic(err)
 	}
+	fmt.Printf("CLASSES: %s\n", exampleSchema.ObjectClasses)
+	fmt.Printf("CLASSES: %s\n", exampleSchema.ObjectClasses)
 }
