@@ -320,19 +320,6 @@ func ExampleAttributeType_SuperChain() {
 	// Output: attributeTypes: ( 2.5.4.41 NAME 'name' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )
 }
 
-func ExampleDITStructureRule_SubRules() {
-	rules := exampleSchema.DITStructureRules
-	sup, idx := rules.Get(`applicationProcessStructure`)
-	if idx == -1 {
-		// not found
-		return
-	}
-
-	subs := sup.SubRules(rules)
-	fmt.Printf("%d subordinate rule found", len(subs))
-	// Output: 1 subordinate rule found
-}
-
 func ExampleObjectClass_SuperClassOf() {
 	classes := exampleSchema.ObjectClasses
 	top, idx := classes.Get(`top`) // 2.5.6.0
@@ -349,7 +336,9 @@ func ExampleObjectClass_SuperChain() {
 	child, _ := exampleSchema.ObjectClass(`subentry`)
 	supers := child.SuperChain(exampleSchema.ObjectClasses)
 	fmt.Println(supers)
-	// Output: objectClasses: ( 2.5.6.0 NAME 'top' ABSTRACT MUST objectClass )
+	// Output:
+	// objectClasses: ( 2.5.6.0 NAME 'top' ABSTRACT MUST objectClass )
+	// objectClasses: ( 2.5.17.0 NAME 'subentry' SUP top STRUCTURAL MUST ( cn $ subtreeSpecification ) X-ORIGIN 'RFC3672' )
 }
 
 func ExampleObjectClass_AllMust() {

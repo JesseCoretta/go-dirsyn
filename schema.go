@@ -3301,6 +3301,7 @@ func (r ObjectClass) SuperChain(classes ObjectClasses) (supers ObjectClasses) {
 			supers = append(supers, def)
 		}
 	}
+	supers = append(supers, r)
 
 	return
 }
@@ -3939,21 +3940,6 @@ func (r DITStructureRule) String() (def string) {
 		def += definitionMVDescriptors(`SUP`, r.SuperRules, true)
 		def += stringExtensions(r.Extensions)
 		def += ` )`
-	}
-
-	return
-}
-
-/*
-SubRules returns an instance of [DITStructureRules], each
-slice representing a subordinate [DITStructureRule] of the receiver
-instance.
-*/
-func (r DITStructureRule) SubRules(rules DITStructureRules) (sub DITStructureRules) {
-	for i := 0; i < len(rules); i++ {
-		if strInSlice(r.RuleID, rules[i].SuperRules) {
-			sub = append(sub, rules[i])
-		}
 	}
 
 	return
