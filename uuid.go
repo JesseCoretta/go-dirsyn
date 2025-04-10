@@ -34,7 +34,57 @@ var uuidFromBytes func([]byte) (uuid.UUID, error) = uuid.FromBytes
 /*
 UUID returns an instance of [UUID] alongside an error.
 */
-func (r RFC4530) UUID(x any) (u UUID, err error) {
+func (r RFC4530) UUID(x any) (UUID, error) {
+	return marshalUUID(x)
+}
+
+/*
+uUID returns a [Boolean] value indicative of a valid input
+value (x) per UUID syntax (RFC 4530).
+*/
+func uUID(x any) (result Boolean) {
+	_, err := marshalUUID(x)
+	result.Set(err == nil)
+	return
+}
+
+/*
+uuidMatch compares UUIDs a and b to gauge their equality.
+*/
+func uuidMatch(a, b any) (result Boolean, err error) {
+	var au, bu UUID
+	if au, err = marshalUUID(a); err != nil {
+		return
+	}
+	if bu, err = marshalUUID(b); err != nil {
+		return
+	}
+
+	result.Set(streqf(au.String(), bu.String()))
+	return
+}
+
+func uuidOrderingMatch(a, b any, operator byte) (result Boolean, err error) {
+	var au, bu UUID
+	if au, err = marshalUUID(a); err != nil {
+		return
+	}
+	if bu, err = marshalUUID(b); err != nil {
+		return
+	}
+
+	ai := au.Integer()
+	bi := bu.Integer()
+
+	result, err = integerMatchingRule(ai, bi, LessOrEqual)
+	return
+}
+
+/*
+marshalUUID returns an instance of [UUID] alongside an error
+following an attempt to marshal x as an RFC 4530 UUID.
+*/
+func marshalUUID(x any) (u UUID, err error) {
 	var raw string
 
 	switch tv := x.(type) {
@@ -44,6 +94,15 @@ func (r RFC4530) UUID(x any) (u UUID, err error) {
 			return
 		}
 		raw = tv
+	case []byte:
+		if l := len(tv); l != 36 {
+			err = errorBadLength("UUID", len(tv))
+			return
+		}
+		raw = string(tv)
+	case UUID:
+		u = tv
+		return
 	default:
 		err = errorBadType("UUID")
 		return

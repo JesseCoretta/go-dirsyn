@@ -586,6 +586,7 @@ var syntaxVerifiers map[string]SyntaxVerification = map[string]SyntaxVerificatio
 	`1.3.6.1.4.1.1466.115.121.1.51`: teletexTerminalIdentifier,
 	`1.3.6.1.4.1.1466.115.121.1.52`: telexNumber,
 	`1.3.6.1.4.1.1466.115.121.1.53`: uTCTime,
+	`1.3.6.1.1.16.1`:                uUID,
 }
 
 /*
@@ -689,4 +690,6 @@ var matchingRuleAssertions map[string]matchingRuleAssertion = map[string]matchin
 	"1.3.6.1.4.1.1466.109.114.1": EqualityRuleAssertion(caseExactIA5Match),
 	"1.3.6.1.4.1.1466.109.114.2": EqualityRuleAssertion(caseIgnoreIA5Match),
 	"1.3.6.1.4.1.1466.109.114.3": SubstringsRuleAssertion(caseIgnoreIA5SubstringsMatch),
+	"1.3.6.1.1.16.2":             EqualityRuleAssertion(uuidMatch),
+	"1.3.6.1.1.16.3":             OrderingRuleAssertion(uuidOrderingMatch),
 }

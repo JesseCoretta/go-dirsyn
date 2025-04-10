@@ -5,6 +5,42 @@ import (
 	"testing"
 )
 
+func TestUUIDMatch(t *testing.T) {
+	a1 := `23c4bc48-b82d-4091-a3c2-c1a62502d318`
+	a2 := `3918e81f-1278-4573-9ae8-8a650310e54c`
+
+	var u1, u2 UUID
+	var err error
+
+	if u1, err = marshalUUID(a1); err != nil {
+		t.Errorf("%s [ordering] failed: %v", t.Name(), err)
+		return
+	}
+
+	if u2, err = marshalUUID(a2); err != nil {
+		t.Errorf("%s [ordering] failed: %v", t.Name(), err)
+		return
+	}
+
+	var result Boolean
+	if result, err = uuidOrderingMatch(u1, u2, LessOrEqual); err != nil {
+		t.Errorf("%s [ordering] failed: %v", t.Name(), err)
+		return
+	}
+
+	if !result.True() {
+		t.Errorf("%s [ordering] failed: want %s, got %s", t.Name(), `TRUE`, result)
+		return
+	}
+
+	if result, err = uuidMatch(u1, u2); err != nil {
+		t.Errorf("%s [equality] failed: %v", t.Name(), err)
+	} else if !result.False() {
+		t.Errorf("%s [equality] failed: want %s, got %s", t.Name(), `FALSE`, result)
+		return
+	}
+}
+
 func TestUUID(t *testing.T) {
 	var r RFC4530
 
