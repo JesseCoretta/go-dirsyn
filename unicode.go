@@ -68,6 +68,7 @@ var (
 	ucIs     func(*unicode.RangeTable, rune) bool   = unicode.Is
 	uc1Of    func([]*unicode.RangeTable, rune) bool = unicode.IsOneOf
 	sfold    func(rune) rune                        = unicode.SimpleFold
+	isLetter func(rune) bool                        = unicode.IsLetter
 	utf8OK   func(string) bool                      = utf8.ValidString
 	utf16Enc func([]rune) []uint16                  = utf16.Encode
 	isSpace  func(rune) bool                        = unicode.IsSpace
@@ -117,6 +118,10 @@ func isDigit(r rune) bool {
 
 func isAlpha(r rune) bool {
 	return isLAlpha(r) || isUAlpha(r)
+}
+
+func isAlnum(r rune) bool {
+	return isAlpha(r) || isDigit(r)
 }
 
 func isUAlpha(r rune) bool {

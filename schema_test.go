@@ -164,7 +164,7 @@ func ExampleSubschemaSubentry_Unregister_dITStructureRule() {
 	// Output: false
 }
 
-func ExampleSubschemaSubentry_EffectiveSyntax() {
+func ExampleAttributeType_EffectiveSyntax() {
 	title, idx := exampleSchema.AttributeTypes.Get(`title`)
 	if idx == -1 {
 		fmt.Println("Attribute not found!")
@@ -174,13 +174,13 @@ func ExampleSubschemaSubentry_EffectiveSyntax() {
 	// NOTE: The "title" attributeType definition
 	// is a subtype of the "name" attributeType.
 
-	syntax := exampleSchema.EffectiveSyntax(title)
+	syntax := title.EffectiveSyntax()
 	fmt.Println(syntax.Identifier())
 	// Output: 1.3.6.1.4.1.1466.115.121.1.15
 
 }
 
-func ExampleSubschemaSubentry_EffectiveEquality() {
+func ExampleAttributeType_EffectiveEquality() {
 	title, idx := exampleSchema.AttributeTypes.Get(`title`)
 	if idx == -1 {
 		fmt.Println("Attribute not found!")
@@ -190,13 +190,13 @@ func ExampleSubschemaSubentry_EffectiveEquality() {
 	// NOTE: The "title" attributeType definition
 	// is a subtype of the "name" attributeType.
 
-	equality := exampleSchema.EffectiveEquality(title)
+	equality := title.EffectiveEquality()
 	fmt.Println(equality.Identifier())
 	// Output: caseIgnoreMatch
 
 }
 
-func ExampleSubschemaSubentry_EffectiveSubstring() {
+func ExampleAttributeType_EffectiveSubstring() {
 	title, idx := exampleSchema.AttributeTypes.Get(`title`)
 	if idx == -1 {
 		fmt.Println("Attribute not found!")
@@ -206,26 +206,26 @@ func ExampleSubschemaSubentry_EffectiveSubstring() {
 	// NOTE: The "title" attributeType definition
 	// is a subtype of the "name" attributeType.
 
-	substr := exampleSchema.EffectiveSubstring(title)
+	substr := title.EffectiveSubstring()
 	fmt.Println(substr.Identifier())
 	// Output: caseIgnoreSubstringsMatch
 
 }
 
-func ExampleSubschemaSubentry_EffectiveOrdering() {
+func ExampleAttributeType_EffectiveOrdering() {
 	dnq, idx := exampleSchema.AttributeTypes.Get(`dnQualifier`)
 	if idx == -1 {
 		fmt.Println("Attribute not found!")
 		return
 	}
 
-	ordering := exampleSchema.EffectiveOrdering(dnq)
+	ordering := dnq.EffectiveOrdering()
 	fmt.Println(ordering.Identifier())
 	// Output: caseIgnoreOrderingMatch
 }
 
 func ExampleSubschemaSubentry_Push_lDAPSyntax() {
-	exampleSchema.Push(LDAPSyntax{
+	exampleSchema.Push(&LDAPSyntax{
 		NumericOID:  "1.3.6.1.4.1.56521.999.10.11",
 		Description: "Fake syntax",
 	})
@@ -236,7 +236,7 @@ func ExampleSubschemaSubentry_Push_lDAPSyntax() {
 }
 
 func ExampleSubschemaSubentry_Push_matchingRule() {
-	exampleSchema.Push(MatchingRule{
+	exampleSchema.Push(&MatchingRule{
 		NumericOID:  "1.3.6.1.4.1.56521.999.20.11",
 		Name:        []string{`fakeRule`},
 		Description: "Fake rule",
@@ -249,7 +249,7 @@ func ExampleSubschemaSubentry_Push_matchingRule() {
 }
 
 func ExampleSubschemaSubentry_Push_attributeType() {
-	exampleSchema.Push(AttributeType{
+	exampleSchema.Push(&AttributeType{
 		NumericOID:  "1.3.6.1.4.1.56521.999.40.11",
 		Name:        []string{`fakeType`},
 		Description: "Fake type",
@@ -262,7 +262,7 @@ func ExampleSubschemaSubentry_Push_attributeType() {
 }
 
 func ExampleSubschemaSubentry_Push_objectClass() {
-	exampleSchema.Push(ObjectClass{
+	exampleSchema.Push(&ObjectClass{
 		NumericOID:   "1.3.6.1.4.1.56521.999.50.11",
 		Name:         []string{`fakeClass`},
 		Description:  "Fake class",
@@ -276,7 +276,7 @@ func ExampleSubschemaSubentry_Push_objectClass() {
 }
 
 func ExampleSubschemaSubentry_Push_dITContentRule() {
-	exampleSchema.Push(DITContentRule{
+	exampleSchema.Push(&DITContentRule{
 		NumericOID:  "1.3.6.1.4.1.56521.999.50.11",
 		Name:        []string{`fakeRule`},
 		Description: "Fake rule",
@@ -315,7 +315,7 @@ func ExampleSubschemaSubentry_Counters() {
 
 func ExampleAttributeType_SuperChain() {
 	child, _ := exampleSchema.AttributeType(`cn`)
-	supers := child.SuperChain(exampleSchema.AttributeTypes)
+	supers := child.SuperChain()
 	fmt.Println(supers)
 	// Output: attributeTypes: ( 2.5.4.41 NAME 'name' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )
 }
@@ -328,14 +328,13 @@ func ExampleObjectClass_SuperClassOf() {
 		return
 	}
 
-	fmt.Println(top.SuperClassOf(`subentry`, classes))
+	fmt.Println(top.SuperClassOf(`subentry`))
 	// Output: true
 }
 
 func ExampleObjectClass_SuperChain() {
 	child, _ := exampleSchema.ObjectClass(`subentry`)
-	supers := child.SuperChain(exampleSchema.ObjectClasses)
-	fmt.Println(supers)
+	fmt.Println(child.SuperChain())
 	// Output:
 	// objectClasses: ( 2.5.6.0 NAME 'top' ABSTRACT MUST objectClass )
 	// objectClasses: ( 2.5.17.0 NAME 'subentry' SUP top STRUCTURAL MUST ( cn $ subtreeSpecification ) X-ORIGIN 'RFC3672' )
@@ -343,9 +342,7 @@ func ExampleObjectClass_SuperChain() {
 
 func ExampleObjectClass_AllMust() {
 	child, _ := exampleSchema.ObjectClass(`subentry`)
-	musts := child.AllMust(exampleSchema.AttributeTypes,
-		exampleSchema.ObjectClasses)
-	fmt.Println(musts)
+	fmt.Println(child.AllMust())
 	// Output:
 	// attributeTypes: ( 2.5.4.0 NAME 'objectClass' EQUALITY objectIdentifierMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.38 )
 	// attributeTypes: ( 2.5.4.3 NAME ( 'cn' 'commonName' ) DESC 'RFC4519: common name(s) for which the entity is known by' SUP name )
@@ -354,9 +351,7 @@ func ExampleObjectClass_AllMust() {
 
 func ExampleObjectClass_AllMay() {
 	child, _ := exampleSchema.ObjectClass(`applicationProcess`)
-	musts := child.AllMay(exampleSchema.AttributeTypes,
-		exampleSchema.ObjectClasses)
-	fmt.Println(musts)
+	fmt.Println(child.AllMay())
 	// Output:
 	// attributeTypes: ( 2.5.4.34 NAME 'seeAlso' SUP distinguishedName )
 	// attributeTypes: ( 2.5.4.11 NAME ( 'ou' 'organizationalUnitName' ) SUP name )
@@ -758,13 +753,13 @@ func ExampleMatchingRule_OrderingMatch_caseExactOrderingMatchLessOrEqual() {
 
 func ExampleSubschemaSubentry_SuperiorStructureRules() {
 	sups := exampleSchema.SuperiorStructureRules(`applicationProcessStructure`)
-	fmt.Printf("Rule is a root: %t", len(sups) == 0)
+	fmt.Printf("Rule is a root: %t", sups.Len() == 0)
 	// Output: Rule is a root: true
 }
 
 func ExampleSubschemaSubentry_SubordinateStructureRules() {
 	subs := exampleSchema.SubordinateStructureRules(`applicationProcessStructure`)
-	fmt.Printf("Number of subordinate rules: %d", len(subs))
+	fmt.Printf("Number of subordinate rules: %d", subs.Len())
 	// Output: Number of subordinate rules: 2
 }
 
@@ -930,35 +925,36 @@ func TestSubschemaSubentry_codecov(t *testing.T) {
 
 	exampleSchema.RegisterDITContentRule(`()`)
 
-	var mru MatchingRuleUses
-	mru = append(mru, MatchingRuleUse{
+	mru := exampleSchema.NewMatchingRuleUses()
+	mru.Push(&MatchingRuleUse{
 		NumericOID:  `2.5.13.15`,
 		Description: `this is text`,
 		Name:        []string{`userRule`},
 		Applies:     []string{`cn`, `sn`},
 	})
+
 	_ = mru.String()
 	mru.isDefinitions()
 
-	var lss LDAPSyntaxes
+	lss := exampleSchema.NewLDAPSyntaxes()
 	lss.isDefinitions()
 
-	var mrs MatchingRules
+	mrs := exampleSchema.NewMatchingRules()
 	mrs.isDefinitions()
 
-	var ats AttributeTypes
+	ats := exampleSchema.NewAttributeTypes()
 	ats.isDefinitions()
 
-	var ocs ObjectClasses
+	ocs := exampleSchema.NewObjectClasses()
 	ocs.isDefinitions()
 
-	var nfs NameForms
-	nfs.isDefinitions()
-
-	var dcs DITContentRules
+	dcs := exampleSchema.NewDITContentRules()
 	dcs.isDefinitions()
 
-	var dss DITStructureRules
+	nfs := exampleSchema.NewNameForms()
+	nfs.isDefinitions()
+
+	dss := exampleSchema.NewDITStructureRules()
 	dss.isDefinitions()
 
 	var atd AttributeType
@@ -1741,6 +1737,4 @@ func init() {
 	if err := exampleSchema.ReadBytes(fileBytes); err != nil {
 		panic(err)
 	}
-	fmt.Printf("CLASSES: %s\n", exampleSchema.ObjectClasses)
-	fmt.Printf("CLASSES: %s\n", exampleSchema.ObjectClasses)
 }

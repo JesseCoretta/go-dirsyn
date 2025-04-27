@@ -12,15 +12,19 @@ type standard struct {
 }
 
 type (
+	NetscapeACIv3 struct{ *SubschemaSubentry }
+
 	X501 struct{ *standard } // ITU-T Rec. X.501
 	X520 struct{ *standard } // ITU-T Rec. X.520
 	X680 struct{ *standard } // ITU-T Rec. X.680
 
 	RFC2307 struct{ *standard } // RFC 2307
 	RFC3672 struct{ *standard } // RFC 3672
+	RFC4511 struct{ *standard } // RFC 4511
 	RFC4512 struct{ *standard } // RFC 4512
 	RFC4514 struct{ *standard } // RFC 4514
 	RFC4515 struct{ *standard } // RFC 4515
+	RFC4516 struct{ *standard } // RFC 4516
 	RFC4517 struct{ *standard } // RFC 4517
 	RFC4523 struct{ *standard } // RFC 4523
 	RFC4530 struct{ *standard } // RFC 4530

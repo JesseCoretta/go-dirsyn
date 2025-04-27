@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/asn1"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"math/big"
@@ -42,6 +43,9 @@ var (
 	bsplit     func([]byte, []byte) [][]byte             = bytes.Split
 	split      func(string, string) []string             = strings.Split
 	splitN     func(string, string, int) []string        = strings.SplitN
+	stridx     func(string, string) int                  = strings.Index
+	lstridx    func(string, string) int                  = strings.LastIndex
+	idxany     func(string, string) int                  = strings.IndexAny
 	idxr       func(string, rune) int                    = strings.IndexRune
 	repAll     func(string, string, string) string       = strings.ReplaceAll
 	brepAll    func([]byte, []byte, []byte) []byte       = bytes.ReplaceAll
@@ -56,7 +60,6 @@ var (
 	asn1um     func([]byte, any) ([]byte, error)         = asn1.Unmarshal
 	asn1ump    func([]byte, any, string) ([]byte, error) = asn1.UnmarshalWithParams
 	streqf     func(string, string) bool                 = strings.EqualFold
-	stridx     func(string, string) int                  = strings.Index
 	bidx       func([]byte, []byte) int                  = bytes.Index
 	strlidx    func(string, string) int                  = strings.LastIndex
 	strcnt     func(string, string) int                  = strings.Count
@@ -72,7 +75,54 @@ var (
 	typeOf     func(any) reflect.Type                    = reflect.TypeOf
 	regexMatch func(string, string) (bool, error)        = regexp.MatchString
 	now        func() time.Time                          = time.Now
+	uint16g    func([]byte) uint16                       = binary.BigEndian.Uint16
+	uint16p    func([]byte, uint16)                      = binary.BigEndian.PutUint16
 )
+
+/*
+getStringer uses reflect to obtain and return a given
+type instance's String ("stringer") method, if present.
+If not, nil is returned.
+*/
+func getStringer(x any) (meth func() string) {
+	if v := valOf(x); !v.IsZero() {
+		if method := v.MethodByName(`String`); method.Kind() != reflect.Invalid {
+			if _meth, ok := method.Interface().(func() string); ok {
+				meth = _meth
+			}
+		}
+	}
+
+	return
+}
+
+/*
+unquote removes leading and trailing quotation characters from
+str.
+
+This function considers any of ASCII #34 ("), ASCII #39 (') and
+ASCII #96 (`) to be eligible candidates for truncation, though
+only matches of the first and final slices are considered.
+*/
+func unquote(str string) string {
+	if len(str) <= 2 {
+		return str
+	}
+
+	// remove leading candidate
+	switch c := rune(str[0]); c {
+	case '"', '\'', '`':
+		str = str[1:]
+	}
+
+	// remove trailing candidate
+	switch c := rune(str[len(str)-1]); c {
+	case '"', '\'', '`':
+		str = str[:len(str)-1]
+	}
+
+	return str
+}
 
 func removeWHSP(a string) string {
 	return repAll(a, ` `, ``)
@@ -153,6 +203,62 @@ func removeComments(input []byte) []byte {
 	}
 
 	return output.Bytes()
+}
+
+/*
+isAttribute returns a boolean value indicative of whether val
+describes a numeric OID or RFC 4512 descriptor ("descr").
+
+This is used, specifically, it identify an schema definition's
+"NAME" or specify any number of values for an ACIAttribute.
+*/
+func isAttribute(val string) (is bool) {
+	_, err := marshalNumericOID(val)
+	if is = err != nil; !is {
+		is = isAttributeDescriptor(val)
+	}
+
+	return
+}
+
+/*
+isAttributeDescriptor scans the input string val and judges
+whether it appears to qualify as a valid RFC 4512 descriptor
+(or "descr"), in that:
+
+  - it begins with an alpha
+  - it ends with an alpha or digit
+  - it contains only alphas, digits, hyphens or semicolons
+  - it contains no consecutive hyphens or semicolons
+*/
+func isAttributeDescriptor(val string) bool {
+	if len(val) == 0 {
+		return false
+	}
+
+	// must begin with an alpha.
+	if !isAlpha(rune(val[0])) {
+		return false
+	}
+
+	// can only end in alnum.
+	if !isAlnum(rune(val[len(val)-1])) {
+		return false
+	}
+
+	for i := 0; i < len(val); i++ {
+		ch := rune(val[i])
+		switch {
+		case isAlnum(ch):
+			// ok
+		case ch == ';', ch == '-':
+			// ok
+		default:
+			return false
+		}
+	}
+
+	return true
 }
 
 func isLinebreak(char byte) bool {
@@ -536,6 +642,139 @@ func condenseWHSP(input any) (a string) {
 
 	a = trimS(a)
 	return
+}
+
+/*
+isPtr returns a Boolean value indicative of whether kind
+reflection revealed the presence of a pointer type.
+*/
+func isPtr(x any) bool {
+	return typeOf(x).Kind() == reflect.Ptr
+}
+
+/*
+isIUint returns a Boolean value of true if x represents a
+member of the integer / unsigned integer "family". Any size
+is allowed, so long as it is a built-in primitive.
+
+If a (valid) member is a pointer reference, it is dereferenced
+and examined just the same.
+
+Floats and complexes are ineligible and will return false as they
+are not used in this package. Additionally, non-numerical types
+shall return false. This would include structs, strings, maps, etc.
+*/
+func isIUint(x any) (is bool) {
+	// create a reflect.Type abstract
+	// instance using raw input x.
+	X := typeOf(x)
+
+	// disenvelop the instance if
+	// it is a pointer reference.
+	if isPtr(x) {
+		X = X.Elem()
+	}
+
+	// perform a reflect.Kind switch upon
+	// reflect.Type instance X ...
+	switch k := X.Kind(); k {
+
+	// allow only the following "kinds":
+	case reflect.Int, reflect.Uint,
+		reflect.Int8, reflect.Uint8,
+		reflect.Int16, reflect.Uint16,
+		reflect.Int32, reflect.Uint32,
+		reflect.Int64, reflect.Uint64,
+		reflect.Uintptr:
+		is = true
+	}
+
+	return
+}
+
+/*
+getBitSize returns the max bit length capacity
+for a given type.
+
+Note this will only return a meaningful value if
+x represents a numerical type, such as Day, Right
+or Level (all of which are subject to bit shifts).
+Passing inappropriate type instances, such as a
+struct, string, etc., will return zero (0).
+
+This function uses the reflect.Size method (and
+thus unsafe.Sizeof) to obtain a uintptr, which
+will be cast as an int, multiplied by eight (8)
+and finally returned.
+*/
+func bitSize(x any) (bits int) {
+	if x == nil {
+		return
+	}
+
+	// create a reflect.Type abstract
+	// instance using raw input x.
+	X := typeOf(x)
+
+	// disenvelop the instance if
+	// it is a pointer reference.
+	if isPtr(x) {
+		X = X.Elem()
+	}
+
+	// see if the instance is an int
+	// or uint (or a variant of same)
+	if isIUint(x) {
+		bits = int(X.Size()) * 8
+	}
+
+	return
+}
+
+// percentDecode manually decodes percent-encoded sequences in a string.
+// For every '%' followed by two valid hexadecimal digits, the sequence is replaced by the corresponding byte.
+func percentDecode(s string) (dec string, err error) {
+	result := newStrBuilder()
+
+	for i := 0; i < len(s); {
+		if s[i] == '%' {
+			if i+2 >= len(s) {
+				err = errorTxt("invalid percent encoding: incomplete sequence")
+				break
+			}
+
+			hexDigits := s[i+1 : i+3]
+			var num uint64
+			if num, err = puint(hexDigits, 16, 8); err != nil {
+				err = errorTxt("invalid percent encoding \"" + hexDigits + "\": " + err.Error())
+				break
+			}
+
+			result.WriteByte(byte(num))
+			i += 3
+		} else {
+			result.WriteByte(s[i])
+			i++
+		}
+	}
+
+	if err == nil {
+		dec = result.String()
+	}
+
+	return
+}
+
+// splitAndTrim splits a string by the given separator and trims spaces from each slice element.
+func splitAndTrim(s, sep string) []string {
+	raw := split(s, sep)
+	var parts []string
+	for _, part := range raw {
+		if trimmed := trimS(part); trimmed != "" {
+			parts = append(parts, trimmed)
+		}
+	}
+	return parts
 }
 
 /*

@@ -7,6 +7,13 @@ import (
 	ber "github.com/go-asn1-ber/asn1-ber"
 )
 
+func TestInvalidFilter_String(t *testing.T) {
+	f := invalidFilter{}
+	if f.String() != `` {
+		t.Errorf("%s failed: unable to print nil filter", t.Name())
+	}
+}
+
 /*
 This example demonstrates the means for properly assigning a value to
 an instance of [AssertionValue].
@@ -568,8 +575,8 @@ func TestFilter_codecov(t *testing.T) {
 	parseExtensibleMatch(`a:dn:1.2.3.4`, `xxxx`)
 	parseFilterNot(`4`)
 	parseFilterNot(`uifeds\f43829`)
-	processFilter(`uifeds\f43829`)
-	processFilter(` `)
+	marshalFilter(`uifeds\f43829`)
+	marshalFilter(` `)
 	parseComplexFilter(`_`, `&`)
 
 	dnAttrSplit(`A:dn:Z`)

@@ -17,16 +17,20 @@ is returned.
 If the input is a string, an attempt to marshal the value is made. If
 the string is zero, this is equivalent to providing nil.
 
-If the input is a *[ber.Packet] instance, it is unmarshaled into the
-return instance of [Filter].
+If the input is a *[ber.Packet] instance describing a previously parsed
+[Filter], it is unmarshaled into the return instance of [Filter].
 
 Any errors found will result in the return of an invalid [Filter] instance.
 */
-func (r RFC4515) Filter(x any) (filter Filter, err error) {
+func (r RFC4515) Filter(x any) (Filter, error) {
+	return marshalFilter(x)
+}
+
+func marshalFilter(x any) (filter Filter, err error) {
 	switch tv := x.(type) {
 	case nil:
 		// Nil returns the default filter.
-		filter, err = r.Filter(``)
+		filter, err = marshalFilter(``)
 		return
 	case string:
 		// try to handle a zero length string
@@ -43,7 +47,7 @@ func (r RFC4515) Filter(x any) (filter Filter, err error) {
 		return
 	}
 
-	if filter, err = processFilter(x); filter == nil {
+	if filter, err = parseSubFilter(x); filter == nil {
 		// just to avoid panics in the event
 		// the user does not check errors.
 		filter = invalidFilter{}
@@ -848,7 +852,7 @@ single value.
 */
 func (r FilterExtensibleMatch) Len() int { return 1 }
 
-func processFilter(x any) (filter Filter, err error) {
+func parseSubFilter(x any) (filter Filter, err error) {
 	var input string
 	if input, err = assertString(x, 1, "Search Filter"); err != nil {
 		return
@@ -893,7 +897,7 @@ func parseFilterNot(input string) (filter Filter, err error) {
 	}
 
 	var subRef Filter
-	if subRef, err = processFilter(input[2 : len(input)-1]); err == nil {
+	if subRef, err = parseSubFilter(input[2 : len(input)-1]); err == nil {
 		filter = FilterNot{subRef}
 	}
 
@@ -904,7 +908,7 @@ func parseComplexFilter(input, prefix string) (Filter, error) {
 	var refs []Filter
 	parts := splitFilterParts(input)
 	for _, part := range parts {
-		subRef, err := processFilter(part)
+		subRef, err := parseSubFilter(part)
 		if err != nil {
 			return nil, err
 		}
