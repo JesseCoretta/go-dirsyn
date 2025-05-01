@@ -67,6 +67,7 @@ This package relies upon the following third-party packages:
   - [`uuid`](https://github.com/google/uuid)
   - [`asn1-ber`](https://github.com/go-asn1-ber/asn1-ber)
   - [`objectid`](https://github.com/JesseCoretta/go-objectid)
+  - [`shifty`](https://github.com/JesseCoretta/go-shifty)
 
 ## Supported Matching Rules
 
