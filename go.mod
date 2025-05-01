@@ -7,3 +7,5 @@ require (
 	github.com/go-asn1-ber/asn1-ber v1.5.5
 	github.com/google/uuid v1.6.0
 )
+
+require github.com/JesseCoretta/go-shifty v1.0.1 // indirect
