@@ -6,7 +6,7 @@
 
 Package dirsyn implements low-level directory syntax parsing and assertion matching rule components.
 
-This package was mainly developed for the XDAPL Project.
+This package was developed for the XDAPL Project.
 
 ## Status
 
@@ -37,6 +37,7 @@ As mentioned earlier, this package is low-level in nature. It is not designed fo
 This package relies upon the following packages from the standard library:
 
   - `encoding/asn1`
+  - `encoding/binary`
   - `encoding/base64`
   - `encoding/hex`
   - `errors`
@@ -136,6 +137,7 @@ The following syntaxes are supported by this package at this time.  More will be
   - Matching Rule Description ([RFC 4512 § 4.1.3](https://datatracker.ietf.org/doc/html/rfc4512#section-4.1.3) and [RFC 4517 § 3.3.19](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.19))
   - Name and Optional UID ([RFC 4517 § 3.3.21](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.21))
   - Name Form Description ([RFC 4512 § 4.1.7.2](https://datatracker.ietf.org/doc/html/rfc4512#section-4.1.7.2) and [RFC 4517 § 3.3.22](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.22))
+  - Netscape Access Control Instruction Version 3.0 (proprietary)
   - NIS Netgroup Triple ([RFC 2307 § 2.4](https://datatracker.ietf.org/doc/html/rfc2307#section-2.4))
   - Numeric String ([RFC 4517 § 3.3.23](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.23))
   - Object Class Description ([RFC 4512 § 4.1.1](https://datatracker.ietf.org/doc/html/rfc4512#section-4.1.1) and [RFC 4517 § 3.3.24](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.24))
@@ -150,6 +152,4 @@ The following syntaxes are supported by this package at this time.  More will be
   - Telex Number ([RFC 4517 § 3.3.33](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.33))
   - UTC Time ([RFC 4517 § 3.3.34](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.34))
   - UUID ([RFC 4530 § 2.1](https://datatracker.ietf.org/doc/html/rfc4530#section-2.1))
-
-To parse instances of the Netscape ACIv3 "`aci`" attribute type, see [`go-antlraci`](https://github.com/JesseCoretta/go-antlraci), or the full-featured [`go-aci`](https://github.com/Jessecoretta/go-aci). This functionality may be ported into this package in the future.
 
