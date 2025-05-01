@@ -135,7 +135,7 @@ The following syntaxes are supported by this package at this time.  More will be
   - Integer ([RFC 4517 § 3.3.16](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.16))
   - JPEG ([RFC 4517 § 3.3.17](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.17))
   - LDAP Syntax Description ([RFC 4512 § 4.1.5](https://datatracker.ietf.org/doc/html/rfc4512#section-4.1.5) and [RFC 4517 § 3.3.18](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.18))
-  - LDAP URL ([RFC 4516](https://datatracker.ietf.org/doc/html/rfc4516))
+  - LDAP URL ([RFC 4516 § 2](https://datatracker.ietf.org/doc/html/rfc4516#section-2))
   - Matching Rule Description ([RFC 4512 § 4.1.3](https://datatracker.ietf.org/doc/html/rfc4512#section-4.1.3) and [RFC 4517 § 3.3.19](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.19))
   - Name and Optional UID ([RFC 4517 § 3.3.21](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.21))
   - Name Form Description ([RFC 4512 § 4.1.7.2](https://datatracker.ietf.org/doc/html/rfc4512#section-4.1.7.2) and [RFC 4517 § 3.3.22](https://datatracker.ietf.org/doc/html/rfc4517#section-3.3.22))
