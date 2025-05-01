@@ -22,7 +22,7 @@ func (r OctetString) String() string {
 }
 
 /*
-Size returns the integer length of the receiver instance.
+Len returns the integer length of the receiver instance.
 */
 func (r OctetString) Len() int {
 	return len(r)

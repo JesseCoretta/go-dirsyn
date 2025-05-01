@@ -136,6 +136,10 @@ func isBinChar(r rune) bool {
 	return r == '0' || r == '1'
 }
 
+func isWHSP(ch rune) bool {
+	return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r'
+}
+
 func runeInSlice(r rune, slice []rune) bool {
 	for i := 0; i < len(slice); i++ {
 		if r == slice[i] {
