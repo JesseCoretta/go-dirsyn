@@ -96,6 +96,10 @@ func getStringer(x any) (meth func() string) {
 	return
 }
 
+func charIsWHSPNL(ch byte) bool {
+	return ch == ' ' || ch == '\t' || ch == '\n'
+}
+
 /*
 unquote removes leading and trailing quotation characters from
 str.
