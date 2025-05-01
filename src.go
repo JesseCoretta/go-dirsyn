@@ -36,30 +36,30 @@ const (
 )
 
 /*
-URL returns the string representation of the [ITU-T Rec. X.501] document URL.
+DocumentURL returns the string representation of the [ITU-T Rec. X.501] document URL.
 
 [ITU-T Rec. X.501]: https://www.itu.int/rec/T-REC-X.501
 */
-func (r X501) URL() string { return itutURLPrefix + `X.501` }
+func (r X501) DocumentURL() string { return itutURLPrefix + `X.501` }
 
 /*
-URL returns the string representation of the [ITU-T Rec. X.680] document URL.
+DocumentURL returns the string representation of the [ITU-T Rec. X.680] document URL.
 
 [ITU-T Rec. X.680]: https://www.itu.int/rec/T-REC-X.680
 */
-func (r X680) URL() string { return itutURLPrefix + `X.680` }
+func (r X680) DocumentURL() string { return itutURLPrefix + `X.680` }
 
 /*
-URL returns the string representation of the [ITU-T Rec. X.520] document URL.
+DocumentURL returns the string representation of the [ITU-T Rec. X.520] document URL.
 
 [ITU-T Rec. X.520]: https://www.itu.int/rec/T-REC-X.520
 */
-func (r X520) URL() string { return itutURLPrefix + `X.520` }
+func (r X520) DocumentURL() string { return itutURLPrefix + `X.520` }
 
 /*
-URL returns the string representation of the RFC 2307 document URL.
+DocumentURL returns the string representation of the RFC 2307 document URL.
 */
-func (r RFC2307) URL() string { return rfcURLPrefix + `rfc2307` }
+func (r RFC2307) DocumentURL() string { return rfcURLPrefix + `rfc2307` }
 
 /*
 Schema returns the underlying instance of *[SubschemaSubentry].
@@ -69,46 +69,46 @@ func (r RFC2307) Schema() *SubschemaSubentry {
 }
 
 /*
-URL returns the string representation of the RFC 3672 document URL.
+DocumentURL returns the string representation of the RFC 3672 document URL.
 */
-func (r RFC3672) URL() string { return rfcURLPrefix + `rfc3672` }
+func (r RFC3672) DocumentURL() string { return rfcURLPrefix + `rfc3672` }
 
 /*
-URL returns the string representation of the RFC 4511 document URL.
+DocumentURL returns the string representation of the RFC 4511 document URL.
 */
-func (r RFC4511) URL() string { return rfcURLPrefix + `rfc4511` }
+func (r RFC4511) DocumentURL() string { return rfcURLPrefix + `rfc4511` }
 
 /*
-URL returns the string representation of the RFC 4512 document URL.
+DocumentURL returns the string representation of the RFC 4512 document URL.
 */
-func (r RFC4512) URL() string { return rfcURLPrefix + `rfc4512` }
+func (r RFC4512) DocumentURL() string { return rfcURLPrefix + `rfc4512` }
 
 /*
-URL returns the string representation of the RFC 4514 document URL.
+DocumentURL returns the string representation of the RFC 4514 document URL.
 */
-func (r RFC4514) URL() string { return rfcURLPrefix + `rfc4514` }
+func (r RFC4514) DocumentURL() string { return rfcURLPrefix + `rfc4514` }
 
 /*
-URL returns the string representation of the RFC 4515 document URL.
+DocumentURL returns the string representation of the RFC 4515 document URL.
 */
-func (r RFC4515) URL() string { return rfcURLPrefix + `rfc4515` }
+func (r RFC4515) DocumentURL() string { return rfcURLPrefix + `rfc4515` }
 
 /*
-URL returns the string representation of the RFC 4516 document URL.
+DocumentURL returns the string representation of the RFC 4516 document URL.
 */
-func (r RFC4516) URL() string { return rfcURLPrefix + `rfc4516` }
+func (r RFC4516) DocumentURL() string { return rfcURLPrefix + `rfc4516` }
 
 /*
-URL returns the string representation of the RFC 4517 document URL.
+DocumentURL returns the string representation of the RFC 4517 document URL.
 */
-func (r RFC4517) URL() string { return rfcURLPrefix + `rfc4517` }
+func (r RFC4517) DocumentURL() string { return rfcURLPrefix + `rfc4517` }
 
 /*
-URL returns the string representation of the RFC 4523 document URL.
+DocumentURL returns the string representation of the RFC 4523 document URL.
 */
-func (r RFC4523) URL() string { return rfcURLPrefix + `rfc4523` }
+func (r RFC4523) DocumentURL() string { return rfcURLPrefix + `rfc4523` }
 
 /*
-URL returns the string representation of the RFC 4530 document URL.
+DocumentURL returns the string representation of the RFC 4530 document URL.
 */
-func (r RFC4530) URL() string { return rfcURLPrefix + `rfc4530` }
+func (r RFC4530) DocumentURL() string { return rfcURLPrefix + `rfc4530` }
