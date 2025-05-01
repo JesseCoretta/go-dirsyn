@@ -74,6 +74,11 @@ URL returns the string representation of the RFC 3672 document URL.
 func (r RFC3672) URL() string { return rfcURLPrefix + `rfc3672` }
 
 /*
+URL returns the string representation of the RFC 4511 document URL.
+*/
+func (r RFC4511) URL() string { return rfcURLPrefix + `rfc4511` }
+
+/*
 URL returns the string representation of the RFC 4512 document URL.
 */
 func (r RFC4512) URL() string { return rfcURLPrefix + `rfc4512` }
@@ -87,6 +92,11 @@ func (r RFC4514) URL() string { return rfcURLPrefix + `rfc4514` }
 URL returns the string representation of the RFC 4515 document URL.
 */
 func (r RFC4515) URL() string { return rfcURLPrefix + `rfc4515` }
+
+/*
+URL returns the string representation of the RFC 4516 document URL.
+*/
+func (r RFC4516) URL() string { return rfcURLPrefix + `rfc4516` }
 
 /*
 URL returns the string representation of the RFC 4517 document URL.
