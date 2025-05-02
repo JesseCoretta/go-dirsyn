@@ -5533,7 +5533,6 @@ func marshalACIv3DayOfWeek(x ...any) (r ACIv3DayOfWeek, err error) {
 	case 1:
 		switch tv := x[0].(type) {
 		case string:
-			err = r.parse(tv)
 			r.Shift(tv)
 		case ACIv3Day:
 			r.Shift(tv)
