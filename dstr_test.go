@@ -13,7 +13,19 @@ func TestDirectoryString_FirstComponentMatch(t *testing.T) {
 	instance := Sequence{Value: PrintableString(txt)}
 	var testValue DirectoryString = PrintableString(txt)
 
+	// Try a non Sequence instance
 	result, err := directoryStringFirstComponentMatch(instance, testValue)
+	if err != nil {
+		t.Errorf("%s failed: %v", t.Name(), err)
+		return
+	} else if !result.True() {
+		t.Errorf("%s failed:\nwant: %s\ngot:  %s",
+			t.Name(), `TRUE`, result)
+		return
+	}
+
+	// Try a Sequence instance
+	result, err = directoryStringFirstComponentMatch(instance, instance)
 	if err != nil {
 		t.Errorf("%s failed: %v", t.Name(), err)
 		return

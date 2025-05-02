@@ -57,6 +57,7 @@ func TestBitString_codecov(t *testing.T) {
 		return
 	}
 
+	_, _ = bitStringMatch(`'1010100'B`, `'10101'B`)
 	_ = stripTrailingZeros([]byte{0x1, 0x2, 0x0, 0x0}, 2)
 	_ = stripTrailingZeros([]byte{0x1, 0x2, 0x0, 0x0}, 4)
 	_ = stripTrailingZeros([]byte{}, 0)

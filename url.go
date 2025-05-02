@@ -90,6 +90,11 @@ func marshalURL(input string) (r URL, err error) {
 	remainder := input[pfxlen:]
 	r = URL{Scheme: pfxtype}
 
+	// If the URL is simply "scheme:///", this is fine.
+	if input[len(input)-3:] == "///" {
+		return
+	}
+
 	var rest string
 	if rest, err = r.setHostPort(remainder, pfxtype); err != nil {
 		return
@@ -152,10 +157,6 @@ func (r *URL) setHostPort(input, pfxtype string) (rest string, err error) {
 		}
 	}
 
-	if pfxtype == "ldapi" && (len(r.Host) > 0 || len(r.Port) > 0) {
-		err = errorTxt("invalid URL: ldapi cannot possess a hostname and/or port")
-	}
-
 	return
 }
 
@@ -180,15 +181,10 @@ func (r *URL) setAttributesOrATBTV(parts []string) (err error) {
 	// Process attributes if present.
 	if len(parts) > 1 && parts[1] != "" {
 		if cntns(parts[1], `#`) {
-			comp := split(parts[1], `#`)
-			if len(comp) != 2 {
-				err = errorTxt("Invalid attributeBindTypeOrValue; must conform to 'attr#BINDTYPE'")
-				return
-			}
 			// If an octothorpe (#) is present, this undoubtedly
 			// means that an AttributeBindTypeOrValue is in use.
 			var a ACIv3AttributeBindTypeOrValue
-			if a, err = parseATBTV(comp[1], comp[0]); err == nil {
+			if a, err = marshalACIv3AttributeBindTypeOrValue(parts[1]); err == nil {
 				r.ATBTV = a
 			}
 		} else {
@@ -260,6 +256,11 @@ func (r *URL) setExtensions(parts []string) (err error) {
 }
 
 /*
+IsZero returns a Boolean value indicative of a nil receiver state.
+*/
+func (r *URL) IsZero() bool { return r == nil }
+
+/*
 String returns the string representation of the receiver instance.
 */
 func (r URL) String() string {
@@ -293,9 +294,9 @@ func (r URL) String() string {
 	if !(len(r.Attributes) > 0 ||
 		!r.ATBTV.IsZero() ||
 		len(r.Scope) > 0 ||
-		!r.Filter.IsZero() ||
+		r.Filter != nil ||
 		len(r.Extensions) > 0) {
-		return chopTrailingDelim(s)
+		return chopTrailingDelim(s) + "///"
 	}
 
 	s += "?"

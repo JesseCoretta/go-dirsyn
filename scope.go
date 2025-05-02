@@ -31,7 +31,9 @@ func (r RFC4511) SearchScope(x any) (s SearchScope, err error) {
 		s = strToScope(tv)
 	case int:
 		s = intToScope(tv)
-	default:
+	}
+
+	if s == noScope {
 		err = errorBadType("search scope")
 	}
 
@@ -97,6 +99,7 @@ intToScope returns a SearchScope constant based on the integer input.
 */
 func intToScope(x int) (s SearchScope) {
 	s = noScope
+	x++
 	switch x {
 	case 1:
 		s = ScopeBaseObject

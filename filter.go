@@ -1304,8 +1304,9 @@ func (r FilterSubstrings) BER() (packet *ber.Packet, err error) {
 }
 
 func unmarshalFilterPresentBER(packet *ber.Packet) (item Filter, err error) {
-
-	if str, ok := packet.Value.(AttributeDescription); !ok {
+	if packet == nil {
+		err = unknownBERPacket
+	} else if str, ok := packet.Value.(AttributeDescription); !ok {
 		item = invalidFilter{}
 		err = errorTxt("Invalid or absent AttributeDescription; cannot unmarshal")
 	} else {
@@ -1316,9 +1317,12 @@ func unmarshalFilterPresentBER(packet *ber.Packet) (item Filter, err error) {
 }
 
 func unmarshalGeLeFilterBER(packet *ber.Packet) (item Filter, err error) {
-	if len(packet.Children) != 2 {
+	item = invalidFilter{}
+	if packet == nil {
+		err = unknownBERPacket
+		return
+	} else if len(packet.Children) != 2 {
 		err = errorTxt("Unexpected number of Ge/Le sequence fields (want:2); cannot unmarshal")
-		item = invalidFilter{}
 		return
 	}
 
@@ -1331,7 +1335,6 @@ func unmarshalGeLeFilterBER(packet *ber.Packet) (item Filter, err error) {
 
 	if !aok || !vok {
 		err = errorTxt("Invalid or absent Ge/Le descr or value; cannot unmarshal")
-		item = invalidFilter{}
 	} else {
 		if typ == "greaterOrEqual" {
 			item = FilterGreaterOrEqual{Desc: AttributeDescription(a), Value: AssertionValue(v)}
@@ -1339,7 +1342,6 @@ func unmarshalGeLeFilterBER(packet *ber.Packet) (item Filter, err error) {
 			item = FilterLessOrEqual{Desc: AttributeDescription(a), Value: AssertionValue(v)}
 		} else {
 			err = errorTxt("Invalid or absent type identifier; cannot unmarshal")
-			item = invalidFilter{}
 		}
 	}
 
@@ -1347,9 +1349,12 @@ func unmarshalGeLeFilterBER(packet *ber.Packet) (item Filter, err error) {
 }
 
 func unmarshalApproxFilterBER(packet *ber.Packet) (item Filter, err error) {
-	if len(packet.Children) != 2 {
+	item = invalidFilter{}
+	if packet == nil {
+		err = unknownBERPacket
+		return
+	} else if len(packet.Children) != 2 {
 		err = errorTxt("Unexpected number of Approx sequence fields (want:2); cannot unmarshal")
-		item = invalidFilter{}
 		return
 	}
 
@@ -1371,8 +1376,11 @@ func unmarshalApproxFilterBER(packet *ber.Packet) (item Filter, err error) {
 
 func unmarshalExtensibleFilterBER(packet *ber.Packet) (item Filter, err error) {
 	item = invalidFilter{}
-	lct := len(packet.Children)
-	if !(1 <= lct && lct < 5) {
+	var lct int
+	if packet == nil {
+		err = unknownBERPacket
+		return
+	} else if lct = len(packet.Children); !(1 <= lct && lct < 5) {
 		err = errorTxt("Unexpected number of Extensible seq fields (want:1-4); cannot unmarshal")
 		return
 	}
@@ -1411,9 +1419,12 @@ func unmarshalExtensibleFilterBER(packet *ber.Packet) (item Filter, err error) {
 }
 
 func unmarshalEqualityFilterBER(packet *ber.Packet) (item Filter, err error) {
-	if len(packet.Children) != 2 {
+	item = invalidFilter{}
+	if packet == nil {
+		err = unknownBERPacket
+		return
+	} else if len(packet.Children) != 2 {
 		err = errorTxt("Unexpected number of Approx seq fields (want:2); cannot unmarshal")
-		item = invalidFilter{}
 		return
 	}
 
@@ -1425,7 +1436,6 @@ func unmarshalEqualityFilterBER(packet *ber.Packet) (item Filter, err error) {
 
 	if !aok || !vok {
 		err = errorTxt("Invalid or absent Equality descr or value; cannot unmarshal")
-		item = invalidFilter{}
 	} else {
 		item = FilterEqualityMatch{Desc: AttributeDescription(a), Value: AssertionValue(v)}
 	}
@@ -1435,7 +1445,10 @@ func unmarshalEqualityFilterBER(packet *ber.Packet) (item Filter, err error) {
 
 func unmarshalFilterSubstringsBER(packet *ber.Packet) (item Filter, err error) {
 	item = invalidFilter{}
-	if len(packet.Children) != 2 {
+	if packet == nil {
+		err = unknownBERPacket
+		return
+	} else if len(packet.Children) != 2 {
 		err = errorTxt("Unexpected number of AttributeType instances (want:2); cannot unmarshal")
 		return
 	}

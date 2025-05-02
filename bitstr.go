@@ -180,20 +180,16 @@ func bitStringMatch(a, b any) (result Boolean, err error) {
 	//}
 
 	// Check if both bit strings have the same number of bits
-	if abits != bbits {
-		result.Set(false)
-		return
-	}
-
-	// Compare bit strings bitwise
-	for i := 0; i < len(abytes); i++ {
-		if abytes[i] != bbytes[i] {
-			result.Set(false)
-			return
+	if abits == bbits {
+		// Compare bit strings bitwise
+		for i := 0; i < len(abytes); i++ {
+			if abytes[i] != bbytes[i] {
+				result.Set(false)
+				return
+			}
 		}
+		result.Set(true)
 	}
-
-	result.Set(true)
 
 	return
 }

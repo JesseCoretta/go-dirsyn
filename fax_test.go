@@ -7,12 +7,21 @@ import (
 func TestFax(t *testing.T) {
 	var r RFC4517
 
-	orig := `3010310780010181020080a3050303000080` // hex encoded
+	// valid hex encoding
+	orig := `3010310780010181020080a3050303000080`
 
 	if _, err := r.Fax(orig); err != nil {
 		t.Errorf("%s decoding failed: %v", t.Name(), err)
 		return
 	}
+
+	// bogus hex
+	orig = `3010310780010181020080a3050303000080FF89859385FF`
+	if _, err := r.Fax(orig); err == nil {
+		t.Errorf("%s decoding failed: expected error, got nothing", t.Name())
+		return
+	}
+
 }
 
 func TestFax_codecov(t *testing.T) {

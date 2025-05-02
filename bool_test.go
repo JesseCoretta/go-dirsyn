@@ -33,18 +33,26 @@ func TestBoolean_codecov(t *testing.T) {
 	var b Boolean
 	_ = b.Undefined()
 	_ = b.String()
+	_ = b.Bytes()
 
 	_ = boolean(`TRUE`)
 	_ = boolean(`FALSCH`)
 
 	b.Set(`TRUE`)
 	_ = b.String()
+	_ = b.Bytes()
+	b.Set(0x0)
 	b.Set(`FALSE`)
 	_ = b.String()
 	b.Set(nil)
 	_ = b.String()
 	b.Set(false)
+	b.Set(0xFF)
+	b.Set([]byte{0x0})
+	b.Set([]byte{0xFF})
 	_ = b.String()
+	b.SetBytes(0x00)
+	b.SetBytes(0xFF)
 
 	var truthy bool
 	b.Set(&truthy)

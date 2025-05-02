@@ -344,6 +344,15 @@ const (
 	ACIv3Ge ACIv3Operator = 0x6 // "Greater Than Or Equal"
 )
 
+/*
+[AttributeOperation] constants are used to initialize and return [ACIv3AttributeFilter] instances based on one (1) of the possible two (2) constants defined below.
+*/
+const (
+	noAOp      ACIv3AttributeOperation = iota
+	ACIv3AddOp                         // add=
+	ACIv3DelOp                         // delete=
+)
+
 const (
 	brAnd aCIBindRuleTokenType = iota
 	brOr
@@ -392,6 +401,48 @@ const (
 const (
 	fqdnMax  = 253
 	labelMax = 63
+)
+
+/*
+Day constants can be shifted into an instance of [ACIv3DayOfWeek], allowing effective expressions such as [Sun],[Tues]. See the [ACIv3DayOfWeek.Shift] and [ACIv3DayOfWeek.Unshift] methods.
+*/
+const (
+	noDay ACIv3Day = 0         // 0 <invalid_day>
+	Sun   ACIv3Day = 1 << iota // 1
+	Mon                        // 2
+	Tues                       // 4
+	Wed                        // 8
+	Thur                       // 16
+	Fri                        // 32
+	Sat                        // 64
+)
+
+var (
+	authMap   map[int]ACIv3AuthenticationMethod
+	authNames map[string]ACIv3AuthenticationMethod
+)
+
+/*
+ACIv3AuthenticationMethodLowerCase allows control over the case folding of ACIv3AuthenticationMethod string representation.
+
+A value of true shall force lowercase normalization, while a value of false (default) forces uppercase normalization.
+*/
+var ACIv3AuthenticationMethodLowerCase bool
+
+/*
+ACIv3AuthenticationMethod constants define all of the available LDAP authentication mechanisms recognized within the ACIv3 syntax honored by the package.
+
+Please note that supported SASL mechanisms vary per implementation.
+*/
+const (
+	noAuth         ACIv3AuthenticationMethod = iota // invalid
+	ACIv3Anonymous                                  // 0
+	ACIv3Simple                                     // 1
+	ACIv3SSL                                        // 2
+	ACIv3SASL                                       // 3
+	ACIv3EXTERNAL                                   // 4
+	ACIv3DIGESTMD5                                  // 5
+	ACIv3GSSAPI                                     // 6
 )
 
 type aCIBindRuleTokenType int
@@ -2802,9 +2853,9 @@ func marshalACIv3Inheritance(x ...any) (r ACIv3Inheritance, err error) {
 }
 
 /*
-ACIv3InheritanceLevel describes a discrete numerical abstract of a subordinate level. [ACIv3InheritanceLevel] describes any single [ACIv3InheritanceLevel] definition. [ACIv3InheritanceLevel] constants are intended for "storage" within an instance of [ACIv3Inheritance].
+ACIv3InheritanceLevel describes a discrete numerical abstract of a single subordinate level. [ACIv3InheritanceLevel] describes any single [ACIv3InheritanceLevel] definition. [ACIv3InheritanceLevel] constants are intended for "storage" within an instance of [ACIv3Inheritance].
 
-Valid [ACIv3InheritanceLevel] constants are level zero (0) through level nine (9), though this will vary across implementations.
+Valid [ACIv3InheritanceLevel] constants are level zero (0) through level nine (9), though the supported range will vary across directory implementations.
 */
 type ACIv3InheritanceLevel uint16
 
@@ -3712,6 +3763,9 @@ func parseATBTV(x string, bkw ...any) (A ACIv3AttributeBindTypeOrValue, err erro
 	// If minus one (-1), input value x is totally bogus.
 	idx := idxr(x, '#')
 	if idx == -1 {
+		err = badACIv3AttributeBindTypeOrValueErr
+		return
+	} else if len(x[idx+1:]) == 0 {
 		err = badACIv3AttributeBindTypeOrValueErr
 		return
 	}
@@ -5466,20 +5520,6 @@ func (r ACIv3PermissionBindRuleItem) String() string {
 //// TIME / DAY
 
 /*
-Day constants can be shifted into an instance of [ACIv3DayOfWeek], allowing effective expressions such as [Sun],[Tues]. See the [ACIv3DayOfWeek.Shift] and [ACIv3DayOfWeek.Unshift] methods.
-*/
-const (
-	noDay ACIv3Day = 0         // 0 <invalid_day>
-	Sun   ACIv3Day = 1 << iota // 1
-	Mon                        // 2
-	Tues                       // 4
-	Wed                        // 8
-	Thur                       // 16
-	Fri                        // 32
-	Sat                        // 64
-)
-
-/*
 ACIv3Day represents the numerical abstraction of a single day of the week, such as Sunday (1).
 */
 type ACIv3Day uint8
@@ -6268,15 +6308,6 @@ Constants of this type are used in [ACIv3AttributeFilterOperation] instances.
 type ACIv3AttributeOperation uint8
 
 /*
-[AttributeOperation] constants are used to initialize and return [ACIv3AttributeFilter] instances based on one (1) of the possible two (2) constants defined below.
-*/
-const (
-	noAOp      ACIv3AttributeOperation = iota
-	ACIv3AddOp                         // add=
-	ACIv3DelOp                         // delete=
-)
-
-/*
 AF initializes, optionally sets and returns a new instance of [ACIv3AttributeFilter], which is a critical component of the [ACIv3TargetAttrFilters] Target Rule.
 
 Input values must be either a [Filter] or an [ACIv3Attribute].
@@ -7045,7 +7076,7 @@ func marshalACIv3IPAddress(x ...any) (r ACIv3IPAddress, err error) {
 		case string:
 			ip.set(tv)
 		case ACIv3IPAddress:
-			sp := split(tv.String(),`,`)
+			sp := split(tv.String(), `,`)
 			ip.set(sp...)
 		}
 	}
@@ -7286,16 +7317,16 @@ func (r NetscapeACIv3) FQDN(x ...any) (ACIv3FQDN, error) {
 }
 
 func marshalACIv3FQDN(x ...any) (r ACIv3FQDN, err error) {
-        dns := new(aCIFQDNLabels)
-        for i := 0; i < len(x); i++ {
-                switch tv := x[i].(type) {
-                case string:
-                        dns.set(tv)
-                case ACIv3FQDN:
-                        sp := split(tv.String(),`,`)
-                        dns.set(sp...)
-                }
-        }
+	dns := new(aCIFQDNLabels)
+	for i := 0; i < len(x); i++ {
+		switch tv := x[i].(type) {
+		case string:
+			dns.set(tv)
+		case ACIv3FQDN:
+			sp := split(tv.String(), `,`)
+			dns.set(sp...)
+		}
+	}
 
 	r = ACIv3FQDN{dns}
 	if len(x) > 0 {
@@ -7547,34 +7578,6 @@ ACIv3AuthenticationMethod is a uint8 type that manifests through predefined pack
 */
 type ACIv3AuthenticationMethod uint8
 
-var (
-	authMap   map[int]ACIv3AuthenticationMethod
-	authNames map[string]ACIv3AuthenticationMethod
-)
-
-/*
-ACIv3AuthenticationMethodLowerCase allows control over the case folding of ACIv3AuthenticationMethod string representation.
-
-A value of true shall force lowercase normalization, while a value of false (default) forces uppercase normalization.
-*/
-var ACIv3AuthenticationMethodLowerCase bool
-
-/*
-ACIv3AuthenticationMethod constants define all of the available LDAP authentication mechanisms recognized within the ACIv3 syntax honored by the package.
-
-Please note that supported SASL mechanisms vary per implementation.
-*/
-const (
-	noAuth         ACIv3AuthenticationMethod = iota // invalid
-	ACIv3Anonymous                                  // 0
-	ACIv3Simple                                     // 1
-	ACIv3SSL                                        // 2
-	ACIv3SASL                                       // 3
-	ACIv3EXTERNAL                                   // 4
-	ACIv3DIGESTMD5                                  // 5
-	ACIv3GSSAPI                                     // 6
-)
-
 func (r NetscapeACIv3) AuthenticationMethod(x ...any) (ACIv3AuthenticationMethod, error) {
 	return marshalACIv3AuthenticationMethod(x...)
 }
@@ -7653,12 +7656,12 @@ func (r ACIv3AuthenticationMethod) Ne() ACIv3BindRule {
 
 func (r ACIv3AuthenticationMethod) Valid() (err error) {
 	var found bool
-        for k, _ := range authNames {
-                if streqf(k, r.String()) {
+	for k := range authNames {
+		if streqf(k, r.String()) {
 			found = true
-                        break
-                }
-        }
+			break
+		}
+	}
 
 	if !found {
 		err = badACIv3AMErr

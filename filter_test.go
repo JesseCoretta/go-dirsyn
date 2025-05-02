@@ -488,11 +488,35 @@ func TestFilter_codecov(t *testing.T) {
 	exts.IsZero()
 	_ = exts.String()
 	exts.Len()
-	exts.BER()
+	xber, _ := exts.BER()
+	_, _ = unmarshalExtensibleFilterBER(xber)
 	exts.tag()
 	exts.isFilter()
 	exts.DNAttributes = true
 	_ = exts.String()
+	fext, _ := marshalFilter(`a:dn:1.2.3:=John`)
+	xber, _ = fext.BER()
+	xber.Children[0].Value = 1
+	_, _ = unmarshalExtensibleFilterBER(xber)
+	fext, _ = marshalFilter(`a:dn:1.2.3:=John`)
+	xber, _ = fext.BER()
+	xber.Children[1].Value = 1
+	_, _ = unmarshalExtensibleFilterBER(xber)
+	fext, _ = marshalFilter(`a:dn:1.2.3:=John`)
+	xber, _ = fext.BER()
+	xber.Children[2].Value = 1
+	_, _ = unmarshalExtensibleFilterBER(xber)
+	fext, _ = marshalFilter(`a:dn:1.2.3:=John`)
+	xber, _ = fext.BER()
+	xber.Children[3].Value = 1
+	_, _ = unmarshalExtensibleFilterBER(xber)
+
+	var tag AttributeTag = `imATag`
+	_ = tag.String()
+	tag.isAttributeOption()
+
+	var descr AttributeDescription = []byte("cn;lang-en")
+	_ = descr.Type()
 
 	var substr FilterSubstrings
 	_ = substr.String()
@@ -502,7 +526,13 @@ func TestFilter_codecov(t *testing.T) {
 	substr.BER()
 	substr.tag()
 	substr.Substrings = SubstringAssertion{Any: AssertionValue(`blarg`)}
-	substr.BER()
+	sber, _ := substr.BER()
+	sber.Children[1].Children = []*ber.Packet{}
+	unmarshalFilterSubstringsBER(sber)
+	sber, _ = substr.BER()
+	sber.Children[1].Children[0].Tag = 44
+	unmarshalFilterSubstringsBER(sber)
+
 	substr.isFilter()
 	substr.Type = AttributeDescription(`cn`)
 	substr.BER()
@@ -521,7 +551,9 @@ func TestFilter_codecov(t *testing.T) {
 	pres.Index(9)
 	pres.IsZero()
 	pres.Len()
-	pres.BER()
+	presber, _ := pres.BER()
+	unmarshalFilterPresentBER(presber)
+
 	pres.tag()
 	pres.isFilter()
 
@@ -530,9 +562,49 @@ func TestFilter_codecov(t *testing.T) {
 	aprx.Index(9)
 	aprx.IsZero()
 	aprx.Len()
-	aprx.BER()
 	aprx.tag()
 	aprx.isFilter()
+	aprx.BER()
+
+	ff, _ := marshalFilter(`cn=Jesse`)
+	ffber, _ := ff.BER()
+	ffber.Children[0].Value = "__blarg__"
+	_, _ = unmarshalEqualityFilterBER(ffber)
+	ffber.Children[1].Value = 9
+	_, _ = unmarshalEqualityFilterBER(ffber)
+
+	ff, _ = marshalFilter(`_=Jesse`)
+	ffber, _ = ff.BER()
+	_, _ = unmarshalEqualityFilterBER(ffber)
+
+	ff, _ = marshalFilter(`_=~Jesse`)
+	ffber, _ = ff.BER()
+	_, _ = unmarshalApproxFilterBER(ffber)
+
+	ff, _ = marshalFilter(`cn=~Jesse`)
+	ffber, _ = ff.BER()
+	ffber.Children[0].Value = "__blarg__"
+	_, _ = unmarshalApproxFilterBER(ffber)
+
+	ff, _ = marshalFilter(`_>=5`)
+	ffber, _ = ff.BER()
+	_, _ = unmarshalGeLeFilterBER(ffber)
+
+	ff, _ = marshalFilter(`n>=5`)
+	ffber, _ = ff.BER()
+	ffber.Description = "__blarg__"
+	_, _ = unmarshalGeLeFilterBER(ffber)
+	ffber, _ = ff.BER()
+	ffber.Children[0].Value = 9
+	_, _ = unmarshalGeLeFilterBER(ffber)
+
+	ff, _ = marshalFilter(`cn=*esse`)
+	ffber, _ = ff.BER()
+	ffber.Children[0].Value = AttributeDescription("__blarg__")
+	_, _ = unmarshalFilterSubstringsBER(ffber)
+	ff, _ = marshalFilter(`_=*esse`)
+	ffber, _ = ff.BER()
+	_, _ = unmarshalFilterSubstringsBER(ffber)
 
 	var invalid invalidFilter
 	_ = invalid.String()
