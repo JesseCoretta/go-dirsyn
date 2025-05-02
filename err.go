@@ -31,6 +31,7 @@ var (
 	badACIv3InheritanceLevelErr         error = mkerr("Invalid ACI inheritance level")
 	badACIv3AttributeBindTypeOrValueErr error = mkerr("Invalid ACI AttributeBindTypeOrValue")
 	badACIv3AttributeErr                error = mkerr("Invalid ACI attribute")
+	badACIv3ATBTVErr                    error = mkerr("Invalid ACI attribute bind type or value")
 	badACIv3InstructionErr              error = mkerr("Invalid ACI Instruction")
 	badACIv3ScopeErr                    error = mkerr("Invalid ACI search scope")
 	badACIv3FilterErr                   error = mkerr("Invalid ACI filter")

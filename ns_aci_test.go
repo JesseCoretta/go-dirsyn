@@ -1443,7 +1443,13 @@ func TestACIv3Inheritance_codecov(t *testing.T) {
 }
 
 func TestACIv3FQDN(t *testing.T) {
-	var f ACIv3FQDN
+	var r NetscapeACIv3
+	f, err := r.FQDN()
+	if err != nil {
+		t.Errorf("%s failed: %v", t.Name(), err)
+		return
+	}
+
 	_ = f.Len()
 	_ = f.Keyword()
 	_ = f.Eq()

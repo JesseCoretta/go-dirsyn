@@ -8,7 +8,7 @@ Note that this is largely a streamlined port of JesseCoretta/go-aci.
 */
 
 import (
-	"fmt"
+	//"fmt"
 	"time"
 
 	"github.com/JesseCoretta/go-shifty"
@@ -470,36 +470,6 @@ func (r ACIv3BindKeyword) String() (k string) {
 	if kw, found := aCIBindKeywordMap[r]; found {
 		k = kw
 	}
-	return
-}
-
-/*
-valueSupported returns an error following a scan of x which determines whether the receiver supports
-the value type in question. A nil error indicates the type of value, and its apparent state, are
-supported.
-*/
-func (r ACIv3BindKeyword) valueSupported(x any) (err error) {
-	switch tv := x.(type) {
-	case ACIv3BindDistinguishedName:
-		err = r.valueSupportedDN(tv)
-	default:
-		err = badACIv3ValAssignmentErr
-	}
-
-	return
-}
-
-func (r ACIv3BindKeyword) valueSupportedDN(x ACIv3BindDistinguishedName) (err error) {
-	for _, result := range []bool{
-		!aCIKeywordIn(r, ACIv3BindUDN, ACIv3BindGDN, ACIv3BindRDN),
-		x.Len() == 0,
-	} {
-		if result {
-			err = badACIv3ValAssignmentErr
-			break
-		}
-	}
-
 	return
 }
 
@@ -1978,11 +1948,11 @@ func initACIv3BindRuleItem() ACIv3BindRuleItem {
 	}}
 }
 
-func newACIv3BindRuleItem(kw, op, ex any) ACIv3BindRuleItem {
+func newACIv3BindRuleItem(kw, op any, ex ...any) ACIv3BindRuleItem {
 	return initACIv3BindRuleItem().
 		SetKeyword(kw).(ACIv3BindRuleItem).
 		SetOperator(op).(ACIv3BindRuleItem).
-		SetExpression(ex).(ACIv3BindRuleItem)
+		SetExpression(ex...).(ACIv3BindRuleItem)
 }
 
 /*
@@ -2033,13 +2003,15 @@ func (r ACIv3BindRuleItem) SetOperator(op any) ACIv3BindRule {
 /*
 SetExpression assigns value expr to the receiver instance.
 */
-func (r ACIv3BindRuleItem) SetExpression(expr any) ACIv3BindRule {
+func (r ACIv3BindRuleItem) SetExpression(expr ...any) ACIv3BindRule {
 	if r.aCIBindRuleItem == nil {
 		(*r.aCIBindRuleItem) = (*initACIv3BindRuleItem().aCIBindRuleItem)
 	}
 
-	// TODO: constrain to specific types
-	r.aCIBindRuleItem.Expression = expr
+	// Constrain to specific value types per keyword
+	if value, err := assertBindValueByKeyword(r.aCIBindRuleItem.Keyword, expr...); err == nil {
+		r.aCIBindRuleItem.Expression = value
+	}
 
 	return r
 }
@@ -2504,25 +2476,32 @@ func processACIv3BindRule(tokens []aCIBindRuleToken, pos *int) (ACIv3BindRule, e
 }
 
 func assertBindValueByKeyword(bkw ACIv3BindKeyword, raw ...any) (value any, err error) {
+	if len(raw) == 0 {
+		err = badACIv3BRExprErr
+		return
+	}
+
 	switch bkw {
 	case ACIv3BindUDN, ACIv3BindGDN, ACIv3BindRDN:
 		arg := append([]any{bkw}, raw...)
 		value, err = marshalACIv3BindDistinguishedName(arg...)
 	case ACIv3BindUAT, ACIv3BindGAT:
-		arg := append([]any{bkw}, raw...)
-		value, err = marshalACIv3AttributeBindTypeOrValue(arg...)
+		value, err = marshalACIv3AttributeBindTypeOrValue(append([]any{bkw}, raw...)...)
+		if err != nil {
+			value, err = marshalACIv3Inheritance(raw...)
+		}
 	case ACIv3BindDNS:
 		value, err = marshalACIv3FQDN(raw...)
 	case ACIv3BindDoW:
-		value = newDoW().Shift(raw...)
+		value, err = marshalACIv3DayOfWeek(raw...)
 	case ACIv3BindToD:
-		value = newTimeOfDay(raw...)
+		value, err = marshalACIv3TimeOfDay(raw...)
 	case ACIv3BindSSF:
 		value, err = marshalACIv3SecurityStrengthFactor(raw...)
 	case ACIv3BindAM:
 		value, err = marshalACIv3AuthenticationMethod(raw...)
 	case ACIv3BindIP:
-		value = marshalACIv3IPAddress(raw...)
+		value, err = marshalACIv3IPAddress(raw...)
 	}
 
 	if err == nil && value == nil {
@@ -2667,7 +2646,7 @@ func parseACIv3BindRuleExpression(tokens []aCIBindRuleToken) (ACIv3BindRule, err
 
 	// Process top-level operator-operand pairs.
 	for pos < len(tokens) {
-		if tokens[pos].Type != brAnd && tokens[pos].Type != brOr && tokens[pos].Type != brNot {
+		if !tokens[pos].Type.isBooleanOperator() {
 			return nil, errorTxt("unexpected token encountered at top level: " + tokens[pos].Value)
 		}
 		operators = append(operators, tokens[pos].Type)
@@ -2779,13 +2758,47 @@ type ACIv3Inheritance struct {
 /*
 Inheritance creates a new instance of [Inheritance] bearing the provided [ACIv3AttributeBindTypeOrValue] instance, as well as zero (0) or more [ACIv3Level] instances for shifting.
 */
-func (r NetscapeACIv3) Inheritance(x ACIv3AttributeBindTypeOrValue, lvl ...any) (ACIv3Inheritance, error) {
-	i := ACIv3Inheritance{
-		ACIv3AttributeBindTypeOrValue: x,
-		aCILevels:                     newLvls(),
+func (r NetscapeACIv3) Inheritance(x ...any) (ACIv3Inheritance, error) {
+	return marshalACIv3Inheritance(x...)
+}
+
+func marshalACIv3Inheritance(x ...any) (r ACIv3Inheritance, err error) {
+	switch len(x) {
+	case 0:
+		err = nilInstanceErr
+	case 1:
+		switch tv := x[0].(type) {
+		case string:
+			err = r.parse(tv)
+		case ACIv3Inheritance:
+			if err = tv.Valid(); err == nil {
+				r = tv
+			}
+		default:
+			err = badACIv3InhErr
+		}
+	default:
+		switch tv := x[0].(type) {
+		case string:
+			var atb ACIv3AttributeBindTypeOrValue
+			atb, err = marshalACIv3AttributeBindTypeOrValue(tv)
+			if err == nil {
+				r.ACIv3AttributeBindTypeOrValue = atb
+				r.aCILevels = newLvls()
+				r.Shift(x[1:]...)
+			}
+		case ACIv3AttributeBindTypeOrValue:
+			if err = tv.Valid(); err == nil {
+				r.ACIv3AttributeBindTypeOrValue = tv
+				r.aCILevels = newLvls()
+				r.Shift(x[1:]...)
+			}
+		default:
+			err = badACIv3InhErr
+		}
 	}
-	i.Shift(lvl...)
-	return i, i.Valid()
+
+	return
 }
 
 /*
@@ -3449,6 +3462,8 @@ func marshalACIv3AttributeBindTypeOrValue(x ...any) (ACIv3AttributeBindTypeOrVal
 			switch tv := x[0].(type) {
 			case string:
 				a, err = parseATBTV(tv)
+			case ACIv3AttributeBindTypeOrValue:
+				a = tv
 			}
 		case 2:
 			var bkw ACIv3BindKeyword
@@ -3458,17 +3473,14 @@ func marshalACIv3AttributeBindTypeOrValue(x ...any) (ACIv3AttributeBindTypeOrVal
 				bkw = matchBKW(tv)
 			case ACIv3BindKeyword:
 				bkw = tv
-			default:
-				err = badACIv3KWErr
 			}
 
 			switch tv := x[1].(type) {
 			case string:
 				a, err = parseATBTV(tv)
 			case ACIv3AttributeBindTypeOrValue:
-				if err = tv.Valid(); err == nil {
-					a = aCIUserOrGroupAttr(bkw, tv)
-				}
+				a = tv
+				a.ACIv3BindKeyword = bkw
 			}
 		default:
 			a = aCIUserOrGroupAttr(x[0], x[1:]...)
@@ -3675,7 +3687,11 @@ func (r *ACIv3AttributeBindTypeOrValue) Parse(raw string, bkw ...any) (err error
 Valid returns an error indicative of whether the receiver is in an aberrant state.
 */
 func (r ACIv3AttributeBindTypeOrValue) Valid() (err error) {
-	if r.IsZero() {
+	if !r.IsZero() {
+		if r.atbtv[0] == nil || r.atbtv[1] == nil {
+			err = badACIv3ATBTVErr
+		}
+	} else {
 		err = nilInstanceErr
 	}
 
@@ -4956,10 +4972,6 @@ func marshalACIv3ObjectIdentifier(kw ACIv3TargetKeyword, x ...any) (r ACIv3Objec
 		_, err = r.push(x[i])
 	}
 
-	if err != nil {
-		fmt.Println(err)
-	}
-
 	return
 }
 
@@ -5472,11 +5484,36 @@ ACIv3Day represents the numerical abstraction of a single day of the week, such 
 */
 type ACIv3Day uint8
 
+func marshalACIv3DayOfWeek(x ...any) (r ACIv3DayOfWeek, err error) {
+	r = newDoW()
+
+	switch len(x) {
+	case 0:
+		return
+	case 1:
+		switch tv := x[0].(type) {
+		case string:
+			err = r.parse(tv)
+			r.Shift(tv)
+		case ACIv3Day:
+			r.Shift(tv)
+		case ACIv3DayOfWeek:
+			r = tv
+		}
+	default:
+		r.Shift(x...)
+	}
+
+	err = r.Valid()
+
+	return
+}
+
 /*
-parseDoW will iterate a comma-delimited list and verify each slice as a day of the week and return a [ACIv3DayOfWeek] instance alongside a Boolean value indicative of success.
+parse will iterate a comma-delimited list and verify each slice as a day of the week and return a [ACIv3DayOfWeek] instance alongside a Boolean value indicative of success.
 */
-func parseDoW(dow string) (d ACIv3DayOfWeek, err error) {
-	d = newDoW()
+func (r ACIv3DayOfWeek) parse(dow string) (err error) {
+	r = newDoW()
 	X := split(repAll(dow, ` `, ``), `,`)
 	for i := 0; i < len(X); i++ {
 		dw := matchStrDoW(X[i])
@@ -5484,9 +5521,10 @@ func parseDoW(dow string) (d ACIv3DayOfWeek, err error) {
 			err = badACIv3DoWErr
 			return
 		}
-		d.Shift(dw)
+		r.Shift(dw)
 	}
-	err = d.Valid()
+
+	err = r.Valid()
 	return
 }
 
@@ -5679,8 +5717,7 @@ func (r ACIv3DayOfWeek) String() (s string) {
 
 	var dows []string
 	for i := 0; i < r.cast().Size(); i++ {
-		day := ACIv3Day(1 << i)
-		if r.cast().Positive(day) {
+		if day := ACIv3Day(1 << i); r.Positive(day) {
 			dows = append(dows, day.String())
 		}
 	}
@@ -5792,7 +5829,25 @@ type ACIv3TimeOfDay struct {
 ToD initializes, sets and returns a new instance of [TimeOfDay] in one shot.
 */
 func (r NetscapeACIv3) TimeOfDay(x ...any) (ACIv3TimeOfDay, error) {
-	return newTimeOfDay(x...), nil
+	return marshalACIv3TimeOfDay(x...)
+}
+
+func marshalACIv3TimeOfDay(x ...any) (r ACIv3TimeOfDay, err error) {
+	r.aCITimeOfDay = new(aCITimeOfDay)
+	switch len(x) {
+	case 0:
+	default:
+		switch tv := x[0].(type) {
+		case string:
+			r.Set(x[0])
+		case ACIv3TimeOfDay:
+			r.Set(tv.String())
+		}
+	}
+
+	err = r.Valid()
+
+	return
 }
 
 func newTimeOfDay(x ...any) ACIv3TimeOfDay {
@@ -5952,7 +6007,7 @@ Set encodes the specified 24-hour (a.k.a.: military) time value into the receive
 Valid input types are string and [time.Time]. The effective hour and minute values, when combined, should ALWAYS fall within the valid clock range of 0000 up to and including 2400.  Bogus values within said range, such as 0477, will return an error.
 */
 func (r ACIv3TimeOfDay) Set(t any) ACIv3TimeOfDay {
-	r = newTimeOfDay(t)
+	r.aCITimeOfDay.set(t)
 	return r
 }
 
@@ -6980,17 +7035,21 @@ type ACIv3IPAddress struct {
 IPAddress initializes, sets and returns a new instance of [ACIv3IPAddr] in one shot.
 */
 func (r NetscapeACIv3) IPAddress(addr ...any) (ACIv3IPAddress, error) {
-	return marshalACIv3IPAddress(addr...), nil
+	return marshalACIv3IPAddress(addr...)
 }
 
-func marshalACIv3IPAddress(x ...any) ACIv3IPAddress {
+func marshalACIv3IPAddress(x ...any) (r ACIv3IPAddress, err error) {
 	ip := new(aCIIPAddresses)
 	for i := 0; i < len(x); i++ {
-		if str, ok := x[i].(string); ok {
-			ip.set(str)
+		switch tv := x[i].(type) {
+		case string:
+			ip.set(tv)
+		case ACIv3IPAddress:
+			sp := split(tv.String(),`,`)
+			ip.set(sp...)
 		}
 	}
-	return ACIv3IPAddress{ip}
+	return ACIv3IPAddress{ip}, nil
 }
 
 type aCIIPAddresses []aCIIPAddress
@@ -7226,10 +7285,24 @@ func (r NetscapeACIv3) FQDN(x ...any) (ACIv3FQDN, error) {
 	return marshalACIv3FQDN(x...)
 }
 
-func marshalACIv3FQDN(x ...any) (ACIv3FQDN, error) {
-	f := ACIv3FQDN{new(aCIFQDNLabels)}
-	f.Set(x...)
-	return f, nil
+func marshalACIv3FQDN(x ...any) (r ACIv3FQDN, err error) {
+        dns := new(aCIFQDNLabels)
+        for i := 0; i < len(x); i++ {
+                switch tv := x[i].(type) {
+                case string:
+                        dns.set(tv)
+                case ACIv3FQDN:
+                        sp := split(tv.String(),`,`)
+                        dns.set(sp...)
+                }
+        }
+
+	r = ACIv3FQDN{dns}
+	if len(x) > 0 {
+		err = r.Valid()
+	}
+
+	return
 }
 
 /*
@@ -7408,7 +7481,6 @@ func (r ACIv3FQDN) Valid() (err error) {
 
 	if !(0 < L && L <= fqdnMax) || len(*r.aCIFQDNLabels) < 2 {
 		err = badACIv3FQDNErr
-		return
 	}
 
 	// seems legit
@@ -7511,7 +7583,7 @@ func (r NetscapeACIv3) AuthenticationMethod(x ...any) (ACIv3AuthenticationMethod
 marshalACIv3AuthenticationMethod resolves a given authentication method based
 on an integer or string input (x). If no match, an error is returned
 */
-func marshalACIv3AuthenticationMethod(x ...any) (am ACIv3AuthenticationMethod, err error) {
+func marshalACIv3AuthenticationMethod(x ...any) (r ACIv3AuthenticationMethod, err error) {
 	switch len(x) {
 	case 0:
 		err = badACIv3AMErr
@@ -7520,16 +7592,20 @@ func marshalACIv3AuthenticationMethod(x ...any) (am ACIv3AuthenticationMethod, e
 		case int:
 			for k, v := range authMap {
 				if k == tv {
-					am = v
+					r = v
 					break
 				}
 			}
 		case string:
 			for k, v := range authNames {
 				if streqf(k, tv) {
-					am = v
+					r = v
 					break
 				}
+			}
+		case ACIv3AuthenticationMethod:
+			if err = tv.Valid(); err == nil {
+				r = tv
 			}
 		}
 	}
@@ -7575,6 +7651,22 @@ func (r ACIv3AuthenticationMethod) Ne() ACIv3BindRule {
 	return newACIv3BindRuleItem(ACIv3BindAM, ACIv3Ne, r)
 }
 
+func (r ACIv3AuthenticationMethod) Valid() (err error) {
+	var found bool
+        for k, _ := range authNames {
+                if streqf(k, r.String()) {
+			found = true
+                        break
+                }
+        }
+
+	if !found {
+		err = badACIv3AMErr
+	}
+
+	return
+}
+
 /*
 String returns the string representation of the receiver instance.
 */
@@ -7603,16 +7695,27 @@ type ssf struct {
 /*
 SecurityStrengthFactor initializes, sets and returns a new instance of [ACIv3SecurityStrengthFactor] in one shot.
 */
-func (r NetscapeACIv3) SecurityStrengthFactor(factor ...any) (ACIv3SecurityStrengthFactor, error) {
-	return marshalACIv3SecurityStrengthFactor(factor...)
+func (r NetscapeACIv3) SecurityStrengthFactor(x ...any) (ACIv3SecurityStrengthFactor, error) {
+	return marshalACIv3SecurityStrengthFactor(x...)
 }
 
-func marshalACIv3SecurityStrengthFactor(factor ...any) (ACIv3SecurityStrengthFactor, error) {
-	s := ACIv3SecurityStrengthFactor{new(ssf)}
-	if len(factor) > 0 {
-		s.ssf.set(factor[0])
+func marshalACIv3SecurityStrengthFactor(x ...any) (r ACIv3SecurityStrengthFactor, err error) {
+	r = ACIv3SecurityStrengthFactor{new(ssf)}
+	switch len(x) {
+	case 0:
+		return
+	default:
+		switch tv := x[0].(type) {
+		case string, int:
+			r.ssf.set(tv)
+		case ACIv3SecurityStrengthFactor:
+			r.ssf.set(tv.String())
+		}
 	}
-	return s, nil
+
+	err = r.Valid()
+
+	return
 }
 
 /*
