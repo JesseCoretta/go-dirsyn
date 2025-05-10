@@ -104,8 +104,8 @@ The following matching rules are supported by this package at this time.  More w
   - `telephoneNumberMatch` ([RFC 4517 § 4.2.29](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.29))
   - `telephoneNumberSubstringsMatch` ([RFC 4517 § 4.2.30](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.30))
   - `uniqueMemberMatch` ([RFC 4517 § 4.2.31](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.31))
-  - `uuidMatch` ([RFC 4517 § 2.2](https://datatracker.ietf.org/doc/html/rfc4530#section-2.2)
-  - `uuidOrderingMatch` ([RFC 4517 § 2.3](https://datatracker.ietf.org/doc/html/rfc4530#section-2.3)
+  - `uuidMatch` ([RFC 4517 § 2.2](https://datatracker.ietf.org/doc/html/rfc4530#section-2.2))
+  - `uuidOrderingMatch` ([RFC 4517 § 2.3](https://datatracker.ietf.org/doc/html/rfc4530#section-2.3))
   - `wordMatch` ([RFC 4517 § 4.2.32](https://www.rfc-editor.org/rfc/rfc4517#section-4.2.32))
 
 ## Supported Syntaxes
