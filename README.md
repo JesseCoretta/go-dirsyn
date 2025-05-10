@@ -2,7 +2,7 @@
 
 ![dirsyn_logo_small](https://github.com/user-attachments/assets/ae15a556-1478-406f-beac-4d4b52b1d133)
 
-[![Go Report Card](https://goreportcard.com/badge/JesseCoretta/go-dirsyn)](https://goreportcard.com/report/github.com/JesseCoretta/go-dirsyn) [![Code Coverage](https://codecov.io/gh/JesseCoretta/go-dirsyn/graph/badge.svg?token=R94WU07OQY)](https://codecov.io/gh/JesseCoretta/go-dirsyn) [![Reference](https://pkg.go.dev/badge/github.com/JesseCoretta/go-dirsyn.svg)](https://pkg.go.dev/github.com/JesseCoretta/go-dirsyn) [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](https://github.com/JesseCoretta/go-dirsyn/blob/main/LICENSE) [![Issues](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/JesseCoretta/go-dirsyn/issues) [![Experimental](https://img.shields.io/badge/experimental-blue?logoColor=blue&label=%F0%9F%A7%AA%20%F0%9F%94%AC&labelColor=blue&color=gray)](https://github.com/JesseCoretta/JesseCoretta/blob/main/EXPERIMENTAL.md) [![Volatility Warning](https://img.shields.io/badge/volatile-darkred?label=%F0%9F%92%A5&labelColor=white&color=orange&cacheSeconds=86400)](https://github.com/JesseCoretta/JesseCoretta/blob/main/VOLATILE.md) [![Help Animals](https://img.shields.io/badge/help_animals-gray?label=%F0%9F%90%BE%20%F0%9F%98%BC%20%F0%9F%90%B6&labelColor=yellow)](https://github.com/JesseCoretta/JesseCoretta/blob/main/DONATIONS.md)
+[![Go Report Card](https://goreportcard.com/badge/JesseCoretta/go-dirsyn)](https://goreportcard.com/report/github.com/JesseCoretta/go-dirsyn) [![Code Coverage](https://codecov.io/gh/JesseCoretta/go-dirsyn/graph/badge.svg?token=R94WU07OQY)](https://codecov.io/gh/JesseCoretta/go-dirsyn) [![Reference](https://pkg.go.dev/badge/github.com/JesseCoretta/go-dirsyn.svg)](https://pkg.go.dev/github.com/JesseCoretta/go-dirsyn) [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](https://github.com/JesseCoretta/go-dirsyn/blob/main/LICENSE) [![Issues](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/JesseCoretta/go-dirsyn/issues) [![Experimental](https://img.shields.io/badge/experimental-blue?logoColor=blue&label=%F0%9F%A7%AA%20%F0%9F%94%AC&labelColor=blue&color=gray)](https://github.com/JesseCoretta/JesseCoretta/blob/main/EXPERIMENTAL.md) [![Volatility Warning](https://img.shields.io/badge/volatile-darkred?label=%F0%9F%92%A5&labelColor=white&color=orange&cacheSeconds=86400)](https://github.com/JesseCoretta/JesseCoretta/blob/main/VOLATILE.md) [![Help Animals](https://img.shields.io/badge/help_animals-gray?label=%F0%9F%90%BE%20%F0%9F%98%BC%20%F0%9F%90%B6&labelColor=yellow)](https://github.com/JesseCoretta/JesseCoretta/blob/main/DONATIONS.md) [![Help Wanted](https://img.shields.io/badge/Help%20Wanted-red)](https://github.com/JesseCoretta/JesseCoretta/blob/main/HELPWANTED.md)
 
 Package dirsyn implements low-level directory syntax parsing and assertion matching rule components.
 
@@ -23,6 +23,10 @@ Contributions are most welcome.
 The `go-dirsyn` package is released under the terms of the MIT license. See the repository root for applicable license files.
 
 Content developed or appropriated from external sources, such as that found within the `dn.go` file, will also contain the relevant license text within the file comment header.
+
+## Help Wanted!
+
+As indicated by the above badge, I am **actively looking for experienced open source volunteers** who have a keen grasp of directory syntaxes, matching rules and other abstract components. Past or present contributors of any third-party X.500/LDAP DSA (server!) products are _especially welcome_.
 
 ## Scope
 
