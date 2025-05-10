@@ -847,17 +847,17 @@ func ExampleDITStructureRule_SubordinateStructureRules() {
 }
 
 // This is only enabled for local maintainer tests.
-func ExampleSubschemaSubentry_ReadDirectory() {
-	var r RFC4512
-	sch, _ := r.SubschemaSubentry()
-	if err := sch.ReadDirectory(`/home/jc/dev/schema`); err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	fmt.Println(sch.Counters())
-	// Output: [65 44 203 44 51 1 3 0 411]
-}
+//func ExampleSubschemaSubentry_ReadDirectory() {
+//	var r RFC4512
+//	sch, _ := r.SubschemaSubentry()
+//	if err := sch.ReadDirectory(`/home/jc/dev/schema`); err != nil {
+//		fmt.Println(err)
+//		return
+//	}
+//
+//	fmt.Println(sch.Counters())
+//	// Output: [65 44 203 44 51 1 3 0 411]
+//}
 
 func TestSubschemaSubentry_codecov(t *testing.T) {
 
