@@ -130,62 +130,79 @@ func (r RFC3672) SubtreeSpecification(x any) (ss SubtreeSpecification, err error
 
 	var ranges map[string][]int = make(map[string][]int, 0)
 
-	var pos int
-	if begin := stridx(raw, `base `); begin != -1 {
-		var end int
-		begin += 5
-		if ss.Base, end, err = subtreeBase(raw[begin:]); err != nil {
-			return
+	for _, err = range []error{
+		ss.marshalBase(raw, ranges),
+		ss.marshalExclusions(raw, ranges),
+		ss.marshalMinimum(raw, ranges),
+		ss.marshalMaximum(raw, ranges),
+		ss.marshalSpecFilter(raw, ranges),
+	} {
+		if err != nil {
+			break
 		}
-		pos += begin
-		end += pos + 1
-		ranges[`base`] = []int{begin, end}
-	}
-
-	if begin := stridx(raw, `specificExclusions `); begin != -1 {
-		var end int
-		begin += 19
-		if ss.ChopSpecification.Exclusions, end, err = subtreeExclusions(raw, begin); err != nil {
-			return
-		}
-		end = begin + end
-		ranges[`specificExclusions`] = []int{begin, end}
-	}
-
-	if begin := stridx(raw, `minimum `); begin != -1 {
-		var end int
-		begin += 8
-		if ss.ChopSpecification.Minimum, end, err = subtreeMinMax(raw, begin); err != nil {
-			return
-		}
-		end = begin + end
-		ranges[`minimum`] = []int{begin, end}
-	}
-
-	if begin := stridx(raw, `maximum `); begin != -1 {
-		var end int
-		begin += 8
-		if ss.ChopSpecification.Maximum, end, err = subtreeMinMax(raw, begin); err != nil {
-			return
-		}
-		end = begin + end
-		ranges[`maximum`] = []int{begin, end}
-	}
-
-	if begin, end := ss.processSpecFilter(raw); begin > -1 {
-		ranges[`specificationFilter`] = []int{begin, end}
 	}
 
 	return
 }
 
-func (r *SubtreeSpecification) processSpecFilter(raw string) (begin, end int) {
-	end = -1
-	if begin = stridx(raw, `specificationFilter `); begin != -1 {
+func (r *SubtreeSpecification) marshalBase(raw string, ranges map[string][]int) (err error) {
+	if begin := stridx(raw, `base `); begin != -1 {
+		var end int
+		begin += 5
+		if r.Base, end, err = subtreeBase(raw[begin:]); err == nil {
+			end += begin + 1
+			ranges[`base`] = []int{begin, end}
+		}
+	}
+
+	return
+}
+
+func (r *SubtreeSpecification) marshalExclusions(raw string, ranges map[string][]int) (err error) {
+	if begin := stridx(raw, `specificExclusions `); begin != -1 {
+		var end int
+		begin += 19
+		if r.ChopSpecification.Exclusions, end, err = subtreeExclusions(raw, begin); err == nil {
+			end = begin + end
+			ranges[`specificExclusions`] = []int{begin, end}
+		}
+	}
+
+	return
+}
+
+func (r *SubtreeSpecification) marshalMinimum(raw string, ranges map[string][]int) (err error) {
+	if begin := stridx(raw, `minimum `); begin != -1 {
+		var end int
+		begin += 8
+		if r.ChopSpecification.Minimum, end, err = subtreeMinMax(raw, begin); err == nil {
+			end = begin + end
+			ranges[`minimum`] = []int{begin, end}
+		}
+	}
+
+	return
+}
+
+func (r *SubtreeSpecification) marshalMaximum(raw string, ranges map[string][]int) (err error) {
+	if begin := stridx(raw, `maximum `); begin != -1 {
+		var end int
+		begin += 8
+		if r.ChopSpecification.Maximum, end, err = subtreeMinMax(raw, begin); err == nil {
+			end = begin + end
+			ranges[`maximum`] = []int{begin, end}
+		}
+	}
+
+	return
+}
+
+func (r *SubtreeSpecification) marshalSpecFilter(raw string, ranges map[string][]int) (err error) {
+	if begin := stridx(raw, `specificationFilter `); begin != -1 {
 		begin += 20
 		var err error
 		if r.SpecificationFilter, err = subtreeRefinement(raw, begin); err == nil {
-			end = begin + len(raw) - begin
+			ranges[`specificationFilter`] = []int{begin, begin + len(raw) - begin}
 		}
 	}
 
@@ -710,6 +727,23 @@ func (r RefinementAnd) IsZero() bool {
 }
 
 /*
+Push appends zero (0) or more instances of string or [Refinement] to
+the receiver instance.
+*/
+func (r *RefinementAnd) Push(x ...any) {
+	for i := 0; i < len(x); i++ {
+		switch tv := x[i].(type) {
+		case string:
+			if ref, err := subtreeRefinement(tv, 0); err == nil {
+				*r = append(*r, ref)
+			}
+		case Refinement:
+			*r = append(*r, tv)
+		}
+	}
+}
+
+/*
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r RefinementOr) IsZero() bool {
@@ -779,6 +813,23 @@ expected to evaluate as true during processing.
 Instances of this type qualify the [Refinement] interface type.
 */
 type RefinementOr []Refinement
+
+/*
+Push appends zero (0) or more instances of string or [Refinement] to
+the receiver instance.
+*/
+func (r *RefinementOr) Push(x ...any) {
+	for i := 0; i < len(x); i++ {
+		switch tv := x[i].(type) {
+		case string:
+			if ref, err := subtreeRefinement(tv, 0); err == nil {
+				*r = append(*r, ref)
+			}
+		case Refinement:
+			*r = append(*r, tv)
+		}
+	}
+}
 
 /*
 String returns the string representation of the receiver instance.

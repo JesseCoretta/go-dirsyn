@@ -5,6 +5,18 @@ import (
 	"testing"
 )
 
+func ExampleNetscapeACIv3_SearchScope() {
+	var r NetscapeACIv3
+	scope, err := r.SearchScope("one")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	fmt.Println(scope)
+	// Output: onelevel
+}
+
 func TestNetscapeACIv3_Instruction(t *testing.T) {
 	var r NetscapeACIv3
 
@@ -60,6 +72,10 @@ func TestNetscapeACIv3_PermissionBindRuleItem(t *testing.T) {
 			t.Errorf("%s[%d] failed:\n\twant: '%s'\n\tgot:  '%s'", t.Name(), idx, obj.Want, got)
 			return
 		}
+		_ = x.Permission()
+		_ = x.BindRule()
+		_ = x.Kind()
+		_ = x.Valid()
 	}
 }
 
@@ -85,6 +101,9 @@ func TestNetscapeACIv3_PermissionBindRule(t *testing.T) {
 			t.Errorf("%s[%d] failed:\n\twant: '%s'\n\tgot:  '%s'", t.Name(), idx, obj.Want, got)
 			return
 		}
+		_ = x.Index(0)
+		_ = x.Kind()
+		_ = x.Valid()
 	}
 }
 
@@ -490,7 +509,7 @@ func TestNetscapeACIv3_TargetRuleItem(t *testing.T) {
 	}{
 		{
 			Orig: `( targetattr = "cn || sn || givenName" )`,
-			Want: `(targetattr="cn || sn || givenName")`,
+			Want: `(targetattr="cn||sn||givenName")`,
 		},
 		{
 			Orig: `(targetfilter = "(&(objectClass=account)(roleName=User))")`,
@@ -532,6 +551,12 @@ func TestNetscapeACIv3_AttributeFilterOperation(t *testing.T) {
 			t.Errorf("%s[%d] failed:\n\twant: '%s'\n\tgot:  '%s'", t.Name(), idx, obj.Want, got)
 			return
 		}
+		x.Kind()
+		x.TRM()
+		x.Keyword()
+		x.SetDelimiter()
+		x.SetDelimiter(0)
+		x.SetDelimiter(1)
 	}
 }
 
@@ -557,6 +582,9 @@ func TestNetscapeACIv3_AttributeFilterOperationItem(t *testing.T) {
 			t.Errorf("%s[%d] failed:\n\twant: '%s'\n\tgot:  '%s'", t.Name(), idx, obj.Want, got)
 			return
 		}
+		x.Index(0)
+		x.Kind()
+		x.TRM()
 	}
 }
 
@@ -582,6 +610,8 @@ func TestNetscapeACIv3_AttributeFilter(t *testing.T) {
 			t.Errorf("%s[%d] failed:\n\twant: '%s'\n\tgot:  '%s'", t.Name(), idx, obj.Want, got)
 			return
 		}
+		x.Attribute()
+		x.Filter()
 	}
 }
 
@@ -668,12 +698,413 @@ func ExampleACIv3Operator_Description() {
 	// Greater Than Or Equal
 }
 
-func TestACIv3Operator_codecov(t *testing.T) {
+func TestNetscapeACIv3_codecov(t *testing.T) {
+	var r NetscapeACIv3
+	bi, err := r.BindRuleItem(`userdn!="ldap:///anyone"`)
+	if err != nil {
+		t.Errorf("%s failed: %v", t.Name(), err)
+		return
+	}
+	bi.(ACIv3BindRuleItem).SetQuotationStyle(0)
+	bi.(ACIv3BindRuleItem).SetQuotationStyle(1)
+	bi.(ACIv3BindRuleItem).SetPaddingStyle(0)
+	bi.(ACIv3BindRuleItem).SetPaddingStyle(1)
+	bi.(ACIv3BindRuleItem).Push("garbage")
+	bi.(ACIv3BindRuleItem).isBindRule()
+	bi.(ACIv3BindRuleItem).Len()
+	bi.(ACIv3BindRuleItem).Index(0)
+
+	_, _ = r.BindRuleItem(ACIv3BindUDN, ACIv3Eq, "ldap:///anyone")
+	_, _ = r.BindRuleItem(ACIv3BindUDN, 0x00, "ldap:///anyone")
+	_, _ = r.BindRuleItem(rune(88))
+
+	var pbri ACIv3PermissionBindRuleItem
+	pbri.Valid()
+	pbri.parse("")
+	pbri.parse("bogus")
+
+	var attr ACIv3Attribute
+	attr.Kind()
+	attr.Keyword()
+	attr, _ = r.Attribute("cn", "sn", "givenName")
+
+	var pbr ACIv3PermissionBindRule
+	pbr.Valid()
+	pbr.parse("")
+	pbr.parse("bogus")
+
+	var bi2 ACIv3BindRuleItem
+	bi2.SetKeyword("userdn")
+	bi2.SetOperator("=")
+	bi2.SetExpression()
+	_ = bi2.String()
+	bi2.Valid()
+	bi2.aCIBindRuleItem = &aCIBindRuleItem{}
+	_ = bi2.String()
+	bi2.Valid()
+	bi2.SetKeyword("userdn")
+	bi2.SetOperator("=")
+	bi2.IsParen()
+	bi2.Valid()
+	_ = bi2.String()
+
+	var bnt ACIv3BindRuleNot
+	bnt.Valid()
+	bnt.Push(nil)
+	bnt.aCIBindRuleNot = &aCIBindRuleNot{
+		ACIv3BindRule: newACIv3BindRuleItem(`userdn`, `=`, `ldap:///`),
+	}
+	bnt.Push(bi)
+	bnt.Push(`( userdn!="ldap:///all" OR groupdn!="ldap:///parent" )`)
+	bnt.SetParen(true)
+	bnt.SetQuotationStyle(0)
+	bnt.SetQuotationStyle(1)
+	bnt.SetPaddingStyle(0)
+	bnt.SetPaddingStyle(1)
+	bnt.Kind()
+	bnt.Len()
+	bnt.isBindRule()
+	bnt.Index(0)
+	bnt.Valid()
+	bnt.IsParen()
+
+	var bands ACIv3BindRuleAnd
+	bands.Valid()
+	bands.Push(nil)
+	bands.aCIBindRuleSlice.aCIBindRuleSliceString(``)
+	bands.Push(bi)
+	bands.aCIBindRuleSlice = &aCIBindRuleSlice{slice: []ACIv3BindRule{bi}, pad: true}
+	bands.SetPaddingStyle(0)
+	bands.SetPaddingStyle(1)
+	bands.aCIBindRuleSlice.aCIBindRuleSliceString(``)
+	bands.SetQuotationStyle(0)
+	bands.Kind()
+	bands.isBindRule()
+	bands.Len()
+	bands.Index(0)
+	bands.Valid()
+	bands.IsParen()
+	bands.aCIBindRuleSlice.slice = append(bands.aCIBindRuleSlice.slice, ACIv3BindRuleItem{})
+	bands.aCIBindRuleSlice.Valid()
+
+	var bors ACIv3BindRuleOr
+	bors.Valid()
+	bors.Push(nil)
+	bors.aCIBindRuleSlice.aCIBindRuleSliceString(``)
+	bors.Push(bi)
+	bors.aCIBindRuleSlice = &aCIBindRuleSlice{}
+	bors.aCIBindRuleSlice.Valid()
+	bors.aCIBindRuleSlice = &aCIBindRuleSlice{slice: []ACIv3BindRule{bi}, pad: true}
+	bors.Push(bi)
+	bors.SetPaddingStyle(0)
+	bors.SetPaddingStyle(1)
+	bors.SetQuotationStyle(0)
+	bors.Kind()
+	bors.isBindRule()
+	bors.Len()
+	bors.Index(0)
+	bors.Valid()
+	bors.IsParen()
+
+	var pos int
+	processACIv3BindRule([]aCIBindRuleToken{}, &pos)
+	parseACIv3BindRuleTokens([]aCIBindRuleToken{
+		{Type: brParenClose, Value: ")"},
+		{},
+	})
+
+	var kw ACIv3Keyword
+	kw = ACIv3BindUDN
+	kw.isACIv3Keyword()
+	kw = ACIv3Target
+	kw.isACIv3Keyword()
+
+	assertATBTVBindKeyword(ACIv3BindGAT)
+	matchTKW(nil)
+	matchTKW(ACIv3Target)
+	matchBKW(nil)
+	matchBKW(ACIv3BindGAT)
+	matchBT(``)
+
 	var lousyCop ACIv3Operator = ACIv3Operator(7)
 	_ = lousyCop.String()
 	_ = lousyCop.Context()
 	_ = lousyCop.Description()
 	_ = lousyCop.Valid()
+	lousyCop.Compare(0)
+	lousyCop.Compare(``)
+	lousyCop.Compare(rune(3))
+	lousyCop.Compare(ACIv3Eq)
+
+	var brm ACIv3BindRuleMethods
+	brm.Valid()
+	brm.Index(0)
+	brm.Index(2)
+	brm.Index(ACIv3Eq)
+	brm.Len()
+
+	var trm ACIv3TargetRuleMethods
+	trm.Valid()
+	trm.Len()
+	trm.Index(0)
+	trm.Index(2)
+	trm.Index(ACIv3Eq)
+
+	r.WeekdaysBindRule(ACIv3Eq)
+	r.WeekendBindRule(ACIv3Eq)
+
+	var prm ACIv3Permission
+	prm.aCIPermission = &aCIPermission{}
+	prm.Valid()
+	prm.Shift(1023)
+	_ = prm.String()
+
+	var ssf ACIv3SecurityStrengthFactor
+	ssf.Set(256)
+	ssf.Set(257)
+	ssf.Set(nil)
+	ssf.Eq()
+	ssf.Ne()
+	ssf.Lt()
+	ssf.Le()
+	ssf.Gt()
+	ssf.Ge()
+	marshalACIv3SecurityStrengthFactor()
+
+	var am ACIv3AuthenticationMethod
+	am = ACIv3AuthenticationMethod(77)
+	am.Valid()
+	_ = am.String()
+	am = ACIv3Anonymous
+	am.Valid()
+	_ = am.String()
+	r.AuthenticationMethod()
+	r.AuthenticationMethod(1)
+
+	var dow ACIv3DayOfWeek
+	dow.Shift(Sun)
+	dow.Unshift(Sun)
+	dow.Valid()
+	dow = newDoW()
+	dow.Valid()
+	dow.Shift(Sun)
+	dow.Unshift(Sat)
+	dow.Len()
+	dow.Valid()
+	dow.BRM()
+	dow.parse("sunday")
+	dow.parse("humpday")
+	dow.Len()
+	dow.Eq()
+	dow.Ne()
+	dow.Keyword()
+	_ = matchDoW("sunday")
+	_ = matchDoW(1)
+	_ = matchDoW(Sun)
+	_, _ = r.DayOfWeek("sunday,monday")
+
+	for i := 1; i < 8; i++ {
+		matchStrDoW(matchIntDoW(i).String())
+	}
+
+	var asc ACIv3Scope
+	asc.Keyword()
+	asc = ACIv3Scope(0)
+	_ = asc.String()
+	asc = ACIv3Scope(1)
+	_ = asc.String()
+	asc = ACIv3Scope(2)
+	_ = asc.String()
+	asc = ACIv3Scope(3)
+	_ = asc.String()
+	asc = ACIv3Scope(4)
+	_ = asc.String()
+	asc.Eq()
+	asc.Ne()
+	asc.TRM()
+	_, _ = marshalACIv3SearchScope(2)
+	_, _ = marshalACIv3SearchScope(rune(2))
+	_ = aCIIntToScope(3)
+	_ = aCIIntToScope(4)
+	_ = aCIStrToScope("base")
+	_ = aCIStrToScope("one")
+	_ = aCIStrToScope("subtree")
+	_ = aCIStrToScope("subordinate")
+
+	var af ACIv3AttributeFilter
+	af.Valid()
+	af.aCIAttributeFilter = &aCIAttributeFilter{}
+
+	af.aCIAttributeFilter.ACIv3Attribute = newACIv3Attribute("gecos")
+	af.Valid()
+	af.aCIAttributeFilter.ACIv3Attribute = ACIv3Attribute{}
+	af.Valid()
+	af.aCIAttributeFilter.Filter, _ = marshalFilter("(objectClass=*")
+	af.Valid()
+	af.parse("gecos:(&(objectClass=top)(employeeStatus=active))")
+	af.Keyword()
+	af.Kind()
+	af.IsZero()
+	af.Valid()
+	_ = af.String()
+	af.aCIAttributeFilter.set("gecos")
+	af.aCIAttributeFilter.set("(objectClass=top)")
+	_, _ = r.AttributeFilter("gecos:(objectClass=top)")
+	_, _ = r.AttributeFilter("gecos", "(objectClass=top)")
+	_, _ = r.AttributeFilter(attr, "(objectClass=top)")
+
+	_, _ = r.AttributeFilterOperation()
+	afo, _ := r.AttributeFilterOperation("add=gecos:(objectClass=*)")
+	afo.Valid()
+	afo.Len()
+	_ = afo.String()
+	_, _ = r.AttributeFilterOperation(rune(3))
+	_, _ = r.AttributeFilterOperation(rune(3), af)
+	_, _ = r.AttributeFilterOperation(ACIv3AddOp, af)
+	_, _ = r.AttributeFilterOperation(ACIv3AddOp, af, nil)
+
+	marshalACIv3AttrFilterOpItem()
+	marshalACIv3AttrFilterOpItem(nil)
+	marshalACIv3AttrFilterOpItem(ACIv3AddOp, af)
+	marshalACIv3AttrFilterOpItem(rune(3), af)
+	marshalACIv3AttrFilterOpItem(rune(3), rune(3), rune(3))
+	marshalACIv3AttrFilterOpItem(rune(3), af, rune(3))
+
+	var tod ACIv3TimeOfDay
+	tod.Valid()
+	tod.Set("0530")
+	tod.BRM()
+	tod.Valid()
+	tod.Keyword()
+	assertToD(tod.aCITimeOfDay, now())
+	r.TimeframeBindRule(tod, tod)
+	tod, _ = r.TimeOfDay("0530")
+	tod.Eq()
+	tod.Ne()
+	tod.Gt()
+	tod.Ge()
+	tod.Lt()
+	tod.Le()
+
+	var oidc, oide ACIv3ObjectIdentifier
+	oidc.Contains("1.2.3.4")
+	oide.Contains("1.2.3.4")
+	oidc, _ = r.LDAPControlOIDs("1.2.3.4")
+	oide, _ = r.LDAPExtendedOperationOIDs("1.2.3.4")
+	oidc.Contains("1.2.3.4")
+	oide.Contains("1.2.3.4")
+	oidc.Push("1.2.3.4")
+	oide.Push("1.2.3.4")
+	oidc.Eq().SetQuotationStyle(0)
+	oidc.Ne().SetQuotationStyle(1)
+	oide.Eq().SetQuotationStyle(0)
+	oide.Ne().SetQuotationStyle(1)
+
+	processACIv3TargetRuleItem([]aCITargetRuleToken{
+		{},
+	})
+	processACIv3TargetRuleItem([]aCITargetRuleToken{
+		{Type: 0x1},
+		{},
+		{},
+		{},
+		{},
+	})
+	processACIv3TargetRuleItem([]aCITargetRuleToken{
+		{Type: trParenOpen},
+		{Type: trKeyword},
+		{},
+		{},
+		{},
+	})
+	processACIv3TargetRuleItem([]aCITargetRuleToken{
+		{Type: trParenOpen, Value: "("},
+		{Type: trKeyword, Value: "-"},
+		{Type: trOperator, Value: "?"},
+		{Type: trValue, Value: "..."},
+		{Type: trParenClose, Value: ")"},
+	})
+	processACIv3TargetRuleItem([]aCITargetRuleToken{
+		{Type: trParenOpen, Value: "("},
+		{Type: trKeyword, Value: "target"},
+		{Type: trOperator, Value: "?"},
+		{Type: trValue, Value: "..."},
+		{Type: trParenClose, Value: ")"},
+	})
+
+	var tr ACIv3TargetRule
+	_ = tr.Valid()
+	_ = tr.parse(``)
+	_ = tr.parse(`(target=`)
+	_ = tr.Valid()
+	_ = tr.parse(`(target="ldap:///cn=user||ldap:///cn=otheruser")`)
+	_ = tr.Index(0).Kind()
+	tr.SetQuotationStyle(0)
+	tr.SetQuotationStyle(1)
+	tr.Valid()
+	tr.Len()
+	_ = tr.String()
+
+	var atb ACIv3AttributeBindTypeOrValue
+	atb.parse("owner#USERDN", ACIv3BindUAT)
+	atb.Eq()
+	atb.Ne()
+	atb.BRM()
+
+	var tri ACIv3TargetRuleItem
+	tri.SetKeyword("nothing")
+	tri.SetOperator(".")
+	tri.SetExpression("nothing")
+	tri.Valid()
+	tri.IsZero()
+	tri.Kind()
+	tri.SetQuotationStyle(0)
+	tri.SetQuotationStyle(1)
+	tr.Push(tri)
+
+	tri, _ = r.TargetRuleItem(rune(0), rune(0), nil)
+	tri, _ = r.TargetRuleItem(ACIv3Target, ACIv3Eq, "ldap:///cn=Manager")
+
+	var bdn ACIv3BindDistinguishedName = ACIv3BindDistinguishedName{ACIv3BindUDN, &aCIDistinguishedName{slice: []string{"ldap:///all"}}}
+	bdn.Len()
+	bdn.Contains("nothing")
+	bdn.Eq()
+	bdn.Ne()
+
+	var tdn ACIv3TargetDistinguishedName = ACIv3TargetDistinguishedName{ACIv3Target, &aCIDistinguishedName{slice: []string{"ldap:///all"}}}
+	tdn.Len()
+	tdn.Contains("nothing")
+	tdn.Eq()
+	tdn.Ne()
+
+	trm = attr.TRM()
+	trm.Valid()
+	trm.Len()
+	trm.Index("=")
+	trm.Index(1)
+	trm.Index(ACIv3Eq)
+
+	_, _ = tokenizeACIv3TargetRule(`=!?`)
+	_, _ = tokenizeACIv3TargetRule(`!?`)
+	_, _ = tokenizeACIv3TargetRule(`!=`)
+	_, _, _ = tokenizeACIv3TargetRuleMultival(-1, -1, ``, []aCITargetRuleToken{})
+	_, _, _ = tokenizeACIv3TargetRuleKeyword(0x0, -1, -1, ``, []aCITargetRuleToken{})
+	_, _, _ = tokenizeTargetRuleQuotedValue(1, 1, `"things"`, []aCITargetRuleToken{})
+	_, _, _ = tokenizeTargetRuleQuotedValue(1, 1, `"thi\"ngs\" are cool"`, []aCITargetRuleToken{})
+	_, _ = assertTargetValueByKeyword(ACIv3Target)
+	_, _ = assertTargetValueByKeyword(ACIv3TargetAttr, "owner#USERDN")
+	_, _ = assertTargetValueByKeyword(ACIv3TargetAttr, ACIv3Attribute{&aCIAttribute{all: true}})
+	_, _ = assertTargetValueByKeyword(ACIv3TargetAttr, ACIv3AttributeBindTypeOrValue{ACIv3BindUDN, &atbtv{}})
+	_, _ = assertTargetValueByKeyword(ACIv3TargetAttrFilters, "blarg")
+
+	marshalACIv3BindDistinguishedName(ACIv3Target)
+	marshalACIv3TargetDistinguishedName(ACIv3BindUDN)
+
+	keywordAllowsACIv3Operator(`userdn`, ">=")
+	keywordAllowsACIv3Operator(`target`, ">=")
+	keywordAllowsACIv3Operator(ACIv3BindUAT, ">=")
+	keywordAllowsACIv3Operator(ACIv3BindUAT, rune(33))
+	keywordAllowsACIv3Operator(rune(33), "")
 
 	// test permutations of keywords and cops
 

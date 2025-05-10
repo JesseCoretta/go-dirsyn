@@ -5,6 +5,54 @@ import (
 	"testing"
 )
 
+func ExampleLDAPSyntaxes_IsZero() {
+	var defs LDAPSyntaxes
+	fmt.Println(defs.IsZero())
+	// Output: true
+}
+
+func ExampleMatchingRules_IsZero() {
+	var defs MatchingRules
+	fmt.Println(defs.IsZero())
+	// Output: true
+}
+
+func ExampleAttributeTypes_IsZero() {
+	var defs AttributeTypes
+	fmt.Println(defs.IsZero())
+	// Output: true
+}
+
+func ExampleMatchingRuleUses_IsZero() {
+	var defs MatchingRuleUses
+	fmt.Println(defs.IsZero())
+	// Output: true
+}
+
+func ExampleObjectClasses_IsZero() {
+	var defs ObjectClasses
+	fmt.Println(defs.IsZero())
+	// Output: true
+}
+
+func ExampleDITContentRules_IsZero() {
+	var defs DITContentRules
+	fmt.Println(defs.IsZero())
+	// Output: true
+}
+
+func ExampleNameForms_IsZero() {
+	var defs NameForms
+	fmt.Println(defs.IsZero())
+	// Output: true
+}
+
+func ExampleDITStructureRules_IsZero() {
+	var defs DITStructureRules
+	fmt.Println(defs.IsZero())
+	// Output: true
+}
+
 func ExampleSubschemaSubentry_ReadBytes() {
 	// Assume raw was read from a file somewhere ...
 	raw := []byte(`
@@ -26,6 +74,28 @@ func ExampleSubschemaSubentry_ReadBytes() {
 		return
 	}
 	// Output:
+}
+
+func ExampleLDAPSyntax_XOrigin() {
+	def, idx := exampleSchema.LDAPSyntaxes.Get(`nisNetgroupTripleSyntax`)
+	if idx == -1 {
+		fmt.Println("Syntax not found")
+		return
+	}
+
+	fmt.Println(def.XOrigin())
+	// Output: [RFC2307]
+}
+
+func ExampleMatchingRule_XOrigin() {
+	def, idx := exampleSchema.MatchingRules.Get(`objectIdentifierMatch`)
+	if idx == -1 {
+		fmt.Println("Matching rule not found")
+		return
+	}
+
+	fmt.Println(def.XOrigin())
+	// Output: [RFC4517]
 }
 
 func ExampleSubschemaSubentry_UnregisterAttributeType() {
@@ -285,7 +355,7 @@ func ExampleSubschemaSubentry_Push_dITContentRule() {
 
 	fmt.Printf("Found definition at index #%d\n",
 		exampleSchema.DITContentRules.Contains("1.3.6.1.4.1.56521.999.50.11"))
-	// Output: Found definition at index #0
+	// Output: Found definition at index #1
 }
 
 /*
@@ -310,11 +380,12 @@ instance of [9]uint) is of the following structure:
 */
 func ExampleSubschemaSubentry_Counters() {
 	fmt.Println(exampleSchema.Counters())
-	// Output: [67 45 97 44 29 1 1 2 286]
+	// Output: [67 45 97 44 29 2 1 2 287]
 }
 
 func ExampleAttributeType_SuperChain() {
-	child, _ := exampleSchema.AttributeType(`cn`)
+	types := exampleSchema.AttributeTypes
+	child, _ := types.Get(`cn`)
 	supers := child.SuperChain()
 	fmt.Println(supers)
 	// Output: attributeTypes: ( 2.5.4.41 NAME 'name' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )
@@ -599,15 +670,15 @@ func ExampleSubschemaSubentry_RegisterDITStructureRule_byInstance() {
 	// Output: Rule found
 }
 
-func ExampleSubschemaSubentry_NamedObjectClass() {
-	noc, idx := exampleSchema.NamedObjectClass(`2`)
+func ExampleDITStructureRule_NamedObjectClass() {
+	dsr, idx := exampleSchema.DITStructureRules.Get(`1`)
 	if idx == -1 {
-		fmt.Println("Structure Rule #2 not found")
+		fmt.Println("Structure Rule #1 not found")
 		return
 	}
 
-	fmt.Println(noc.NumericOID)
-	// Output: 2.5.6.11
+	fmt.Println(dsr.NamedObjectClass().Identifier())
+	// Output: applicationProcess
 }
 
 func ExampleSubschemaSubentry_MatchingRule() {
@@ -751,14 +822,26 @@ func ExampleMatchingRule_OrderingMatch_caseExactOrderingMatchLessOrEqual() {
 	// Output: TRUE
 }
 
-func ExampleSubschemaSubentry_SuperiorStructureRules() {
-	sups := exampleSchema.SuperiorStructureRules(`applicationProcessStructure`)
+func ExampleDITStructureRule_SuperiorStructureRules() {
+	dsr, idx := exampleSchema.DITStructureRules.Get(`1`)
+	if idx == -1 {
+		fmt.Println("Structure Rule #1 not found")
+		return
+	}
+
+	sups := dsr.SuperiorStructureRules()
 	fmt.Printf("Rule is a root: %t", sups.Len() == 0)
 	// Output: Rule is a root: true
 }
 
-func ExampleSubschemaSubentry_SubordinateStructureRules() {
-	subs := exampleSchema.SubordinateStructureRules(`applicationProcessStructure`)
+func ExampleDITStructureRule_SubordinateStructureRules() {
+	dsr, idx := exampleSchema.DITStructureRules.Get(`1`)
+	if idx == -1 {
+		fmt.Println("Structure Rule #1 not found")
+		return
+	}
+
+	subs := dsr.SubordinateStructureRules()
 	fmt.Printf("Number of subordinate rules: %d", subs.Len())
 	// Output: Number of subordinate rules: 2
 }
@@ -766,7 +849,7 @@ func ExampleSubschemaSubentry_SubordinateStructureRules() {
 // This is only enabled for local maintainer tests.
 func ExampleSubschemaSubentry_ReadDirectory() {
 	var r RFC4512
-	sch := r.SubschemaSubentry()
+	sch, _ := r.SubschemaSubentry()
 	if err := sch.ReadDirectory(`/home/jc/dev/schema`); err != nil {
 		fmt.Println(err)
 		return
@@ -778,6 +861,7 @@ func ExampleSubschemaSubentry_ReadDirectory() {
 
 func TestSubschemaSubentry_codecov(t *testing.T) {
 
+	_ = exampleSchema.ReadFile("/tmp/fake.file")
 	_ = exampleSchema.OID()
 	_ = exampleSchema.String()
 	_ = exampleSchema.LDAPSyntaxes.OID()
@@ -805,6 +889,152 @@ func TestSubschemaSubentry_codecov(t *testing.T) {
 	_ = exampleSchema.DITContentRuleByIndex(0)
 	_ = exampleSchema.NameFormByIndex(0)
 	_ = exampleSchema.DITStructureRuleByIndex(0)
+	_ = exampleSchema.Unregister(&LDAPSyntax{})
+	_ = exampleSchema.UnregisterLDAPSyntax(rune(10))
+	_ = exampleSchema.Unregister(&MatchingRule{})
+	_ = exampleSchema.UnregisterMatchingRule(rune(10))
+	_ = exampleSchema.Unregister(&AttributeType{})
+	_ = exampleSchema.UnregisterAttributeType(rune(10))
+	_ = exampleSchema.Unregister(&ObjectClass{})
+	_ = exampleSchema.UnregisterObjectClass(rune(10))
+	_ = exampleSchema.Unregister(&DITContentRule{})
+	_ = exampleSchema.UnregisterDITContentRule(rune(10))
+	_ = exampleSchema.Unregister(&NameForm{})
+	_ = exampleSchema.UnregisterNameForm(rune(10))
+	_ = exampleSchema.Unregister(&DITStructureRule{})
+	_ = exampleSchema.UnregisterDITStructureRule(rune(10))
+	_ = exampleSchema.dITContentRuleDepScan(&DITContentRule{})
+
+	_ = exampleSchema.matchingRuleDepScan(&MatchingRule{
+		NumericOID: `1.2.3.4`,
+		Name:       []string{"fakeRule"},
+	})
+
+	ruleu := MatchingRuleUse{
+		NumericOID: `1.2.3.4`,
+	}
+	ruleu.Identifier()
+
+	ruleu.Name = []string{"someMatchingRule"}
+	ruleu.Identifier()
+
+	exampleSchema.MatchingRuleUses.Contains(exampleSchema.MatchingRuleUses.defs[0].Identifier())
+	errorPrimerFailed(1, 1)
+
+	dcrs := DITContentRules{
+		defs: []*DITContentRule{{}},
+	}
+	_ = dcrs.String()
+
+	lDAPSyntaxDescription(`111111111111111111111111111`)
+	matchingRuleDescription(`111111111111111111111111111`)
+	matchingRuleUseDescription(`111111111111111111111111111`)
+	attributeTypeDescription(`111111111111111111111111111`)
+	objectClassDescription(`111111111111111111111111111`)
+	dITContentRuleDescription(`111111111111111111111111111`)
+	nameFormDescription(`111111111111111111111111111`)
+	dITStructureRuleDescription(`111111111111111111111111111`)
+
+	dcr := DITContentRule{
+		Name: []string{"name"},
+		Aux:  []string{"___"},
+		Must: []string{"___"},
+		May:  []string{"___"},
+		Not:  []string{"___"},
+		Extensions: map[int]Extension{
+			0: {XString: "X-ORIGIN", Values: []string{"NOWHERE"}},
+		},
+	}
+
+	dcr.Valid()
+	dcr.IsZero()
+	dcr.Identifier()
+	dcr = DITContentRule{
+		NumericOID: "2.5.6.5",
+		Must:       []string{"cn"},
+		Extensions: map[int]Extension{
+			0: {XString: "X-ORIGIN", Values: []string{"NOWHERE"}},
+		},
+	}
+	_ = dcr.String()
+	dcr.XOrigin()
+
+	marshalMatchingRuleUse(rune(33))
+	marshalMatchingRuleUse([]byte(`1111`))
+	marshalNameForm(`( 1.2.3.4 NAME 'form' OC account MUST cn MAY l )`)
+	marshalMatchingRuleUse(`( 1.2.3.4 NAME 'rule' DESC 'example' OBSOLETE APPLIES cn X-ORIGIN 'nowhere' )`)
+	dsr := DITStructureRule{
+		SuperRules: []string{"-1"},
+		Extensions: map[int]Extension{
+			0: {XString: "X-ORIGIN", Values: []string{"NOWHERE"}},
+		},
+	}
+	dsr.Valid()
+	dsr.IsZero()
+	dsr.XOrigin()
+
+	at, _ := exampleSchema.AttributeTypes.Get("cn")
+	at.EffectiveOrdering()
+	at.SuperiorType()
+	at.IsZero()
+	at.XOrigin()
+	at, _ = exampleSchema.AttributeTypes.Get("name")
+	at.SubordinateTypes()
+
+	typ := &AttributeType{
+		NumericOID: `2.5.4.1000`,
+		Extensions: map[int]Extension{
+			0: {XString: "X-ORIGIN", Values: []string{"NOWHERE"}},
+		},
+	}
+	typ.XOrigin()
+
+	_ = exampleSchema.attributeTypeDepScan(nil)
+	_ = exampleSchema.attributeTypeDepScan(at)
+	_ = exampleSchema.registerSchemaByCase([][]byte{[]byte(`bogus`)})
+
+	class := &ObjectClass{
+		NumericOID: `2.5.6.5`,
+		SuperClasses: []string{
+			`___`,
+		},
+		Must: []string{
+			`_____`,
+		},
+		Extensions: map[int]Extension{
+			0: {XString: "X-ORIGIN", Values: []string{"NOWHERE"}},
+		},
+	}
+	class.Valid()
+	class.IsZero()
+	class.XOrigin()
+	class.SuperiorClasses()
+	class.SubordinateClasses()
+	class, _ = exampleSchema.ObjectClasses.Get("organizationalPerson")
+	class.AllMay()
+	class.SuperiorClasses()
+	class.SuperClassOf(nil)
+	class.SuperClassOf(`bogus`)
+	class.SuperClassOf(`subentry`)
+	exampleSchema.ObjectClasses.defs = append(exampleSchema.ObjectClasses.defs, exampleSchema.ObjectClasses.defs[0])
+	exampleSchema.ObjectClasses.Contains(exampleSchema.ObjectClasses.defs[0].Identifier())
+	exampleSchema.ObjectClasses.truncate(exampleSchema.ObjectClasses.Len() - 1)
+
+	form := &NameForm{
+		NumericOID: `2.5.6.5`,
+		Must:       []string{`____`},
+		May:        []string{`____`},
+		Extensions: map[int]Extension{
+			0: {XString: "X-ORIGIN", Values: []string{"NOWHERE"}},
+		},
+	}
+	form.Valid()
+	form.IsZero()
+	form.XOrigin()
+
+	exampleSchema.NameForms.defs = append(exampleSchema.NameForms.defs, exampleSchema.NameForms.defs[0])
+	exampleSchema.NameForms.Contains(exampleSchema.NameForms.defs[0].Identifier())
+	exampleSchema.NameForms.unregister(exampleSchema.NameForms.Len()-1, form, func(*NameForm) error { return nil })
 
 	var def SchemaDefinition
 	def, _ = exampleSchema.LDAPSyntax(`INTEGER`)
@@ -822,12 +1052,25 @@ func TestSubschemaSubentry_codecov(t *testing.T) {
 	def, _ = exampleSchema.ObjectClass(`top`)
 	_ = def.XOrigin()
 
-	//_ = exampleSchema.DITContentRule(0)
 	def, _ = exampleSchema.NameForm(`applicationProcessNameForm`)
 	_ = def.XOrigin()
 
-	def, _ = exampleSchema.DITStructureRule(`applicationProcessStructure`)
+	def, _ = exampleSchema.DITStructureRule(`substructureRule`)
 	_ = def.XOrigin()
+	def.(*DITStructureRule).SuperiorStructureRules()
+
+	_ = exampleSchema.RegisterDITStructureRule(`( 3
+		NAME 'substructureRule'
+		FORM applicationProcessNameForm
+		SUP 40 )`)
+
+	bogusDS := &DITStructureRule{
+		RuleID: "44",
+		Name:   []string{"bogusDSR"},
+	}
+	exampleSchema.DITStructureRules.defs = append(exampleSchema.DITStructureRules.defs, bogusDS)
+	exampleSchema.DITStructureRules.Contains(exampleSchema.DITStructureRules.defs[0].Identifier())
+	exampleSchema.DITStructureRules.unregister(exampleSchema.DITStructureRules.Len()-1, bogusDS, func(*DITStructureRule) error { return nil })
 
 	_ = exampleSchema.RegisterLDAPSyntax(nil)
 	_ = exampleSchema.RegisterLDAPSyntax(LDAPSyntax{})
@@ -907,8 +1150,6 @@ func TestSubschemaSubentry_codecov(t *testing.T) {
 	_ = exampleSchema.RegisterDITStructureRule(nil)
 	_ = exampleSchema.RegisterDITStructureRule(DITStructureRule{})
 
-	_ = exampleSchema.SuperiorStructureRules(`2`)
-
 	_ = exampleSchema.DITContentRules.Type()
 
 	stringBooleanClause(`test`, true)
@@ -925,16 +1166,23 @@ func TestSubschemaSubentry_codecov(t *testing.T) {
 
 	exampleSchema.RegisterDITContentRule(`()`)
 
-	mru := exampleSchema.NewMatchingRuleUses()
-	mru.Push(&MatchingRuleUse{
+	mrus := exampleSchema.NewMatchingRuleUses()
+	mru := &MatchingRuleUse{
 		NumericOID:  `2.5.13.15`,
 		Description: `this is text`,
 		Name:        []string{`userRule`},
-		Applies:     []string{`cn`, `sn`},
-	})
+		Applies:     []string{`cn`, `sn`, `blarg`},
+	}
+	mrus.push(mru)
 
-	_ = mru.String()
-	mru.isDefinitions()
+	exampleSchema.unregisterMatchingRuleUsers(&AttributeType{NumericOID: `2.2.2.2`, Name: []string{"blarg"}})
+	typ, _ = exampleSchema.AttributeTypes.Get(`cn`)
+
+	mru.truncate(typ)
+	mrus.truncate(0)
+
+	_ = mrus.String()
+	mrus.isDefinitions()
 
 	lss := exampleSchema.NewLDAPSyntaxes()
 	lss.isDefinitions()
@@ -980,12 +1228,16 @@ func TestSubschemaSubentry_codecov(t *testing.T) {
 	_ = atd.String()
 	atd.mutexBooleanString()
 
-	var ls LDAPSyntax
+	var ls *LDAPSyntax = &LDAPSyntax{}
 	_ = ls.String()
 	ls.OID()
 	ls.isDefinition()
 	ls.Type()
 	ls.Valid()
+	ls.IsZero()
+
+	ls, _ = exampleSchema.LDAPSyntaxes.Get("directory string")
+	exampleSchema.ldapSyntaxDepScan(ls)
 
 	var oc ObjectClass
 	_ = oc.String()
@@ -994,26 +1246,69 @@ func TestSubschemaSubentry_codecov(t *testing.T) {
 	oc.Type()
 	oc.Valid()
 
-	var mr MatchingRule
+	var mr *MatchingRule = &MatchingRule{}
 	_ = mr.String()
 	mr.isDefinition()
 	mr.OID()
 	mr.Type()
 	mr.Valid()
+	mr.IsZero()
 
-	var mu MatchingRuleUse
+	mr, _ = exampleSchema.MatchingRules.Get("caseExactMatch")
+	exampleSchema.matchingRuleDepScan(mr)
+
+	bogusMR := &MatchingRule{
+		NumericOID: `2.2.2.2`,
+		Name:       []string{`bogusRule`},
+	}
+	exampleSchema.MatchingRules.defs = append(exampleSchema.MatchingRules.defs, bogusMR)
+	exampleSchema.MatchingRules.Contains(exampleSchema.MatchingRules.defs[exampleSchema.MatchingRules.Len()-1].Identifier())
+	exampleSchema.MatchingRules.unregister(exampleSchema.MatchingRules.Len()-1, bogusMR, func(*MatchingRule) error { return nil })
+
+	var mu *MatchingRuleUse = &MatchingRuleUse{}
 	_ = mu.String()
 	mu.isDefinition()
 	mu.OID()
 	mu.Type()
 	mu.Valid()
+	mu.IsZero()
 
-	var dc DITContentRule
+	var dc *DITContentRule = &DITContentRule{}
 	_ = dc.String()
 	dc.isDefinition()
 	dc.OID()
 	dc.Type()
 	dc.Valid()
+
+	exampleSchema.RegisterDITContentRule(`( 2.5.6.5 NAME 'fakePersonRule' DESC 'Fake person' AUX extensibleObject NOT xxxn X-ORIGIN 'NOWHERE' )`)
+	exampleSchema.RegisterDITContentRule(`( 2.5.6.5 NAME 'fakePersonRule' DESC 'Fake person' AUX xxxxextensibleObject NOT cn X-ORIGIN 'NOWHERE' )`)
+	exampleSchema.RegisterDITContentRule(`( 2.5.6.5 NAME 'fakePersonRule' DESC 'Fake person' AUX applicationProcess NOT cn X-ORIGIN 'NOWHERE' )`)
+	exampleSchema.RegisterDITContentRule(`( 3.1.2.3 NAME 'fakePersonRule' DESC 'Fake person' AUX applicationProcess NOT cn X-ORIGIN 'NOWHERE' )`)
+	dc = &DITContentRule{
+		NumericOID:  "2.5.6.5",
+		Name:        []string{`fakePersonRule`},
+		Description: "Fake person",
+		Not:         []string{"cn"},
+		Aux:         []string{"extensibleObject"},
+	}
+	exampleSchema.Push(dc)
+	exampleSchema.RegisterDITContentRule(`( 2.5.6.5 NAME 'fakePersonRule' DESC 'Fake person' AUX extensibleObject NOT cn X-ORIGIN 'NOWHERE' )`)
+
+	exampleSchema.DITContentRules.defs = append(exampleSchema.DITContentRules.defs, exampleSchema.DITContentRules.defs[0])
+	exampleSchema.DITContentRules.Contains(exampleSchema.DITContentRules.defs[0].Identifier())
+	exampleSchema.DITContentRules.truncate(exampleSchema.DITContentRules.Len() - 1)
+
+	cname, _ := exampleSchema.AttributeTypes.Get(`cn`)
+	exampleSchema.attributeTypeDITContentRuleDepScan(cname)
+	exampleSchema.attributeTypeNameFormDepScan(cname)
+	exampleSchema.UnregisterDITContentRule(dc)
+
+	exob, _ := exampleSchema.ObjectClasses.Get(`extensibleObject`)
+	pers, _ := exampleSchema.ObjectClasses.Get(`2.5.6.5`)
+	aprc, _ := exampleSchema.ObjectClasses.Get(`applicationProcess`)
+	exampleSchema.objectClassDepScan(exob)
+	exampleSchema.objectClassDepScan(pers)
+	exampleSchema.objectClassDepScan(aprc)
 
 	var nf NameForm
 	_ = nf.String()
@@ -1725,7 +2020,7 @@ dITStructureRule: ( 1
 dITStructureRule: ( 2
         NAME 'substructureRule'
         FORM applicationProcessNameForm
-        SUP 1 )
+        SUP ( 1 2 ) )
 `)
 
 // for unit tests and pkgsite examples.
@@ -1733,8 +2028,10 @@ var exampleSchema *SubschemaSubentry
 
 func init() {
 	var r RFC4512
-	exampleSchema = r.SubschemaSubentry(true)
-	if err := exampleSchema.ReadBytes(fileBytes); err != nil {
+	var err error
+	if exampleSchema, err = r.SubschemaSubentry(true); err != nil {
+		panic(err)
+	} else if err = exampleSchema.ReadBytes(fileBytes); err != nil {
 		panic(err)
 	}
 }

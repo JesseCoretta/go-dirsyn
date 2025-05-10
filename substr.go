@@ -151,10 +151,8 @@ func substrProcess1(x string) (a AssertionValue, err error) {
 func substrProcess2(x string) (a, f AssertionValue, err error) {
 	z := x[1:]
 	sp := split(z, `*`)
-	for idx := 0; idx < len(sp); idx++ {
-		if err = assertionValueRunes(sp[idx]); err != nil {
-			return
-		}
+	for idx := 0; idx < len(sp) && err == nil; idx++ {
+		err = assertionValueRunes(sp[idx])
 	}
 
 	if len(sp) == 1 {
@@ -170,10 +168,8 @@ func substrProcess2(x string) (a, f AssertionValue, err error) {
 func substrProcess3(x string) (i, a AssertionValue, err error) {
 	z := x[:len(x)-1]
 	sp := split(z, `*`)
-	for idx := 0; idx < len(sp); idx++ {
-		if err = assertionValueRunes(sp[idx]); err != nil {
-			return
-		}
+	for idx := 0; idx < len(sp) && err == nil; idx++ {
+		err = assertionValueRunes(sp[idx])
 	}
 
 	if len(sp) == 1 {
@@ -188,10 +184,8 @@ func substrProcess3(x string) (i, a AssertionValue, err error) {
 
 func substrProcess4(x string) (i, a, f AssertionValue, err error) {
 	sp := split(x, `*`)
-	for idx := 0; idx < len(sp); idx++ {
-		if err = assertionValueRunes(sp[idx]); err != nil {
-			return
-		}
+	for idx := 0; idx < len(sp) && err == nil; idx++ {
+		err = assertionValueRunes(sp[idx])
 	}
 
 	switch len(sp) {
@@ -297,10 +291,8 @@ func substringsMatch(a, b any, caseIgnore ...bool) (result Boolean, err error) {
 
 	if B.Final != nil {
 		finalStr := caseHandler(string(B.Final))
-		if !hasSfx(value, finalStr) {
-			result.Set(false)
-			return
-		}
+		result.Set(hasSfx(value, finalStr))
+		return
 	}
 
 	result.Set(true)

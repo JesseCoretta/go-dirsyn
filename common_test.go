@@ -26,11 +26,47 @@ func TestMisc_codecov(t *testing.T) {
 	hexDecode(`\zz`)
 	hexDecode(`##`)
 
+	condenseWHSP(`this has spaces`)
+	condenseWHSP(rune(33))
+
+	bitSize(nil)
+	bitSize(&struct{}{})
+
+	percentDecode(`%2f%%`)
+
+	caseBasedOrderingMatch(`a`, `A`, true, LessOrEqual)
+	caseBasedOrderingMatch(`a`, `A`, false, LessOrEqual)
+	caseBasedOrderingMatch(`A`, `a`, true, LessOrEqual)
+	caseBasedOrderingMatch(`A`, `a`, false, LessOrEqual)
+
+	var eqa EqualityRuleAssertion
+	eqa.isMatchingRuleAssertionFunction()
+
+	var ssa SubstringsRuleAssertion
+	ssa.isMatchingRuleAssertionFunction()
+
+	var ord OrderingRuleAssertion
+	ord.isMatchingRuleAssertionFunction()
+	eqa.isMatchingRuleAssertionFunction()
+
+	isAttributeDescriptor(``)
+	isAttributeDescriptor(`_`)
+	isAttributeDescriptor(`9a`)
+	isAttributeDescriptor(`IZ`)
+	isAttributeDescriptor(`@a`)
+	isAttributeDescriptor(`l-`)
+	isAttributeDescriptor(`l-@l`)
+
 	isStruct(struct{}{})
 	isStruct(struct{ A string }{A: ``})
 
 	strInSlice(`this`, []string{`is`, `data`}, true)
 	strInSlice(`this`, []string{`is`, `data`}, false)
+
+	isAttribute("__")
+	isAttribute("l")
+	isAttribute("c_n")
+	isAttribute("5.6.7.8")
 
 	isNumber(``)
 	isNumber(`01A`)

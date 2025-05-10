@@ -48,9 +48,10 @@ func marshalOctetString(x any) (oct OctetString, err error) {
 		return
 	}
 
-	for i := 0; i < len(raw) && err == nil; i++ {
-		var char rune = rune(raw[i])
-		if !ucIs(octRange, char) {
+	runes := []rune(string(raw))
+	for i := 0; i < len(runes) && err == nil; i++ {
+		var char rune = runes[i]
+		if !ucIn(char, octRange) {
 			err = errorTxt("Incompatible Octet String character: " + string(char))
 		}
 	}

@@ -224,11 +224,6 @@ func pSOrIA5s(x any) (psia5 []string, err error) {
 	}
 
 	raws := splitUnescaped(raw, sep, esc)
-	if len(raws) == 0 {
-		err = errorTxt("No values found for PrintableString/IA5 postal address")
-		return
-	}
-
 	if _, err = marshalPrintableString(raws[0]); err != nil {
 		return
 	}
@@ -276,9 +271,6 @@ func lineChar(raw string) (lineChars []string, err error) {
 			if err = uTFMB(r); err == nil || ucIs(lineCharRange, r) {
 				value.WriteString(string(r))
 				err = nil
-			} else {
-				err = errorTxt("Incompatible rune length for UTF0 (in line-char): " +
-					fmtInt(int64(rL), 10))
 			}
 		}
 	}

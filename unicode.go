@@ -63,16 +63,17 @@ func (r UTF8String) String() string { return string(r) }
 func (r UTF8String) IsZero() bool   { return len(r) == 0 }
 
 var (
-	runeLen  func(rune) int                         = utf8.RuneLen
-	decRune  func([]byte) (rune, int)               = utf8.DecodeRune
-	ucIs     func(*unicode.RangeTable, rune) bool   = unicode.Is
-	uc1Of    func([]*unicode.RangeTable, rune) bool = unicode.IsOneOf
-	sfold    func(rune) rune                        = unicode.SimpleFold
-	isLetter func(rune) bool                        = unicode.IsLetter
-	utf8OK   func(string) bool                      = utf8.ValidString
-	utf16Enc func([]rune) []uint16                  = utf16.Encode
-	isSpace  func(rune) bool                        = unicode.IsSpace
-	isPunct  func(rune) bool                        = unicode.IsPunct
+	runeLen  func(rune) int                          = utf8.RuneLen
+	decRune  func([]byte) (rune, int)                = utf8.DecodeRune
+	ucIs     func(*unicode.RangeTable, rune) bool    = unicode.Is
+	ucIn     func(rune, ...*unicode.RangeTable) bool = unicode.In
+	uc1Of    func([]*unicode.RangeTable, rune) bool  = unicode.IsOneOf
+	sfold    func(rune) rune                         = unicode.SimpleFold
+	isLetter func(rune) bool                         = unicode.IsLetter
+	utf8OK   func(string) bool                       = utf8.ValidString
+	utf16Enc func([]rune) []uint16                   = utf16.Encode
+	isSpace  func(rune) bool                         = unicode.IsSpace
+	isPunct  func(rune) bool                         = unicode.IsPunct
 )
 
 var runeSelf rune = utf8.RuneSelf
@@ -91,6 +92,8 @@ var (
 	t61Ranges,
 	uTF8SubsetRange,
 	lineCharRange,
+	prsRange,
+	telRange,
 	substrRange,
 	asciiRange,
 	utf0Range,
@@ -110,7 +113,6 @@ var (
 )
 
 var telephoneNumberRunes []rune
-var printableStringRunes []rune
 
 func isDigit(r rune) bool {
 	return '0' <= r && r <= '9'
@@ -151,9 +153,7 @@ func runeInSlice(r rune, slice []rune) bool {
 }
 
 func isAlphaNumeric(r rune) bool {
-	return ucIs(lAlphas, r) ||
-		ucIs(uAlphas, r) ||
-		ucIs(digits, r)
+	return ucIn(r, digits, uAlphas, lAlphas)
 }
 
 /*
@@ -506,36 +506,24 @@ func init() {
 		'\u014B',
 	}
 
-	printableStringRunes = []rune{
-		'\'',
-		'(',
-		')',
-		'+',
-		',',
-		'-',
-		'.',
-		'=',
-		'/',
-		':',
-		'?',
-		' ',
-	}
+	prsRange = &unicode.RangeTable{R16: []unicode.Range16{
+		{0x0020, 0x0020, 1},
+		{0x0027, 0x0029, 1},
+		{0x002b, 0x002f, 1},
+		{0x003a, 0x003a, 1},
+		{0x003f, 0x003f, 1},
+	}}
 
-	telephoneNumberRunes = []rune{
-		'\'',
-		'\\',
-		'"',
-		'(',
-		')',
-		'+',
-		',',
-		'-',
-		'.',
-		'/',
-		':',
-		'?',
-		' ',
-	}
+	telRange = &unicode.RangeTable{R16: []unicode.Range16{
+		{0x0020, 0x0020, 1},
+		{0x0022, 0x0022, 1},
+		{0x0027, 0x0027, 1},
+		{0x0028, 0x0028, 1},
+		{0x002b, 0x002f, 1},
+		{0x003a, 0x003a, 1},
+		{0x003f, 0x003f, 1},
+		{0x005c, 0x005c, 1},
+	}}
 
 	/*
 		t61Ranges defines a *unicode.RangeTable instance containing specific

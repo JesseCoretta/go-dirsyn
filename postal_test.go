@@ -79,4 +79,6 @@ func TestPostal_codecov(t *testing.T) {
 	lineChar(`$a\\bc$界$`)
 	lineChar(string([]rune{'\u00e0', '$', '\u00FF'}))
 	lineChar(string([]rune{'\u00e0', '$', '\uFFFF'}))
+
+	marshalDeliveryMethod("bogus$value")
 }

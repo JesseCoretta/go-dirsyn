@@ -52,8 +52,9 @@ func checkIA5String(raw string) (err error) {
 		return
 	}
 
-	for i := 0; i < len(raw) && err == nil; i++ {
-		var char rune = rune(raw[i])
+	runes := []rune(raw)
+	for i := 0; i < len(runes) && err == nil; i++ {
+		var char rune = runes[i]
 		if !ucIs(iA5Range, char) {
 			err = errorTxt("Invalid IA5 String character: " + string(char))
 		}

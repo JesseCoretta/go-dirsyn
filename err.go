@@ -14,6 +14,15 @@ func errorTxt(txt string) error {
 	return mkerr(txt)
 }
 
+func errorPrimerFailed(ls, mr int) (err error) {
+	if ls != 0 || mr != 0 {
+		err = errorTxt("Failed to prime schema: " + itoa(ls) + " ldapSyntaxes, " +
+			itoa(mr) + " matchingRules")
+	}
+
+	return
+}
+
 var (
 	nilBEREncodeErr   error = mkerr("Cannot BER encode nil instance")
 	unknownBERPacket  error = mkerr("Unidentified BER packet; cannot process")
@@ -22,6 +31,7 @@ var (
 	emptyFilterSetErr error = mkerr("Zero or invalid filter SET")
 	invalidMR         error = mkerr("Invalid or incompatible matching rule")
 	nilInstanceErr    error = mkerr("Nil instance error")
+	nilInputErr       error = mkerr("Nil input error")
 	errNotExist       error = os.ErrNotExist
 )
 

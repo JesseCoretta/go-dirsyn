@@ -36,6 +36,7 @@ func TestOctetString(t *testing.T) {
 	}
 
 	octet1 = OctetString{0x01, 0x02, 0x03}
+	_ = octet1.Len()
 	result, err = octetStringMatch(octet1, octet2)
 	if err != nil {
 		t.Errorf("%s failed: %v", t.Name(), err)
@@ -52,12 +53,19 @@ func TestOctetString(t *testing.T) {
 		t.Errorf("%s failed:\nwant: TRUE\ngot:  %s", t.Name(), result)
 	}
 
+	_, _ = marshalOctetString("界界界界")
 	_, _ = octetStringMatch([]byte{}, []byte{})
 	_, _ = octetStringMatch([]byte{}, struct{}{})
 	_, _ = octetStringMatch(struct{}{}, []byte{})
 	_, _ = octetStringMatch([]byte{}, []byte{0x0})
 	_, _ = octetStringMatch([]byte{0x0}, []byte{})
 
+	_, _ = octetStringOrderingMatch([]byte{0x01}, []byte{0x01, 0x02}, LessOrEqual)
+	_, _ = octetStringOrderingMatch([]byte{0x01}, []byte{0x01, 0x02}, GreaterOrEqual)
+	_, _ = octetStringOrderingMatch([]byte{0x01, 0x03}, []byte{0x01, 0x02}, LessOrEqual)
+	_, _ = octetStringOrderingMatch([]byte{0x01, 0x02}, []byte{0x02}, LessOrEqual)
+	_, _ = octetStringOrderingMatch([]byte{0x01, 0x02}, []byte{0x02}, GreaterOrEqual)
+	_, _ = octetStringOrderingMatch([]byte{0x01, 0x03}, []byte{0x02, 0x01}, GreaterOrEqual)
 	_, _ = octetStringOrderingMatch([]byte{}, []byte{}, LessOrEqual)
 	_, _ = octetStringOrderingMatch([]byte{}, struct{}{}, LessOrEqual)
 	_, _ = octetStringOrderingMatch(struct{}{}, []byte{}, LessOrEqual)

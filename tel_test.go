@@ -131,15 +131,42 @@ func TestTelephony_codecov(t *testing.T) {
 
 	_, _ = r.TelephoneNumber(nil)
 	_, _ = r.TelephoneNumber(`naïve§`)
+	_, _ = marshalTelephoneNumber(`+@@@AX`)
+
+	var ffax FacsimileTelephoneNumber
+	ffax.isSet(10394)
+
+	_ = teletexSuffixValue(`ds世3`)
+	_, _, _ = marshalTeletex([]string{})
+	_, _, _ = marshalTeletex([]string{"a", "b", "c"})
+	_, _, _ = marshalTeletex([]string{"graphic:this", "control:34", "misc:misc", "page:48", "private:psst"})
+	_, _, _ = marshalTeletex([]string{"graphic:this", "control:34", "misc:misc", "page:48", "private:psst", "graphic:this", "control:34", "misc:misc", "page:48", "private:psst"})
+	var uboverflow []string
+	for len(uboverflow) < UBTeletexTerminalID+1 {
+		uboverflow = append(uboverflow, "graphic:this")
+	}
+
+	_, _, _ = marshalTeletex(uboverflow)
 
 	_ = facsimileTelephoneNumber(`+1 555 555 FILK$twoDimensional$twoDimensional`)
 	_ = facsimileTelephoneNumber(`@K$twoDimensional$twoDimensional`)
 	_ = telephoneNumber(`+1 555 555 FILK`)
 	_ = telexNumber(`+1 555 555 FILK`)
+	_ = teletexTerminalIdentifier(rune(88))
+	_ = teletexTerminalIdentifier(`👩$👩`)
 	_ = teletexTerminalIdentifier(`+1 555 555 FILK`)
+	_ = teletexTerminalIdentifier(`P$control:abge$private:👩👩`)
+	_ = teletexTerminalIdentifier(`👩👩P$control:abge$private:?>`)
+	_ = teletexTerminalIdentifier(`👩👩P$controlly:abge$privape:?>`)
+	_ = teletexTerminalIdentifier(`P$controlly:abge$privape:?>`)
+	_ = teletexTerminalIdentifier(`P$control:abge$control:?>`)
 
-	_, _ = marshalTelephoneNumber(`+@@@AX`)
 	_, _ = marshalTelexNumber(`+12345US$getrac`)
+	_, _ = marshalTelexNumber("1223$618$Hello?")
+	_, _ = marshalTelexNumber("1223$618$Hello?👩👩")
+	_, _ = marshalTelexNumber("👩$1223$618$...$👩")
+	_, _ = marshalTelexNumber(`1 555 123 4567$`)
+
 	teletexSuffixValue(`$$`)
 	teletexSuffixValue(`@_+`)
 	teletexSuffixValue(`\\\\\`)

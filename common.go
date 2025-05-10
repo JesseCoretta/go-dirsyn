@@ -85,47 +85,17 @@ type instance's String ("stringer") method, if present.
 If not, nil is returned.
 */
 func getStringer(x any) (meth func() string) {
-	if v := valOf(x); !v.IsZero() {
-		if method := v.MethodByName(`String`); method.Kind() != reflect.Invalid {
-			if _meth, ok := method.Interface().(func() string); ok {
-				meth = _meth
+	if x != nil {
+		if v := valOf(x); !v.IsZero() {
+			if method := v.MethodByName(`String`); method.Kind() != reflect.Invalid {
+				if _meth, ok := method.Interface().(func() string); ok {
+					meth = _meth
+				}
 			}
 		}
 	}
 
 	return
-}
-
-func charIsWHSPNL(ch byte) bool {
-	return ch == ' ' || ch == '\t' || ch == '\n'
-}
-
-/*
-unquote removes leading and trailing quotation characters from
-str.
-
-This function considers any of ASCII #34 ("), ASCII #39 (') and
-ASCII #96 (`) to be eligible candidates for truncation, though
-only matches of the first and final slices are considered.
-*/
-func unquote(str string) string {
-	if len(str) <= 2 {
-		return str
-	}
-
-	// remove leading candidate
-	switch c := rune(str[0]); c {
-	case '"', '\'', '`':
-		str = str[1:]
-	}
-
-	// remove trailing candidate
-	switch c := rune(str[len(str)-1]); c {
-	case '"', '\'', '`':
-		str = str[:len(str)-1]
-	}
-
-	return str
 }
 
 func removeWHSP(a string) string {
@@ -155,61 +125,6 @@ func removeBashComments(input []byte) (output []byte) {
 }
 
 /*
-removeComments is a private function which returns the input
-[]byte instance, devoid of all all Bash or Go style comments.
-*/
-func removeComments(input []byte) []byte {
-
-	var (
-		output         bytes.Buffer
-		inLineComment  bool
-		inBlockComment bool
-	)
-
-	for i := 0; i < len(input); i++ {
-		// Check for start of a block comment
-		if isNotInComment(inLineComment, inBlockComment) && i+1 < len(input) &&
-			isMultiLineCommentOpen(input[i], input[i+1]) {
-			inBlockComment = true
-			i++ // Skip the next character (*)
-			continue
-		}
-
-		// Check for end of a block comment
-		if inBlockComment && i+1 < len(input) &&
-			isMultiLineCommentClose(input[i], input[i+1]) {
-			inBlockComment = false
-			i++ // Skip the next character (/)
-			continue
-		}
-
-		// Check for start of a line comment (#)
-		if isNotInComment(inLineComment, inBlockComment) && input[i] == '#' {
-			inLineComment = true
-			continue
-		}
-
-		// Check for start of a line comment (//)
-		if isNotInComment(inLineComment, inBlockComment) && i+1 < len(input) &&
-			isSingleLineComment(input[i], input[i+1]) {
-			inLineComment = true
-			i++ // Skip the next character (/)
-			continue
-		}
-
-		// Handle line breaks to terminate line comments
-		inLineComment = inLineComment && isLinebreak(input[i])
-
-		// Write to output if not inside a comment
-		if isNotInComment(inLineComment, inBlockComment) {
-			output.WriteByte(input[i])
-		}
-	}
-
-	return output.Bytes()
-}
-
-/*
 isAttribute returns a boolean value indicative of whether val
 describes a numeric OID or RFC 4512 descriptor ("descr").
 
@@ -218,7 +133,7 @@ This is used, specifically, it identify an schema definition's
 */
 func isAttribute(val string) (is bool) {
 	_, err := marshalNumericOID(val)
-	if is = err != nil; !is {
+	if is = err == nil; !is {
 		is = isAttributeDescriptor(val)
 	}
 
@@ -265,26 +180,6 @@ func isAttributeDescriptor(val string) bool {
 	return true
 }
 
-func isLinebreak(char byte) bool {
-	return char == '\n' || char == '\r'
-}
-
-func isMultiLineCommentOpen(char1, char2 byte) bool {
-	return char1 == '/' && char2 == '*'
-}
-
-func isMultiLineCommentClose(char1, char2 byte) bool {
-	return char1 == '*' && char2 == '/'
-}
-
-func isNotInComment(inLine, inBlock bool) bool {
-	return !inLine && !inBlock
-}
-
-func isSingleLineComment(char1, char2 byte) bool {
-	return char1 == '/' && char2 == '/'
-}
-
 /*
 assertFirstStructField is a private function used for
 firstComponent EQUALITY matching, in which the first
@@ -323,16 +218,6 @@ func newStrBuilder() strings.Builder {
 	return strings.Builder{}
 }
 
-/*
-newBytesBuffer is a private function which returns an
-instance of bytes.Buffer. This is merely a convenience
-wrapper which avoids the need for multiple import calls
-of the bytes package.
-*/
-func newBytesBuffer() bytes.Buffer {
-	return bytes.Buffer{}
-}
-
 func escapeString(x string) (esc string) {
 	if len(x) > 0 {
 		bld := newStrBuilder()
@@ -348,22 +233,6 @@ func escapeString(x string) (esc string) {
 		}
 
 		esc = bld.String()
-	}
-
-	return
-}
-
-/*
-uitoa is a private function which facilitates the
-unsigned equivalent of strconv.Itoa. Input x must
-be either an instance of uint or uint64.
-*/
-func uitoa(x any) (s string) {
-	switch tv := x.(type) {
-	case uint:
-		s = strconv.FormatUint(uint64(tv), 10)
-	case uint64:
-		s = strconv.FormatUint(tv, 10)
 	}
 
 	return
@@ -482,17 +351,26 @@ case folding.
 
 By default, case is not significant in the matching process.
 */
-func strInSlice(r string, slice []string, cEM ...bool) (match bool) {
-	var cem bool
+func strInSlice(r any, slice []string, cEM ...bool) (match bool) {
+	// assume caseIgnoreMatch by default
+	funk := streqf
 	if len(cEM) > 0 {
-		cem = cEM[0]
+		if cEM[0] {
+			// use caseExactMatch
+			funk = streq
+		}
 	}
 
-	for i := 0; i < len(slice) && !match; i++ {
-		if cem {
-			match = r == slice[i]
-		} else {
-			match = streqf(r, slice[i])
+	switch tv := r.(type) {
+	case string:
+		for i := 0; i < len(slice) && !match; i++ {
+			match = funk(tv, slice[i])
+		}
+	case []string:
+		for i := 0; i < len(tv) && !match; i++ {
+			for j := 0; j < len(slice) && !match; j++ {
+				match = funk(tv[i], slice[j])
+			}
 		}
 	}
 

@@ -15,4 +15,8 @@ func TestPrintableString(t *testing.T) {
 			t.Errorf("%s failed: %v", t.Name(), err)
 		}
 	}
+
+	_, _ = marshalPrintableString(`&1.555.123.4567`)
+	_, _ = marshalPrintableString(`&1.555👩123.4567`)
+
 }

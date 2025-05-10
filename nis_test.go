@@ -53,6 +53,9 @@ func TestBootParameter(t *testing.T) {
 	r.BootParameter(`test:`)
 	r.BootParameter(``)
 	r.BootParameter(nil)
+
+	var bp BootParameter
+	_ = bp.String()
 }
 
 func TestNIS_codecov(t *testing.T) {

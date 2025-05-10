@@ -17,10 +17,8 @@ func wordMatch(a, b any) (result Boolean, err error) {
 
 	// Check if any word matches the assertion value
 	var found bool
-	for _, word := range words {
-		if found = streqf(word, str1); found {
-			break
-		}
+	for i := 0; i < len(words) && !found; i++ {
+		found = streqf(words[i], str1)
 	}
 
 	result.Set(found)
@@ -64,10 +62,8 @@ func keywordMatch(a, b any) (result Boolean, err error) {
 
 	keys := keywordSplit(str2)
 	var found bool
-	for _, key := range keys {
-		if found = streqf(key, str1); found {
-			break
-		}
+	for i := 0; i < len(keys) && !found; i++ {
+		found = streqf(keys[i], str1)
 	}
 
 	result.Set(found)

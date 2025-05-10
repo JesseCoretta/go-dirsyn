@@ -8,7 +8,6 @@ Note that this is largely a streamlined port of JesseCoretta/go-aci.
 */
 
 import (
-	//"fmt"
 	"time"
 
 	"github.com/JesseCoretta/go-shifty"
@@ -536,15 +535,12 @@ func (r ACIv3TargetKeyword) String() (k string) {
 }
 
 func assertATBTVBindKeyword(bkw ...any) (kw ACIv3BindKeyword) {
-	kw = ACIv3BindUAT
-	if len(bkw) == 0 {
-		return
-	}
-
-	switch tv := bkw[0].(type) {
-	case ACIv3BindKeyword:
-		if tv == ACIv3BindGAT {
-			kw = tv
+	if kw = ACIv3BindUAT; len(bkw) > 0 {
+		switch tv := bkw[0].(type) {
+		case ACIv3BindKeyword:
+			if tv == ACIv3BindGAT {
+				kw = tv
+			}
 		}
 	}
 
@@ -875,11 +871,9 @@ See the const definitions for [MultivalOuterQuotes] (default) and [MultivalSlice
 */
 func (r ACIv3BindRuleItem) SetQuotationStyle(style int) ACIv3BindRule {
 	if !r.IsZero() {
-		key := r.Keyword()
-
 		switch r.Expression().(type) {
 		case ACIv3BindDistinguishedName:
-			switch key {
+			switch r.Keyword() {
 			case ACIv3BindUDN, ACIv3BindGDN, ACIv3BindRDN:
 				r.aCIBindRuleItem.mvq = style == 0
 			}
@@ -963,10 +957,10 @@ func (r ACIv3BindRuleNot) SetPaddingStyle(style int) ACIv3BindRule {
 }
 
 /*
-Kind returns the string literal "aCIBindRuleItem".
+Kind returns the string literal "bindRuleItem".
 */
 func (r ACIv3BindRuleItem) Kind() string {
-	return `aCIBindRuleItem`
+	return `bindRuleItem`
 }
 
 /*
@@ -984,10 +978,10 @@ func (r ACIv3BindRuleOr) Kind() string {
 }
 
 /*
-Kind returns the string literal "aCIBindRuleNot".
+Kind returns the string literal "bindRuleNot".
 */
 func (r ACIv3BindRuleNot) Kind() string {
-	return `aCIBindRuleNot`
+	return `bindRuleNot`
 }
 
 /*
@@ -1125,7 +1119,7 @@ func (r ACIv3BindRuleNot) Push(x ...any) ACIv3BindRule {
 				}
 			}
 		case ACIv3BindRule:
-			k := r.Kind()
+			k := tv.Kind()
 			err = tv.Valid()
 			if err == nil && strInSlice(k, []string{`bindRuleAnd`, `bindRuleOr`, `bindRuleItem`}) {
 				r.aCIBindRuleNot.ACIv3BindRule = tv
@@ -1256,7 +1250,7 @@ func (r ACIv3BindRuleOr) IsZero() bool {
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r ACIv3BindRuleNot) IsZero() bool {
-	return r.ACIv3BindRule == nil
+	return r.aCIBindRuleNot == nil
 }
 
 /*
@@ -1405,12 +1399,10 @@ slice index.
 func (r ACIv3BindRuleAnd) Valid() (err error) {
 	if r.IsZero() {
 		err = errorTxt("Invalid bind rule (AND): is zero")
-		return
+	} else {
+		err = r.aCIBindRuleSlice.Valid()
 	}
 
-	if err = r.aCIBindRuleSlice.Valid(); err != nil {
-		err = errorTxt("Invalid bind rule (AND): " + err.Error())
-	}
 	return
 }
 
@@ -1422,11 +1414,8 @@ slice index.
 func (r ACIv3BindRuleOr) Valid() (err error) {
 	if r.IsZero() {
 		err = errorTxt("Invalid bind rule (OR): is zero")
-		return
-	}
-
-	if err = r.aCIBindRuleSlice.Valid(); err != nil {
-		err = errorTxt("Invalid bind rule (OR): " + err.Error())
+	} else {
+		err = r.aCIBindRuleSlice.Valid()
 	}
 
 	return
@@ -1441,11 +1430,8 @@ qualifier, or some other issue.
 func (r ACIv3BindRuleNot) Valid() (err error) {
 	if r.IsZero() {
 		err = errorTxt("Invalid bind rule (NOT): is zero")
-		return
-	}
-
-	if err = r.ACIv3BindRule.Valid(); err != nil {
-		err = errorTxt("Invalid bind rule (NOT): " + err.Error())
+	} else {
+		err = r.ACIv3BindRule.Valid()
 	}
 
 	return
@@ -1962,7 +1948,7 @@ func (r NetscapeACIv3) BindRuleItem(x ...any) (ACIv3BindRule, error) {
 		switch tv := x[0].(type) {
 		case string:
 			err = bri.parse(tv)
-		case ACIv3TargetKeyword:
+		case ACIv3BindKeyword:
 			if matchBKW(tv) != 0x0 {
 				if len(x) == 3 {
 					if _, ok := x[1].(ACIv3Operator); !ok {
@@ -2011,7 +1997,7 @@ SetKeyword assigns [ACIv3Keyword] kw to the receiver instance.
 */
 func (r ACIv3BindRuleItem) SetKeyword(kw any) ACIv3BindRule {
 	if r.aCIBindRuleItem == nil {
-		(*r.aCIBindRuleItem) = (*initACIv3BindRuleItem().aCIBindRuleItem)
+		r.aCIBindRuleItem = initACIv3BindRuleItem().aCIBindRuleItem
 	}
 
 	switch tv := kw.(type) {
@@ -2030,7 +2016,7 @@ instance.
 */
 func (r ACIv3BindRuleItem) SetOperator(op any) ACIv3BindRule {
 	if r.aCIBindRuleItem == nil {
-		(*r.aCIBindRuleItem) = (*initACIv3BindRuleItem().aCIBindRuleItem)
+		r.aCIBindRuleItem = initACIv3BindRuleItem().aCIBindRuleItem
 	}
 
 	// assert underlying comparison operator.
@@ -2056,7 +2042,7 @@ SetExpression assigns value expr to the receiver instance.
 */
 func (r ACIv3BindRuleItem) SetExpression(expr ...any) ACIv3BindRule {
 	if r.aCIBindRuleItem == nil {
-		(*r.aCIBindRuleItem) = (*initACIv3BindRuleItem().aCIBindRuleItem)
+		r.aCIBindRuleItem = initACIv3BindRuleItem().aCIBindRuleItem
 	}
 
 	// Constrain to specific value types per keyword
@@ -2106,11 +2092,12 @@ func (r ACIv3BindRuleMethods) Valid() (err error) {
 Len returns the integer length of the receiver. Note that the return value will NEVER be less than zero (0) nor greater than six (6).
 */
 func (r ACIv3BindRuleMethods) Len() int {
-	if r.IsZero() {
-		return 0
+	var l int
+	if !r.IsZero() {
+		l = len((*r.aCIBindRuleFuncMap))
 	}
 
-	return len((*r.aCIBindRuleFuncMap))
+	return l
 }
 
 /*
@@ -2181,7 +2168,6 @@ func (r NetscapeACIv3) BindRule(x ...any) (ACIv3BindRule, error) {
 			if tkz, err = tokenizeACIv3BindRule(tv); err == nil {
 				br, err = parseACIv3BindRuleExpression(tkz)
 			}
-			//br, err = parseACIv3BindRuleGroup(tokenizeACIv3BindRule(tv), &iter)
 		}
 	}
 
@@ -2248,8 +2234,10 @@ func tokenizeACIv3BindRule(input string) (tkz []aCIBindRuleToken, err error) {
 			if isWHSP(rune(ch)) {
 				flush()
 			} else if ch == '=' {
+				flush()
 				bld.WriteByte(ch)
 			} else if runeInSlice(rune(ch), []rune{'>', '<', '!'}) {
+				flush()
 				bld.WriteByte(ch)
 				// If the next character is '=' then include it.
 				if i+1 < len(input) && input[i+1] == '=' {
@@ -2348,8 +2336,6 @@ func (r *ACIv3TargetRule) parse(x string) (err error) {
 				tkz = tkz[i+1:]
 				r.Push(item)
 			}
-		} else {
-			break
 		}
 	}
 
@@ -2391,14 +2377,15 @@ func processACIv3TargetRuleItem(tkz []aCITargetRuleToken) (r ACIv3TargetRuleItem
 func tokenizeACIv3TargetRule(input string) (tkz []aCITargetRuleToken, err error) {
 	i := 0
 	length := len(input)
+	if length == 0 {
+		err = badACIv3TRErr
+		return
+	}
 
 	for i < length && err == nil {
 		// Skip any whitespace (spaces, tabs, etc.). These are insignificant.
 		for i < length && isSpace(rune(input[i])) {
 			i++
-		}
-		if i >= length {
-			break
 		}
 
 		ch := input[i]
@@ -2474,17 +2461,6 @@ func tokenizeTargetRuleQuotedValue(i, l int, input string, tkz []aCITargetRuleTo
 			i++ // consume the closing quote and break.
 			break
 		}
-		// Handle escape sequences so that any character can be inside the string.
-		if input[i] == '\\' {
-			if i+1 < l {
-				sb.WriteByte(input[i+1])
-				i += 2
-				continue
-			} else {
-				err = errorTxt("targetRule unterminated escape sequence in string literal")
-				break
-			}
-		}
 		sb.WriteByte(input[i])
 		i++
 	}
@@ -2537,10 +2513,7 @@ func assertBindValueByKeyword(bkw ACIv3BindKeyword, raw ...any) (value any, err 
 		arg := append([]any{bkw}, raw...)
 		value, err = marshalACIv3BindDistinguishedName(arg...)
 	case ACIv3BindUAT, ACIv3BindGAT:
-		value, err = marshalACIv3AttributeBindTypeOrValue(append([]any{bkw}, raw...)...)
-		if err != nil {
-			value, err = marshalACIv3Inheritance(raw...)
-		}
+		value, err = assertBindAT(bkw, raw...)
 	case ACIv3BindDNS:
 		value, err = marshalACIv3FQDN(raw...)
 	case ACIv3BindDoW:
@@ -2562,7 +2535,31 @@ func assertBindValueByKeyword(bkw ACIv3BindKeyword, raw ...any) (value any, err 
 	return
 }
 
+func assertBindAT(bkw ACIv3BindKeyword, raw ...any) (value any, err error) {
+	switch tv := raw[0].(type) {
+	case string:
+		if cntns(tv, `[`) {
+			value, err = marshalACIv3Inheritance(raw...)
+		} else {
+			value, err = marshalACIv3AttributeBindTypeOrValue(append([]any{bkw}, raw...)...)
+		}
+	case ACIv3Inheritance:
+		value = tv
+		err = tv.Valid()
+	case ACIv3AttributeBindTypeOrValue:
+		value = tv
+		err = tv.Valid()
+	}
+
+	return
+}
+
 func assertTargetValueByKeyword(tkw ACIv3TargetKeyword, raw ...any) (value any, err error) {
+	if len(raw) == 0 {
+		err = nilInputErr
+		return
+	}
+
 	switch tkw {
 	case ACIv3Target, ACIv3TargetTo, ACIv3TargetFrom:
 		arg := append([]any{tkw}, raw...)
@@ -2571,7 +2568,20 @@ func assertTargetValueByKeyword(tkw ACIv3TargetKeyword, raw ...any) (value any, 
 		arg := append([]any{tkw}, raw...)
 		value, err = marshalACIv3ObjectIdentifier(tkw, arg...)
 	case ACIv3TargetAttr:
-		value, err = marshalACIv3Attribute(raw...)
+		switch tv := raw[0].(type) {
+		case string:
+			if cntns(tv, `#`) {
+				value, err = marshalACIv3AttributeBindTypeOrValue(raw...)
+			} else {
+				value, err = marshalACIv3Attribute(raw...)
+			}
+		case ACIv3Attribute:
+			value = tv
+			err = tv.Valid()
+		case ACIv3AttributeBindTypeOrValue:
+			value = tv
+			err = tv.Valid()
+		}
 	case ACIv3TargetAttrFilters:
 		value, err = marshalACIv3AttrFilterOpItem(raw...)
 	case ACIv3TargetFilter:
@@ -2652,39 +2662,9 @@ func parseACIv3BindRuleGroup(tokens []aCIBindRuleToken, pos *int) (ACIv3BindRule
 	return nil, errorTxt("mixed operators in group are not supported")
 }
 
-func tokenizeACIv3BindRuleInParen(i *int, operands []ACIv3BindRule, tkz []aCIBindRuleToken) ([]ACIv3BindRule, []aCIBindRuleTokenType, error) {
-	// Continue parsing until we hit a closing parenthesis.
-	var operators []aCIBindRuleTokenType
-	var err error
-
-	for *i < len(tkz) && tkz[*i].Type != brParenClose {
-		// Expect an operator (brAnd, brOr or brNot) here.
-		if tkz[*i].Type == brAnd || tkz[*i].Type == brOr || tkz[*i].Type == brNot {
-			op := tkz[*i].Type
-			*i++
-			operators = append(operators, op)
-			// Parse the next operand.
-			var nextOperand ACIv3BindRule
-			if nextOperand, err = processACIv3BindRule(tkz, i); err != nil {
-				return nil, nil, err
-			}
-			operands = append(operands, nextOperand)
-		} else {
-			return nil, nil, errorTxt("expected boolean operator but got " + tkz[*i].Value)
-		}
-	}
-
-	if *i >= len(tkz) || tkz[*i].Type != brParenClose {
-		err = errorTxt("expected closing parenthesis")
-	}
-	*i++
-
-	return operands, operators, err
-}
-
 func parseACIv3BindRuleExpression(tokens []aCIBindRuleToken) (ACIv3BindRule, error) {
 	pos := 0
-	// We require at least one binding item.
+	// We require at least three (3) tokens
 	if len(tokens) < 3 {
 		return nil, errorTxt("incomplete bind rule expression")
 	}
@@ -3725,7 +3705,7 @@ Parse reads the input string (raw) in an attempt to marshal its contents into th
 
 If no suitable [ACIv3BindKeyword] is provided (bkw), the default is [ACIv3BindUAT]. Valid options are [ACIv3BindUAT] and [ACIv3BindGAT].
 */
-func (r *ACIv3AttributeBindTypeOrValue) Parse(raw string, bkw ...any) (err error) {
+func (r *ACIv3AttributeBindTypeOrValue) parse(raw string, bkw ...any) (err error) {
 	var _r ACIv3AttributeBindTypeOrValue
 	if _r, err = parseATBTV(raw, bkw); err == nil {
 		*r = _r
@@ -3818,7 +3798,7 @@ func (r ACIv3Attribute) String() string {
 		if r.aCIAttribute.all {
 			s = `*`
 		} else if r.Len() > 0 {
-			s = join(r.aCIAttribute.slice, `,`)
+			s = join(r.aCIAttribute.slice, `||`)
 		}
 	}
 
@@ -3921,8 +3901,11 @@ func (r ACIv3Attribute) Push(x ...any) ACIv3Attribute {
 						r.Push(trimS(tv[j]))
 					}
 				case string:
-					if isAttribute(tv) {
-						r.aCIAttribute.slice = append(r.aCIAttribute.slice, tv)
+					sp := split(tv, `||`)
+					for j := 0; j < len(sp); j++ {
+						if at := trimS(sp[j]); isAttribute(at) {
+							r.aCIAttribute.slice = append(r.aCIAttribute.slice, at)
+						}
 					}
 				}
 			}
@@ -5197,22 +5180,11 @@ Additionally, the underlying type set as the expression value within the receive
 */
 func (r ACIv3TargetRuleItem) SetQuotationStyle(style int) ACIv3TargetRuleItem {
 	if !r.IsZero() {
-		key := r.Keyword()
-
 		switch r.Expression().(type) {
-		case ACIv3TargetDistinguishedName:
-			switch key {
-			case ACIv3Target, ACIv3TargetTo, ACIv3TargetFrom:
-				r.aCITargetRuleItem.mvq = style == 0
-			}
-		case ACIv3Attribute:
-			switch key {
-			case ACIv3TargetAttr:
-				r.aCITargetRuleItem.mvq = style == 0
-			}
-		case ACIv3ObjectIdentifier:
-			switch key {
-			case ACIv3TargetCtrl, ACIv3TargetExtOp:
+		case ACIv3TargetDistinguishedName, ACIv3Attribute, ACIv3ObjectIdentifier:
+			switch r.Keyword() {
+			case ACIv3Target, ACIv3TargetTo, ACIv3TargetFrom, ACIv3TargetAttr,
+				ACIv3TargetCtrl, ACIv3TargetExtOp:
 				r.aCITargetRuleItem.mvq = style == 0
 			}
 		}
@@ -5889,14 +5861,6 @@ func marshalACIv3TimeOfDay(x ...any) (r ACIv3TimeOfDay, err error) {
 	return
 }
 
-func newTimeOfDay(x ...any) ACIv3TimeOfDay {
-	t := new(aCITimeOfDay)
-	if len(x) > 0 {
-		t.set(x[0])
-	}
-	return ACIv3TimeOfDay{t}
-}
-
 type aCITimeOfDay [2]byte
 
 /*
@@ -6050,10 +6014,6 @@ func (r ACIv3TimeOfDay) Set(t any) ACIv3TimeOfDay {
 	return r
 }
 
-func (r *aCITimeOfDay) isZero() bool {
-	return r == nil
-}
-
 func (r *aCITimeOfDay) set(t any) {
 	assertToD(r, t)
 }
@@ -6062,6 +6022,9 @@ func (r *aCITimeOfDay) set(t any) {
 assertToD is called by timeOfDay.set for the purpose of handling a potential clock time value for use in a [ACIv3BindRule] statement.
 */
 func assertToD(r *aCITimeOfDay, t any) {
+	if r == nil {
+		r = new(aCITimeOfDay)
+	}
 	switch tv := t.(type) {
 	case time.Time:
 		// time.Time input results in a recursive
@@ -6553,7 +6516,7 @@ func (r ACIv3AttributeFilter) IsZero() bool {
 	if r.aCIAttributeFilter == nil {
 		return true
 	}
-	return r.aCIAttributeFilter.Filter.IsZero() &&
+	return r.aCIAttributeFilter.Filter == nil &&
 		r.aCIAttributeFilter.ACIv3Attribute.IsZero()
 }
 
@@ -6881,21 +6844,6 @@ func (r ACIv3AttributeFilterOperationItem) Operation() ACIv3AttributeOperation {
 	}
 
 	return o
-}
-
-/*
-hasACIv3AttributeFilterOperationPrefix returns a Boolean value indicative of whether the input string value (raw) begins with a known [ACIv3AttributeOperation] prefix.
-*/
-func hasACIv3AttributeFilterOperationPrefix(raw string) bool {
-	switch {
-	case hasPfx(raw, `add=`):
-		return true
-
-	case hasPfx(raw, `delete=`):
-		return true
-	}
-
-	return false
 }
 
 /*

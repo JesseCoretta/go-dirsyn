@@ -81,41 +81,16 @@ func marshalPrintableString(x any) (ps PrintableString, err error) {
 		return
 	}
 
-	if !checkPrintableStringChars(raw) {
-		err = errorTxt("Invalid Printable String: " + raw)
-		return
-	}
-
-	for _, ch := range raw {
-		char := rune(ch)
-		if !isTelephoneNumberChar(char) {
-			err = errorBadType("Invalid Telephone Number character: " + string(char))
-			return
+	for i := 0; i < len(raw) && err == nil; i++ {
+		char := rune(raw[i])
+		if !ucIn(char, digits, lAlphas, uAlphas, prsRange) {
+			err = errorBadType("Invalid printable string character: " + string(char))
 		}
 	}
 
-	ps = PrintableString(raw)
-
-	return
-}
-
-func checkPrintableStringChars(raw string) (is bool) {
-	if len(raw) == 0 {
-		return
+	if err == nil {
+		ps = PrintableString(raw)
 	}
 
-	for i := 0; i < len(raw); i++ {
-		r := rune(raw[i])
-		if !(isAlphaNumeric(r) || runeInSlice(r, printableStringRunes)) {
-			return
-		}
-	}
-
-	is = true
-
 	return
-}
-
-var printableStringChars []rune = []rune{
-	'\'', '(', ')', '+', ',', '-', '.', '=', '/', ':', '?', ' ',
 }

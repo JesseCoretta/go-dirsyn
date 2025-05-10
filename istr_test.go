@@ -14,6 +14,12 @@ func TestIA5String(t *testing.T) {
 		t.Errorf("%s failed:\nwant: %s\ngot:  %s",
 			t.Name(), raw, got)
 	}
+
+	//var chars []rune = []rune{0xEA4F, 'こ','ん','に','ち','は','、','世','界','🌍'}
+	//if err := checkIA5String(string(chars)); err == nil {
+	//	t.Errorf("%s failed: expected error, got nil", t.Name())
+	//	return
+	//}
 }
 
 func TestIA5String_SubstringsMatch(t *testing.T) {

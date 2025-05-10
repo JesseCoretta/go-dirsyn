@@ -64,11 +64,9 @@ func (r FacsimileTelephoneNumber) String() (ftn string) {
 		}
 	}
 
-	if len(prms) == 0 {
-		ftn = r.TelephoneNumber.String()
-		return
+	if ftn = r.TelephoneNumber.String(); len(prms) > 0 {
+		ftn += `$` + join(prms, `$`)
 	}
-	ftn = r.TelephoneNumber.String() + `$` + join(prms, `$`)
 
 	return
 }
@@ -218,7 +216,7 @@ func marshalTelephoneNumber(x any) (tn TelephoneNumber, err error) {
 	// TODO: conform more closely to E.123.
 	for _, ch := range raw {
 		char := rune(ch)
-		if !isTelephoneNumberChar(char) {
+		if !ucIn(char, digits, lAlphas, uAlphas, prsRange, telRange) {
 			err = errorBadType("Invalid Telephone Number character: " + string(char))
 			return
 		}
@@ -495,12 +493,12 @@ func marshalTeletex(_raws []string) (raws, vals []string, err error) {
 		}
 	}
 
+	if !(0 < len(raws) && len(raws) < UBTeletexTerminalID) {
+		err = errorTxt("Missing Teletex Terminal Identifier value, or length out of bounds")
+	}
+
 	if !cfound {
 		err = errorTxt("Teletex Terminal Identifier missing ':' token")
-	} else if len(raws) == 0 {
-		err = errorTxt("Missing Teletex Terminal Identifier value")
-	} else if len(raws) > UBTeletexTerminalID {
-		err = errorTxt("Teletex Terminal Identifier value length out of bounds (>1024)")
 	}
 
 	return
@@ -559,11 +557,6 @@ func telephoneNumberMatch(a, b any) (result Boolean, err error) {
 	}
 
 	return
-}
-
-func isTelephoneNumberChar(x rune) bool {
-	return isAlphaNumeric(x) ||
-		runeInSlice(x, telephoneNumberRunes)
 }
 
 func init() {

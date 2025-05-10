@@ -38,6 +38,8 @@ func TestJPEG_codecov(t *testing.T) {
 	r.JPEG([]uint8{0x0})
 	r.JPEG(nil)
 	r.JPEG(testJPEGData[:len(testJPEGData)-1]) // truncate footer
+
+	_ = jPEG([]uint8{0x8})
 }
 
 /*

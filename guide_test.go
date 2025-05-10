@@ -15,7 +15,13 @@ func TestEnhancedGuide(t *testing.T) {
 			t.Errorf("%s[%d] failed: %v", t.Name(), idx, err)
 		} else if got := g.String(); raw != got {
 			t.Errorf("%s[%d] failed:\nwant: %s\ngot:  %s", t.Name(), idx, raw, got)
+		} else {
+			g.Criteria.Index(0).Index(0)
 		}
+	}
+
+	if _, err := r.EnhancedGuide(`account#!(?true&?false&2.5.4.0$EQ)|?true#wholeSybtree`); err == nil {
+		t.Errorf("%s failed: expected error, got nil", t.Name())
 	}
 }
 
@@ -56,6 +62,10 @@ func TestGuide_codecov(t *testing.T) {
 	at.Paren = true
 	_ = at.String()
 	at.Len()
+	at.Valid()
+
+	var not NotTerm
+	not.Valid()
 
 	var r RFC4517
 	for _, bogus := range []any{
@@ -71,14 +81,19 @@ func TestGuide_codecov(t *testing.T) {
 		`account#Jerry.Hello#baseObject`,
 	} {
 		g, _ := r.Guide(bogus)
+		guide(bogus)
 		_ = g.String()
 		eg, _ := r.EnhancedGuide(bogus)
+		enhancedGuide(bogus)
 		_ = eg.String()
 	}
 
 	subsetToInt(`baseobject`)
 	subsetToInt(`onelevel`)
 	subsetToInt(`wholesubtree`)
+
+	marshalEnhancedGuide("account#...#((?$))#")
+	marshalGuide("@..@#Value")
 
 	intToSubset(0)
 	intToSubset(1)

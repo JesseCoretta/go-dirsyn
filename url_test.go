@@ -163,4 +163,7 @@ func TestURL(t *testing.T) {
 	_ = bogus.IsZero()
 	bogus.Scheme = "http"
 	_ = bogus.String()
+	bogus.setDN([]string{"ou=Test%2Xo=example"})
+	bogus.setDN([]string{"____"})
+	bogus.setAttributesOrATBTV([]string{"", "cn%2Xsn"})
 }

@@ -81,8 +81,9 @@ func marshalEnhancedGuide(x any) (g EnhancedGuide, err error) {
 	// criteria is the second of three (3)
 	// mandatory Enhanced Guide components.
 	cp := newCriteriaParser(raws[1])
-	if g.Criteria = cp.tokenizeCriteria(); g.Criteria.IsZero() {
-		err = errorTxt("Invalid Criteria for Enhanced Guide: " + raws[1])
+	g.Criteria = cp.tokenizeCriteria()
+	if err = g.Criteria.Valid(); err != nil {
+		err = errorTxt("Invalid Criteria for Enhanced Guide: " + err.Error() + " -- " + raws[1])
 		return
 	}
 
@@ -205,9 +206,7 @@ func marshalGuide(x any) (g Guide, err error) {
 	}
 
 	if err == nil {
-		if g.Criteria.IsZero() {
-			err = errorTxt("Invalid Criteria for Guide: " + raws[0])
-		}
+		err = g.Criteria.Valid()
 	}
 
 	return
@@ -235,6 +234,43 @@ and [Criteria].
 type Term interface {
 	String() string
 	IsZero() bool
+	Valid() error
+}
+
+/*
+Valid returns an error following an analysis of the receiver instance.
+*/
+func (r AttributeMatchTerm) Valid() (err error) {
+	if !isAttribute(r.AttributeType) {
+		err = errorTxt("Invalid attributeType for attributeMatchTerm")
+	} else if !strInSlice(uc(r.MatchType), []string{"EQ", "SUBSTR", "LE", "GE", "APPROX"}) {
+		err = errorTxt("Invalid matchType for attributeMatchTerm")
+	}
+
+	return
+}
+
+/*
+Valid returns an error following an analysis of the receiver instance.
+*/
+func (r BoolTerm) Valid() (err error) {
+	// Nothing to do for this type.
+	return nil
+}
+
+/*
+Valid returns an error following an analysis of the receiver instance.
+*/
+func (r Criteria) Valid() (err error) {
+	if len(r.Set) == 0 {
+		err = errorTxt("Empty criteria")
+	} else {
+		for i := 0; i < len(r.Set) && err == nil; i++ {
+			err = r.Set[i].Valid()
+		}
+	}
+
+	return
 }
 
 /*
@@ -242,6 +278,19 @@ NotTerm negates an instance of [Term].
 */
 type NotTerm struct {
 	Term
+}
+
+/*
+Valid returns an error following an analysis of the receiver instance.
+*/
+func (r NotTerm) Valid() (err error) {
+	if r.Term == nil {
+		err = nilInstanceErr
+	} else {
+		err = r.Term.Valid()
+	}
+
+	return
 }
 
 /*
@@ -372,6 +421,21 @@ func (r Criteria) Index(idx int) (a AndTerm) {
 type AndTerm struct {
 	Set   []Term
 	Paren bool
+}
+
+/*
+Valid returns an error following an analysis of the receiver instance.
+*/
+func (r AndTerm) Valid() (err error) {
+	if len(r.Set) == 0 {
+		err = errorTxt("Empty AndTerm value")
+	} else {
+		for i := 0; i < len(r.Set) && err == nil; i++ {
+			err = r.Set[i].Valid()
+		}
+	}
+
+	return
 }
 
 /*

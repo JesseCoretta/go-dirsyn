@@ -30,7 +30,11 @@ func TestUnicode_codecov(t *testing.T) {
 		t.Logf("%#v\n", runes)
 	}
 
+	_ = isAlnum('c')
+
 	assertUTF8String([]byte{0x62, 0x77})
+	isUTF3([]byte{0xE0, 0x01, 0x2b})
+	isUTF4([]byte{0xF1, 0x01, 0x2b})
 
 	uTF8(struct{}{})
 	assertRunes(byte(0x31))

@@ -6,38 +6,97 @@ import (
 )
 
 func TestUUIDMatch(t *testing.T) {
-	a1 := `23c4bc48-b82d-4091-a3c2-c1a62502d318`
-	a2 := `3918e81f-1278-4573-9ae8-8a650310e54c`
-
-	var u1, u2 UUID
-	var err error
-
-	if u1, err = marshalUUID(a1); err != nil {
-		t.Errorf("%s [ordering] failed: %v", t.Name(), err)
-		return
+	tests := []struct {
+		UUID1 any
+		UUID2 any
+		Valid bool
+	}{
+		{
+			UUID1: `23c4bc48-b82d-4091-a3c2-c1a62502d318`,
+			UUID2: `3918e81f-1278-4573-9ae8-8a650310e54c`,
+			Valid: true,
+		},
+		{
+			UUID1: rune(33),
+			UUID2: nil,
+		},
+		{
+			UUID1: `3918e81f-1278-4573-9ae8-8a650310e54c`,
+			UUID2: nil,
+		},
+		{
+			UUID1: []byte(`23c4bc48-b82d-4091-a3c2-c1a62502d318`),
+			UUID2: []byte(`3918e81f-1278-4573-9ae8-8a650310e54c`),
+			Valid: true,
+		},
+		{
+			UUID1: []byte(`23c4bc48-b82d-4091-a3c2-c1a6250`),
+			UUID2: []byte(`3918e81f-1278-4573-9ae8-8a650310e54c`),
+		},
 	}
 
-	if u2, err = marshalUUID(a2); err != nil {
-		t.Errorf("%s [ordering] failed: %v", t.Name(), err)
-		return
-	}
+	for idx, obj := range tests {
 
-	var result Boolean
-	if result, err = uuidOrderingMatch(u1, u2, LessOrEqual); err != nil {
-		t.Errorf("%s [ordering] failed: %v", t.Name(), err)
-		return
-	}
+		u1, err1 := marshalUUID(obj.UUID1)
+		u2, err2 := marshalUUID(obj.UUID2)
 
-	if !result.True() {
-		t.Errorf("%s [ordering] failed: want %s, got %s", t.Name(), `TRUE`, result)
-		return
-	}
+		if obj.Valid {
+			if err1 != nil {
+				t.Errorf("%s[%d] [ordering] failed: %v", t.Name(), idx, err1)
+				return
+			} else if err2 != nil {
+				t.Errorf("%s[%d] [ordering] failed: %v", t.Name(), idx, err2)
+				return
+			}
 
-	if result, err = uuidMatch(u1, u2); err != nil {
-		t.Errorf("%s [equality] failed: %v", t.Name(), err)
-	} else if !result.False() {
-		t.Errorf("%s [equality] failed: want %s, got %s", t.Name(), `FALSE`, result)
-		return
+			result, err := uuidOrderingMatch(u1, u2, LessOrEqual)
+			if err != nil {
+				t.Errorf("%s[%d] [ordering] failed: %v", t.Name(), idx, err)
+				return
+			} else if !result.True() {
+				t.Errorf("%s[%d] [ordering] failed:\n\twant: %s\n\tgot:  %s", t.Name(), idx, `TRUE`, result)
+				return
+			}
+
+			if result, err = uuidMatch(obj.UUID1, obj.UUID2); err != nil {
+				t.Errorf("%s[%d] [equality] failed: %v", t.Name(), idx, err)
+				return
+			} else if !result.False() {
+				t.Errorf("%s[%d] [equality] failed:\n\twant: %s\n\tgot:  %s", t.Name(), idx, `FALSE`, result)
+				return
+			}
+
+			if result = uUID(obj.UUID1); !result.True() {
+				t.Errorf("%s[%d] [syntax] failed: %v\n\twant: %s\n\tgot:  %s", t.Name(), idx, err, `TRUE`, result)
+				return
+			} else if result = uUID(obj.UUID2); !result.True() {
+				t.Errorf("%s[%d] [syntax] failed: %v\n\twant: %s\n\tgot:  %s", t.Name(), idx, err, `TRUE`, result)
+				return
+			}
+		} else {
+			//if err1 == nil || err2 == nil {
+			//	t.Errorf("%s[%d] [ordering] failed: expected error, got nil", t.Name(), idx)
+			//	return
+			//}
+
+			result, _ := uuidOrderingMatch(obj.UUID1, obj.UUID2, LessOrEqual)
+			//if err == nil {
+			//	t.Errorf("%s[%d] [ordering] failed: expected error, got nil", t.Name(), idx)
+			//        return
+			if result.True() {
+				t.Errorf("%s[%d] [ordering] failed:\n\twant: %s\n\tgot:  %s", t.Name(), idx, `UNDEFINED or FALSE`, result)
+				return
+			}
+
+			var err error
+			if result, err = uuidMatch(obj.UUID1, obj.UUID2); err == nil {
+				t.Errorf("%s[%d] [equality] failed: %v", t.Name(), idx, err)
+				return
+			} else if result.True() {
+				t.Errorf("%s[%d] [equality] failed:\n\twant: %s\n\tgot:  %s", t.Name(), idx, `UNDEFINED or FALSE`, result)
+				return
+			}
+		}
 	}
 }
 
