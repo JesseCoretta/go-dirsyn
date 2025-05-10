@@ -138,7 +138,7 @@ func verifyBitStringContents(raw []byte) ([]byte, error) {
 	raw = raw[1 : len(raw)-1]
 
 	for i := 0; i < len(raw); i++ {
-		if !isBinChar(rune(raw[i])) {
+		if !(rune(raw[i]) == '0' || rune(raw[i]) == '1') {
 			err = errorTxt("Incompatible non-binary character for BitString" + string(raw[i]))
 			break
 		}

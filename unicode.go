@@ -134,10 +134,6 @@ func isLAlpha(r rune) bool {
 	return 'a' <= r && r <= 'z'
 }
 
-func isBinChar(r rune) bool {
-	return r == '0' || r == '1'
-}
-
 func isWHSP(ch rune) bool {
 	return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r'
 }
