@@ -2,6 +2,8 @@ package dirsyn
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -846,19 +848,6 @@ func ExampleDITStructureRule_SubordinateStructureRules() {
 	// Output: Number of subordinate rules: 2
 }
 
-// This is only enabled for local maintainer tests.
-//func ExampleSubschemaSubentry_ReadDirectory() {
-//	var r RFC4512
-//	sch, _ := r.SubschemaSubentry()
-//	if err := sch.ReadDirectory(`/home/jc/dev/schema`); err != nil {
-//		fmt.Println(err)
-//		return
-//	}
-//
-//	fmt.Println(sch.Counters())
-//	// Output: [65 44 203 44 51 1 3 0 411]
-//}
-
 func TestSubschemaSubentry_codecov(t *testing.T) {
 
 	_ = exampleSchema.ReadFile("/tmp/fake.file")
@@ -917,6 +906,14 @@ func TestSubschemaSubentry_codecov(t *testing.T) {
 
 	ruleu.Name = []string{"someMatchingRule"}
 	ruleu.Identifier()
+
+	marshalLDAPSyntax([]byte(`bogus`))
+	marshalMatchingRule([]byte(`bogus`))
+	marshalDITContentRule([]byte(`bogus`))
+	marshalDITContentRule([]byte(`( 2.5.6.5 NAME 'fakeContentRule' MAY cn )`))
+	exampleSchema.registerSchemaByCase([][]byte{[]byte("ldapsyntax")})
+	exampleSchema.registerSchemaByCase([][]byte{[]byte("matchingrule")})
+	exampleSchema.registerSchemaByCase([][]byte{[]byte("ditcontentrule")})
 
 	exampleSchema.MatchingRuleUses.Contains(exampleSchema.MatchingRuleUses.defs[0].Identifier())
 	errorPrimerFailed(1, 1)
@@ -2027,11 +2024,42 @@ dITStructureRule: ( 2
 var exampleSchema *SubschemaSubentry
 
 func init() {
+	name := "schemaInit"
+
+	/*
+		create "/<temporary_dir>/schema-dir-read-test/example.schema" and
+		parse its definitions. The resulting schema
+	*/
+	tempDir, err := os.MkdirTemp("", "schema-dir-read-test")
+	if err != nil {
+		panic(fmt.Sprintf("%s failed [make tmp]: %v", name, err))
+	}
+
+	defer os.RemoveAll(tempDir)
+	filePath := filepath.Join(tempDir, "example.schema")
+
+	var file *os.File
+	if file, err = os.Create(filePath); err != nil {
+		panic(fmt.Sprintf("%s failed [make file]: %v", name, err))
+	}
+
+	defer file.Close()
+
+	if _, err = file.Write(fileBytes); err != nil {
+		panic(fmt.Sprintf("%s failed [read bytes]: %v", name, err))
+	}
+
 	var r RFC4512
-	var err error
 	if exampleSchema, err = r.SubschemaSubentry(true); err != nil {
-		panic(err)
-	} else if err = exampleSchema.ReadBytes(fileBytes); err != nil {
-		panic(err)
+		panic(fmt.Sprintf("%s failed [schema init]: %v", name, err))
+	}
+
+	if err = exampleSchema.ReadDirectory(tempDir); err != nil {
+		panic(fmt.Sprintf("%s failed [dir read]: %v", name, err))
+	}
+
+	want := 281
+	if counters := exampleSchema.Counters(); int(counters[8]) != want {
+		panic(fmt.Sprintf("%s failed [counter check]:\n\twant: '%d'\n\tgot:  '%d'", name, want, counters[8]))
 	}
 }
