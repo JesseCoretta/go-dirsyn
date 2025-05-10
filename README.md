@@ -36,19 +36,24 @@ As mentioned earlier, this package is low-level in nature. It is not designed fo
 
 This package relies upon the following packages from the standard library:
 
+  - `bufio`
+  - `bytes`
   - `encoding/asn1`
   - `encoding/binary`
   - `encoding/base64`
   - `encoding/hex`
   - `errors`
   - `fmt`<sup><sup>†</sup></sup>
+  - `io/fs`
   - `math/big`
   - `os`
+  - `path/filepath`
   - `reflect`<sup><sup>††</sup></sup>
   - `regexp`<sup><sup>†††</sup></sup>
   - `sort`
   - `strconv`
   - `strings`
+  - `sync`
   - `testing`
   - `time`
   - `unicode`
@@ -58,7 +63,7 @@ This package relies upon the following packages from the standard library:
 <sup>
   <sup><b>†</b>   - used ONLY for testing/examples</sup><br>
   <sup><b>††</b>  - very limited use</sup><br>
-  <sup><b>†††</b> - only used for custom syntaxes implemented through the X-PATTERN eXtension</sup><br>
+  <sup><b>†††</b> - used ONLY for custom syntaxes implemented through the X-PATTERN eXtension</sup><br>
 </sup>
 <br>
 
