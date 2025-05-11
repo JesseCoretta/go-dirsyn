@@ -42,6 +42,7 @@ This package relies upon the following packages from the standard library:
 
   - `bufio`
   - `bytes`
+  - `embed`
   - `encoding/asn1`
   - `encoding/binary`
   - `encoding/base64`
