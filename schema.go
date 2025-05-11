@@ -2751,6 +2751,7 @@ func (r LDAPSyntax) xPattern() (xpat string) {
 /*
 XOrigin returns slices of standards citations, each being the name of an RFC,
 Internet-Draft or ITU-T Recommendation from which the receiver definition
+originates.
 
 This method is merely a convenient alternative to manually checking the
 underlying Extensions field instance for the presence of an [Extension]
@@ -3307,6 +3308,7 @@ func (r AttributeType) SuperChain() (supers *AttributeTypes) {
 /*
 XOrigin returns slices of standards citations, each being the name of an RFC,
 Internet-Draft or ITU-T Recommendation from which the receiver definition
+originates.
 
 This method is merely a convenient alternative to manually checking the
 underlying Extensions field instance for the presence of an [Extension]
@@ -3530,6 +3532,7 @@ func (r MatchingRuleUse) Identifier() (id string) {
 /*
 XOrigin returns slices of standards citations, each being the name of an RFC,
 Internet-Draft or ITU-T Recommendation from which the receiver definition
+originates.
 
 This method is merely a convenient alternative to manually checking the
 underlying Extensions field instance for the presence of an [Extension]
@@ -3804,6 +3807,7 @@ func (r ObjectClass) SuperChain() (supers *ObjectClasses) {
 /*
 XOrigin returns slices of standards citations, each being the name of an RFC,
 Internet-Draft or ITU-T Recommendation from which the receiver definition
+originates.
 
 This method is merely a convenient alternative to manually checking the
 underlying Extensions field instance for the presence of an [Extension]
@@ -4131,6 +4135,7 @@ func (r DITContentRule) Identifier() (id string) {
 /*
 XOrigin returns slices of standards citations, each being the name of an RFC,
 Internet-Draft or ITU-T Recommendation from which the receiver definition
+originates.
 
 This method is merely a convenient alternative to manually checking the
 underlying Extensions field instance for the presence of an [Extension]
@@ -4327,6 +4332,7 @@ func (r NameForm) Identifier() (id string) {
 /*
 XOrigin returns slices of standards citations, each being the name of an RFC,
 Internet-Draft or ITU-T Recommendation from which the receiver definition
+originates.
 
 This method is merely a convenient alternative to manually checking the
 underlying Extensions field instance for the presence of an [Extension]
@@ -4520,6 +4526,7 @@ func (r *DITStructureRule) Identifier() (id string) {
 /*
 XOrigin returns slices of standards citations, each being the name of an RFC,
 Internet-Draft or ITU-T Recommendation from which the receiver definition
+originates.
 
 This method is merely a convenient alternative to manually checking the
 underlying Extensions field instance for the presence of an [Extension]
