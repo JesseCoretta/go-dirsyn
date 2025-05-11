@@ -2987,7 +2987,7 @@ func (r MatchingRule) SubstringsMatch(actual, assertion any) (result Boolean, er
 
 /*
 OrderingMatch returns a [Boolean] instance alongside an error following an
-attempt to compare lo and hi in terms of ordering.
+attempt to compare the actual and assertion input values in terms of ordering.
 
 Comparison behavior is dictated through use the operator input byte value.
 See the [GreaterOrEqual] and [LessOrEqual] constants for details.
