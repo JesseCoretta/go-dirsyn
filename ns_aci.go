@@ -418,14 +418,14 @@ const (
 Day constants can be shifted into an instance of [ACIv3DayOfWeek], allowing effective expressions such as [ACIv3Sunday],[ACIv3Tuesday]. See the [ACIv3DayOfWeek.Shift] and [ACIv3DayOfWeek.Unshift] methods.
 */
 const (
-	noDay ACIv3Day = 0               // 0 <invalid_day>
-	ACIv3Sunday ACIv3Day = 1 << iota // 1
-	ACIv3Monday                      // 2
-	ACIv3Tuesday                     // 4
-	ACIv3Wednesday                   // 8
-	ACIv3Thursday                    // 16
-	ACIv3Friday                      // 32
-	ACIv3Saturday                    // 64
+	noDay          ACIv3Day = 0         // 0 <invalid_day>
+	ACIv3Sunday    ACIv3Day = 1 << iota // 1
+	ACIv3Monday                         // 2
+	ACIv3Tuesday                        // 4
+	ACIv3Wednesday                      // 8
+	ACIv3Thursday                       // 16
+	ACIv3Friday                         // 32
+	ACIv3Saturday                       // 64
 )
 
 var (
