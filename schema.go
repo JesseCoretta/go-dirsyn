@@ -645,6 +645,9 @@ type SchemaDefinitions interface {
 	// the case of a DITStructureRule).
 	Push(...SchemaDefinition)
 
+	// Table returns an instance of [SchemaDefinitionTable].
+	Table() SchemaDefinitionTable
+
 	// setSchema is a private method which assigns the input
 	// instance of SubschemaSubentry to the receiver instance.
 	setSchema(*SubschemaSubentry)
@@ -673,6 +676,30 @@ type SubschemaSubentry struct {
 	*NameForms
 	*DITStructureRules
 }
+
+/*
+SchemaDefinitionTable implements a basic map[string][]string lookup table for a
+particular [SchemaDefinitions] instance.
+
+With the exception of [DITStructureRules], which uses integer identifiers (e.g.: "1"), the
+keys are numeric OIDs (e.g.: "2.5.4.3").
+
+With the exception of [LDAPSyntaxes], which uses a description string, the values are zero
+(0) or more string slices, each representing a descriptor (name) by which the definition is
+known (e.g.: []string{"cn","commonName"})
+
+Instances of this type may be created using any of the following methods:
+
+  - [LDAPSyntaxes.Table]
+  - [MatchingRules.Table]
+  - [AttributeTypes.Table]
+  - [MatchingRuleUses.Table]
+  - [ObjectClasses.Table]
+  - [DITContentRules.Table]
+  - [NameForms.Table]
+  - [DITStructureRules.Table]
+*/
+type SchemaDefinitionTable map[string][]string
 
 /*
 primeBuiltIns is a private method used to pre-load standard LDAPSyntax
@@ -2596,6 +2623,20 @@ type LDAPSyntaxes struct {
 }
 
 /*
+Inventory returns an instance of [SchemaDefinitionTable] which represents the current
+inventory of [LDAPSyntax] instances within the receiver.
+*/
+func (r LDAPSyntaxes) Table() (table SchemaDefinitionTable) {
+	table = make(SchemaDefinitionTable, 0)
+	for i := 0; i < r.Len(); i++ {
+		def := r.Index(i)
+		table[def.NumericOID] = []string{def.Description}
+	}
+
+	return
+}
+
+/*
 Index returns the Nth [LDAPSyntaxes] instances found within the
 receiver instance.
 */
@@ -2806,6 +2847,20 @@ type MatchingRules struct {
 	defs   []*MatchingRule
 	mutex  *sync.Mutex
 	schema *SubschemaSubentry // internal ptr to schema
+}
+
+/*
+Inventory returns an instance of [SchemaDefinitionTable] which represents the current
+inventory of [MatchingRule] instances within the receiver.
+*/
+func (r MatchingRules) Table() (table SchemaDefinitionTable) {
+	table = make(SchemaDefinitionTable, 0)
+	for i := 0; i < r.Len(); i++ {
+		def := r.Index(i)
+		table[def.NumericOID] = def.Name
+	}
+
+	return
 }
 
 /*
@@ -3089,6 +3144,20 @@ type AttributeTypes struct {
 }
 
 /*
+Inventory returns an instance of [SchemaDefinitionTable] which represents the current
+inventory of [AttributeType] instances within the receiver.
+*/
+func (r AttributeTypes) Table() (table SchemaDefinitionTable) {
+	table = make(SchemaDefinitionTable, 0)
+	for i := 0; i < r.Len(); i++ {
+		def := r.Index(i)
+		table[def.NumericOID] = def.Name
+	}
+
+	return
+}
+
+/*
 OID returns the numeric OID literal "2.5.21.5" per [§ 4.2.2 of RFC 4512].
 
 [§ 4.2.2 of RFC 4512]: https://datatracker.ietf.org/doc/html/rfc4512#section-4.2.2
@@ -3325,6 +3394,20 @@ type MatchingRuleUses struct {
 }
 
 /*
+Inventory returns an instance of [SchemaDefinitionTable] which represents the current
+inventory of [MatchingRuleUse] instances within the receiver.
+*/
+func (r MatchingRuleUses) Table() (table SchemaDefinitionTable) {
+	table = make(SchemaDefinitionTable, 0)
+	for i := 0; i < r.Len(); i++ {
+		def := r.Index(i)
+		table[def.NumericOID] = def.Name
+	}
+
+	return
+}
+
+/*
 Index returns the Nth [MatchingRuleUse] instances found within the
 receiver instance.
 */
@@ -3508,6 +3591,20 @@ type ObjectClasses struct {
 	defs   []*ObjectClass
 	mutex  *sync.Mutex
 	schema *SubschemaSubentry // internal ptr to schema
+}
+
+/*
+Inventory returns an instance of [SchemaDefinitionTable] which represents the current
+inventory of [ObjectClass] instances within the receiver.
+*/
+func (r ObjectClasses) Table() (table SchemaDefinitionTable) {
+	table = make(SchemaDefinitionTable, 0)
+	for i := 0; i < r.Len(); i++ {
+		def := r.Index(i)
+		table[def.NumericOID] = def.Name
+	}
+
+	return
 }
 
 /*
@@ -3903,6 +4000,20 @@ type DITContentRules struct {
 }
 
 /*
+Inventory returns an instance of [SchemaDefinitionTable] which represents the current
+inventory of [DITContentRule] instances within the receiver.
+*/
+func (r DITContentRules) Table() (table SchemaDefinitionTable) {
+	table = make(SchemaDefinitionTable, 0)
+	for i := 0; i < r.Len(); i++ {
+		def := r.Index(i)
+		table[def.NumericOID] = def.Name
+	}
+
+	return
+}
+
+/*
 Index returns the Nth [DITContentRule] instances found within the
 receiver instance.
 */
@@ -4087,6 +4198,20 @@ type NameForms struct {
 }
 
 /*
+Inventory returns an instance of [SchemaDefinitionTable] which represents the current
+inventory of [NameForm] instances within the receiver.
+*/
+func (r NameForms) Table() (table SchemaDefinitionTable) {
+	table = make(SchemaDefinitionTable, 0)
+	for i := 0; i < r.Len(); i++ {
+		def := r.Index(i)
+		table[def.NumericOID] = def.Name
+	}
+
+	return
+}
+
+/*
 Index returns the Nth [NameForm] instances found within the
 receiver instance.
 */
@@ -4265,6 +4390,20 @@ type DITStructureRules struct {
 	defs   []*DITStructureRule
 	mutex  *sync.Mutex
 	schema *SubschemaSubentry // internal ptr to schema
+}
+
+/*
+Inventory returns an instance of [SchemaDefinitionTable] which represents the current
+inventory of [DITStructureRule] instances within the receiver.
+*/
+func (r DITStructureRules) Table() (table SchemaDefinitionTable) {
+	table = make(SchemaDefinitionTable, 0)
+	for i := 0; i < r.Len(); i++ {
+		def := r.Index(i)
+		table[def.RuleID] = def.Name
+	}
+
+	return
 }
 
 /*

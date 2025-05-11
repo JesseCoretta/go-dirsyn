@@ -672,6 +672,12 @@ func ExampleSubschemaSubentry_RegisterDITStructureRule_byInstance() {
 	// Output: Rule found
 }
 
+func ExampleAttributeTypes_Table() {
+	table := exampleSchema.AttributeTypes.Table()
+	fmt.Printf("Table contains %d indices", len(table))
+	// Output: Table contains 98 indices
+}
+
 func ExampleDITStructureRule_NamedObjectClass() {
 	dsr, idx := exampleSchema.DITStructureRules.Get(`1`)
 	if idx == -1 {
@@ -869,6 +875,14 @@ func TestSubschemaSubentry_codecov(t *testing.T) {
 	_ = exampleSchema.NameForms.Len()
 	_ = exampleSchema.DITStructureRules.OID()
 	_ = exampleSchema.DITStructureRules.Len()
+	_ = exampleSchema.LDAPSyntaxes.Table()
+	_ = exampleSchema.MatchingRules.Table()
+	_ = exampleSchema.AttributeTypes.Table()
+	_ = exampleSchema.MatchingRuleUses.Table()
+	_ = exampleSchema.ObjectClasses.Table()
+	_ = exampleSchema.DITContentRules.Table()
+	_ = exampleSchema.NameForms.Table()
+	_ = exampleSchema.DITStructureRules.Table()
 
 	_ = exampleSchema.LDAPSyntaxByIndex(0)
 	_ = exampleSchema.MatchingRuleByIndex(0)
@@ -953,6 +967,8 @@ func TestSubschemaSubentry_codecov(t *testing.T) {
 			0: {XString: "X-ORIGIN", Values: []string{"NOWHERE"}},
 		},
 	}
+	dcrs.defs = append(dcrs.defs, &dcr)
+	_ = dcrs.Table()
 	_ = dcr.String()
 	dcr.XOrigin()
 
