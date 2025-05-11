@@ -196,11 +196,12 @@ func decodeString(str string) (string, error) {
 
 		// Decode the hex-encoded character and add it to the builder
 		dst := []byte{0}
-		if n, err := hex.Decode(dst, xx); err != nil {
+		if _, err := hex.Decode(dst, xx); err != nil {
 			return "", errorTxt("failed to decode escaped character: " + err.Error())
-		} else if n != 1 {
-			return "", errorTxt("failed to decode escaped character: encoding/hex: expected 1 byte when un-escaping, got " + fmtInt(int64(n), 10))
 		}
+		// I don't think this can be tripped ..
+		//else if n != 1 {
+		//return "", errorTxt("failed to decode escaped character: encoding/hex: expected 1 byte when un-escaping, got " + fmtInt(int64(n), 10))
 
 		builder.WriteByte(dst[0])
 		i += 2
@@ -274,12 +275,13 @@ func decodeEncodedString(str string) (string, error) {
 		return "", errorTxt("failed to decode BER encoding: " + err.Error())
 	}
 
+	var out string
 	packet, err := ber.DecodePacketErr(decoded)
-	if err != nil {
-		return "", errorTxt("failed to decode BER encoding: " + err.Error())
+	if err == nil {
+		out = packet.Data.String()
 	}
 
-	return packet.Data.String(), nil
+	return out, err
 }
 
 /*
@@ -322,6 +324,8 @@ func (r RFC4514) DistinguishedName(x any) (DistinguishedName, error) {
 func marshalDistinguishedName(x any) (dn DistinguishedName, err error) {
 	var raw string
 	switch tv := x.(type) {
+	case DistinguishedName:
+		raw = tv.String()
 	case string:
 		if len(tv) == 0 {
 			// technically fine.
@@ -478,7 +482,8 @@ func parseDN(str string) (*DistinguishedName, error) {
 	// build up the attribute type and value pairs.
 	// We only check for ascii characters here, which
 	// allows us to iterate over the string byte by byte.
-	for i := 0; i < len(str); i++ {
+	var err error
+	for i := 0; i < len(str) && err == nil; i++ {
 		char := str[i]
 		switch {
 		case escaping:
@@ -486,34 +491,37 @@ func parseDN(str string) (*DistinguishedName, error) {
 		case char == '\\':
 			escaping = true
 		case char == '=' && len(attr.Type) == 0:
-			if err := attr.setType(str[startPos:i]); err != nil {
-				return nil, err
+			if err = attr.setType(str[startPos:i]); err == nil {
+				startPos = i + 1
 			}
-			startPos = i + 1
 		case isDNDelim(char):
-			if len(attr.Type) == 0 {
-				return dn, errorTxt("incomplete type, value pair")
-			}
-			if err := attr.setValue(str[startPos:i]); err != nil {
-				return nil, err
-			}
-
-			startPos = i + 1
-			last := char == ',' || char == ';'
-			appendAttributesToRDN(last)
+			startPos, err = checkDNDelim(str, char, attr, startPos, i, appendAttributesToRDN)
 		}
 	}
 
-	if len(attr.Type) == 0 {
+	if err != nil {
+		return dn, err
+	} else if len(attr.Type) == 0 {
 		return dn, errorTxt("DN ended with incomplete type, value pair")
 	}
 
-	if err := attr.setValue(str[startPos:]); err != nil {
-		return dn, err
+	if err = attr.setValue(str[startPos:]); err == nil {
+		appendAttributesToRDN(true)
 	}
-	appendAttributesToRDN(true)
 
-	return dn, nil
+	return dn, err
+}
+
+func checkDNDelim(str string, char byte, attr *AttributeTypeAndValue, s, i int, funk func(bool)) (startPos int, err error) {
+	if len(attr.Type) == 0 {
+		err = errorTxt("incomplete type, value pair")
+	} else if err = attr.setValue(str[s:i]); err == nil {
+		startPos = i + 1
+		last := char == ',' || char == ';'
+		funk(last)
+	}
+
+	return
 }
 
 func isDNDelim(char byte) bool {
@@ -752,10 +760,8 @@ func uniqueMemberMatch(a, b any) (result Boolean, err error) {
 		return
 	}
 
-	if result, err = distinguishedNameMatch(nou1.DN, nou2.DN); err != nil {
+	if result, err = distinguishedNameMatch(nou1.DN, nou2.DN); err != nil || !result.True() {
 		result.Set(false)
-		return
-	} else if !result.True() {
 		return
 	}
 
