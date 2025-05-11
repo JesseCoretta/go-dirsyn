@@ -660,7 +660,7 @@ func splitAndTrim(s, sep string) []string {
 }
 
 /*
-LDAPString implements [4.1.2 of RFC 4511].
+LDAPString implements [§ 4.1.2 of RFC 4511].
 
 [§ 4.1.2 of RFC 4511]: https://datatracker.ietf.org/doc/html/rfc4511#section-4.1.2
 */
