@@ -1533,6 +1533,8 @@ func init() {
 	if err = exampleSchema.ReadDirectory(tempDir); err != nil {
 		panic(fmt.Sprintf("%s failed [dir read]: %v", name, err))
 	}
+	// No need to keep raw file bytes in memory past this point.
+	lsPrimer, mrPrimer, exampleSchemaFile = nil, nil, nil
 
 	want := 281
 	if counters := exampleSchema.Counters(); int(counters[8]) != want {
