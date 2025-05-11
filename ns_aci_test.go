@@ -3,6 +3,7 @@ package dirsyn
 import (
 	"fmt"
 	"testing"
+	"time"
 )
 
 func ExampleNetscapeACIv3_SearchScope() {
@@ -48,6 +49,31 @@ func TestNetscapeACIv3_Instruction(t *testing.T) {
 			return
 		}
 	}
+
+	// coverage
+	pbr, _ := r.PermissionBindRule("allow(none) ssf>=128")
+	_, _ = r.Instruction("")
+	_, _ = r.Instruction("(version 3.0;")
+	_, _ = r.Instruction("(version 3.0; acl \"Hello\"")
+	_, _ = r.Instruction("(version 3.0; acl \"Hello\";;)")
+	_, _ = r.Instruction("(version 3.0; acl 'Hello'; allow(none)")
+	_, _ = r.Instruction("(version 3.0; acl \"Hello\"; allow(none) ssf>=128)")
+	_, _ = r.Instruction("(version 3.0; acl \"Hello\"; allow(none) ssf>=128]")
+	_, _ = r.Instruction(ACIv3TargetRule{&aCITargetRule{slice: []ACIv3TargetRuleItem{}}})
+	_, _ = r.Instruction(ACIv3TargetRule{&aCITargetRule{slice: []ACIv3TargetRuleItem{}}}, "acl", ACIv3PermissionBindRule{})
+	_, _ = r.Instruction(ACIv3TargetRule{&aCITargetRule{slice: []ACIv3TargetRuleItem{}}}, "acl", pbr)
+	_, _ = r.Instruction(ACIv3PermissionBindRule{})
+	_, _ = r.Instruction("acl", ACIv3PermissionBindRule{})
+	_, _ = r.Instruction(rune(22), ACIv3PermissionBindRule{})
+	_, _ = r.Instruction("my acl", "allow(none) ssf>=128")
+	_, _ = r.Instruction("my acl", pbr)
+	_, _ = r.Instruction("my acl", rune(22))
+	_, _ = r.Instruction(struct{}{}, struct{}{}, struct{}{}, struct{}{})
+	_, _ = r.Instruction("(targetattr=\"*\")", "my acl", rune(22))
+	_, _ = r.Instruction("(targetattr=\"*\")", rune(22), pbr)
+	_, _ = r.Instruction("(targetattr=\"*\")", "my acl", pbr)
+	_, _ = r.Instruction(rune(22), "my acl", pbr)
+	_, _ = r.Instruction("(targetattr=\"*\")", "my acl", "allow(none) ssf>=128")
 }
 
 func TestNetscapeACIv3_PermissionBindRuleItem(t *testing.T) {
@@ -568,6 +594,10 @@ func TestNetscapeACIv3_AttributeFilterOperationItem(t *testing.T) {
 		Want string
 	}{
 		{
+			Orig: `add=homeDirectory:(&(objectClass=employee)(cn=Jesse Coretta))`,
+			Want: `add=homeDirectory:(&(objectClass=employee)(cn=Jesse Coretta))`,
+		},
+		{
 			Orig: `add=homeDirectory:(&(objectClass=employee)(cn=Jesse Coretta)) && gecos:(|(objectClass=contractor)(objectClass=intern))`,
 			Want: `add=homeDirectory:(&(objectClass=employee)(cn=Jesse Coretta)) && gecos:(|(objectClass=contractor)(objectClass=intern))`,
 		},
@@ -585,6 +615,11 @@ func TestNetscapeACIv3_AttributeFilterOperationItem(t *testing.T) {
 		x.Index(0)
 		x.Kind()
 		x.TRM()
+		x.Keyword()
+		x.Push(x.Index(0).String())
+		x.Contains("")
+		x.Contains(rune(88))
+		x.Contains(x.Index(0))
 	}
 }
 
@@ -722,11 +757,34 @@ func TestNetscapeACIv3_codecov(t *testing.T) {
 	pbri.Valid()
 	pbri.parse("")
 	pbri.parse("bogus")
+	pbri.parse("allow(read) stuff")
 
 	var attr ACIv3Attribute
 	attr.Kind()
 	attr.Keyword()
 	attr, _ = r.Attribute("cn", "sn", "givenName")
+	_ = attr.string(true, false)
+	_ = attr.string(false, true)
+	_ = attr.string(true, true)
+	_ = attr.string(false, false)
+	attr, _ = r.Attribute("*")
+	attr.Ne()
+	attr.Push("drink")
+	attr.Push("_")
+	attr.Push([]string{"drink", "objectClass"})
+	attr.Push(ACIv3Attribute{})
+	attr.aCIAttribute.all = true
+	attr.string(true, true)
+	_ = attr.String()
+	attr.Ne()
+	attr.aCIAttribute.all = false
+	attr.aCIAttribute.slice = []string{"cn", "sn"}
+	attr.push(&AttributeType{})
+	attr.Push([]string{"cn", "sn"})
+	attr.Push("cn", "sn")
+	attr.Push(attr)
+	attr.Ne()
+	attr.Push(&AttributeType{NumericOID: "2.5.4.3", Name: []string{"cn"}, SuperType: "name"})
 
 	var pbr ACIv3PermissionBindRule
 	pbr.Valid()
@@ -774,6 +832,7 @@ func TestNetscapeACIv3_codecov(t *testing.T) {
 	bands.aCIBindRuleSlice.aCIBindRuleSliceString(``)
 	bands.Push(bi)
 	bands.aCIBindRuleSlice = &aCIBindRuleSlice{slice: []ACIv3BindRule{bi}, pad: true}
+	bands.SetParen(true)
 	bands.SetPaddingStyle(0)
 	bands.SetPaddingStyle(1)
 	bands.aCIBindRuleSlice.aCIBindRuleSliceString(``)
@@ -787,6 +846,8 @@ func TestNetscapeACIv3_codecov(t *testing.T) {
 	bands.aCIBindRuleSlice.slice = append(bands.aCIBindRuleSlice.slice, ACIv3BindRuleItem{})
 	bands.aCIBindRuleSlice.Valid()
 
+	getAndOrBool([]aCIBindRuleTokenType{brValue})
+
 	var bors ACIv3BindRuleOr
 	bors.Valid()
 	bors.Push(nil)
@@ -795,6 +856,7 @@ func TestNetscapeACIv3_codecov(t *testing.T) {
 	bors.aCIBindRuleSlice = &aCIBindRuleSlice{}
 	bors.aCIBindRuleSlice.Valid()
 	bors.aCIBindRuleSlice = &aCIBindRuleSlice{slice: []ACIv3BindRule{bi}, pad: true}
+	bors.SetParen(true)
 	bors.Push(bi)
 	bors.SetPaddingStyle(0)
 	bors.SetPaddingStyle(1)
@@ -858,6 +920,32 @@ func TestNetscapeACIv3_codecov(t *testing.T) {
 	prm.Valid()
 	prm.Shift(1023)
 	_ = prm.String()
+	marshalACIv3Permission()
+	marshalACIv3Permission(rune(22), true)
+	parseACIv3Permission("")
+	parseACIv3Permission("allow(read")
+	parseACIv3Permission("allow(read]")
+	parseACIv3Permission("allow(toys)")
+	parseACIv3Permission("allow((((((()))))")
+	parseACIv3Permission("allowallow()")
+	prm, _ = marshalACIv3Permission("allow(read)")
+	prm.aCIPermission.shift([]int{16, 32})
+	prm.aCIPermission.unshift([]string{"read", "write"})
+	prm.aCIPermission.unshift([]int{16, 32})
+	prm.cast().Shift(1023)
+	_ = prm.String()
+	prm, _ = marshalACIv3Permission("allow(none)")
+	_ = prm.String()
+	prm.aCIPermission.bool = nil
+	prm.Valid()
+	var allow bool = true
+	prm.aCIPermission.bool = &allow
+
+	_, _ = r.PermissionBindRuleItem()
+	_, _ = r.PermissionBindRuleItem(rune(22))
+	_, _ = r.PermissionBindRuleItem(prm, ACIv3BindRuleItem{&aCIBindRuleItem{}})
+	_, _ = r.PermissionBindRuleItem(prm, struct{}{})
+	_, _ = r.PermissionBindRuleItem(prm, bi)
 
 	var ssf ACIv3SecurityStrengthFactor
 	ssf.Set(256)
@@ -889,9 +977,10 @@ func TestNetscapeACIv3_codecov(t *testing.T) {
 	dow.Valid()
 	dow.Shift(Sun)
 	dow.Unshift(Sat)
+	dow.Unshift(7)
 	dow.Len()
 	dow.Valid()
-	dow.BRM()
+	dow.BRM().Valid()
 	dow.parse("sunday")
 	dow.parse("humpday")
 	dow.Len()
@@ -902,6 +991,25 @@ func TestNetscapeACIv3_codecov(t *testing.T) {
 	_ = matchDoW(1)
 	_ = matchDoW(Sun)
 	_, _ = r.DayOfWeek("sunday,monday")
+	_, _ = marshalACIv3DayOfWeek()
+	_, _ = marshalACIv3DayOfWeek("mon", "tues", "sun")
+	_, _ = marshalACIv3DayOfWeek(Sun)
+
+	parseACIv3BindRuleExpression([]aCIBindRuleToken{{Type: 7, Value: "?"}})
+	parseACIv3BindRuleExpression([]aCIBindRuleToken{
+		{Type: brValue, Value: "("},
+		{Type: 88, Value: ""},
+		{Type: brValue, Value: ")"},
+	})
+	parseACIv3BindRuleGroup([]aCIBindRuleToken{{Type: 7, Value: "?"}}, &pos)
+	parseACIv3BindRuleGroup([]aCIBindRuleToken{
+		{Type: brValue, Value: "userdn"},
+		{Type: brValue, Value: "="},
+		{Type: brParenClose, Value: ")"},
+		{Type: brValue, Value: "userdn"},
+		{Type: brParenOpen, Value: "("},
+		{Type: brParenClose, Value: ")"},
+	}, &pos)
 
 	for i := 1; i < 8; i++ {
 		matchStrDoW(matchIntDoW(i).String())
@@ -922,6 +1030,7 @@ func TestNetscapeACIv3_codecov(t *testing.T) {
 	asc.Eq()
 	asc.Ne()
 	asc.TRM()
+	_, _ = marshalACIv3SearchScope()
 	_, _ = marshalACIv3SearchScope(2)
 	_, _ = marshalACIv3SearchScope(rune(2))
 	_ = aCIIntToScope(3)
@@ -933,11 +1042,32 @@ func TestNetscapeACIv3_codecov(t *testing.T) {
 
 	var af ACIv3AttributeFilter
 	af.Valid()
-	af.aCIAttributeFilter = &aCIAttributeFilter{}
-
-	af.aCIAttributeFilter.ACIv3Attribute = newACIv3Attribute("gecos")
+	af.aCIAttributeFilter = &aCIAttributeFilter{ACIv3Attribute: attr}
 	af.Valid()
+	af.parse("gecos(objectClass=*)")
+	af.parse("gecos:(objectClass=*)")
+	af.parse("_:(objectClass=*)")
+	af.parse(":(objectClass=*)")
+
+	var fqdn ACIv3FQDN
+	fqdn.aCIFQDNLabels.set()
+	fqdn.aCIFQDNLabels.set("__bogus__")
+	fqdn.aCIFQDNLabels.set("www.?bogus?.com")
+	processLabel("www.???.com")
+
+	var ip ACIv3IPAddress
+	ip.Valid()
+	ip.Set("192.168/16")
+	ip.aCIIPAddresses.set()
+	ip.aCIIPAddresses.set("__bogus__")
+	ip.Valid()
+	isV4("")
+	isV6("")
+	isV6("dead::beef")
+
 	af.aCIAttributeFilter.ACIv3Attribute = ACIv3Attribute{}
+	af.Valid()
+	af.aCIAttributeFilter.ACIv3Attribute = ACIv3Attribute{&aCIAttribute{slice: []string{"gecos"}}}
 	af.Valid()
 	af.aCIAttributeFilter.Filter, _ = marshalFilter("(objectClass=*")
 	af.Valid()
@@ -949,26 +1079,77 @@ func TestNetscapeACIv3_codecov(t *testing.T) {
 	_ = af.String()
 	af.aCIAttributeFilter.set("gecos")
 	af.aCIAttributeFilter.set("(objectClass=top)")
+	_, _ = r.AttributeFilter()
+	_, _ = r.AttributeFilter(rune(87))
+	_, _ = r.AttributeFilter(rune(87), rune(87))
+	_, _ = r.AttributeFilter(rune(87), rune(87), rune(87))
+	_, _ = r.AttributeFilter("", rune(87))
+	_, _ = r.AttributeFilter("", af.Filter)
+	_, _ = r.AttributeFilter(attr, af.aCIAttributeFilter.Filter)
+	_, _ = r.AttributeFilter(attr, nil)
+	_, _ = r.AttributeFilter("gecos", af.aCIAttributeFilter.Filter)
+	_, _ = r.AttributeFilter("gecos", nil)
 	_, _ = r.AttributeFilter("gecos:(objectClass=top)")
 	_, _ = r.AttributeFilter("gecos", "(objectClass=top)")
 	_, _ = r.AttributeFilter(attr, "(objectClass=top)")
+	_, _ = marshalACIv3AttributeFilterOperationItem(ACIv3AddOp, nil)
 
 	_, _ = r.AttributeFilterOperation()
-	afo, _ := r.AttributeFilterOperation("add=gecos:(objectClass=*)")
+
+	var afoi ACIv3AttributeFilterOperationItem
+	afoi.Contains("this")
+	afoi, _ = r.AttributeFilterOperationItem("add=gecos:(objectClass=*)")
+	afoi.Eq()
+	afoi.Ne()
+
+	var afo ACIv3AttributeFilterOperation
+	afo.Valid()
+	afo, _ = r.AttributeFilterOperation("add=gecos:(objectClass=*);delete=homeDirectory:(employeeStatus=terminated)")
+	afo.Eq()
+	afo.Ne()
+	afo.Valid()
+	afo.aCIAttributeFilterOperation.semi = true
+	_ = afo.String()
+	add := afo.aCIAttributeFilterOperation.add
+	del := afo.aCIAttributeFilterOperation.del
+	afo, _ = r.AttributeFilterOperation(ACIv3DelOp, del)
+	afo.Len()
+	afo, _ = r.AttributeFilterOperation(ACIv3AddOp, add)
+	afo.Len()
+	afo.Eq()
+	afo.Ne()
 	afo.Valid()
 	afo.Len()
 	_ = afo.String()
+	afo.aCIAttributeFilterOperation.add.Eq()
+	afo.aCIAttributeFilterOperation.add.Ne()
+	afo.aCIAttributeFilterOperation.add.aCIAttributeFilterOperationItem.slice = nil
+	afo.aCIAttributeFilterOperation.add.Valid()
+
+	checkACIv3AFOSubstr("add=", "del=")
+	checkACIv3AFOSubstr("add=...add=", "add=...,add=")
+	checkACIv3AFOSubstr("add=", "add=")
+	checkACIv3AFOSubstr("=", "=")
+	checkACIv3AFOSubstr("add=", "")
+
+	splitACIv3AttributeFilterOperation("")
+	splitACIv3AttributeFilterOperation(";")
+	splitACIv3AttributeFilterOperation("..;..")
+	splitACIv3AttributeFilterOperation("..,..")
 	_, _ = r.AttributeFilterOperation(rune(3))
 	_, _ = r.AttributeFilterOperation(rune(3), af)
 	_, _ = r.AttributeFilterOperation(ACIv3AddOp, af)
 	_, _ = r.AttributeFilterOperation(ACIv3AddOp, af, nil)
 
-	marshalACIv3AttrFilterOpItem()
-	marshalACIv3AttrFilterOpItem(nil)
-	marshalACIv3AttrFilterOpItem(ACIv3AddOp, af)
-	marshalACIv3AttrFilterOpItem(rune(3), af)
-	marshalACIv3AttrFilterOpItem(rune(3), rune(3), rune(3))
-	marshalACIv3AttrFilterOpItem(rune(3), af, rune(3))
+	marshalACIv3AttributeFilterOperation(ACIv3DelOp, del)
+
+	marshalACIv3AttributeFilterOperationItem()
+	marshalACIv3AttributeFilterOperationItem(nil)
+	marshalACIv3AttributeFilterOperationItem(ACIv3AddOp, af)
+	marshalACIv3AttributeFilterOperationItem(ACIv3DelOp, af)
+	marshalACIv3AttributeFilterOperationItem(rune(3), af)
+	marshalACIv3AttributeFilterOperationItem(rune(3), rune(3), rune(3))
+	marshalACIv3AttributeFilterOperationItem(rune(3), af, rune(3))
 
 	var tod ACIv3TimeOfDay
 	tod.Valid()
@@ -976,7 +1157,9 @@ func TestNetscapeACIv3_codecov(t *testing.T) {
 	tod.BRM()
 	tod.Valid()
 	tod.Keyword()
-	assertToD(tod.aCITimeOfDay, now())
+	longForm := "Jan 2, 2006 at 3:04pm (MST)"
+	thyme, _ := time.Parse(longForm, "Feb 3, 2013 at 7:54pm (PST)")
+	assertToD(tod.aCITimeOfDay, thyme)
 	r.TimeframeBindRule(tod, tod)
 	tod, _ = r.TimeOfDay("0530")
 	tod.Eq()
@@ -999,6 +1182,10 @@ func TestNetscapeACIv3_codecov(t *testing.T) {
 	oidc.Ne().SetQuotationStyle(1)
 	oide.Eq().SetQuotationStyle(0)
 	oide.Ne().SetQuotationStyle(1)
+	oide.aCIObjectIdentifier.string(true, true)
+	oide.aCIObjectIdentifier.string(false, false)
+	oide.aCIObjectIdentifier.string(false, true)
+	oide.aCIObjectIdentifier.string(true, false)
 
 	processACIv3TargetRuleItem([]aCITargetRuleToken{
 		{},
@@ -1046,12 +1233,37 @@ func TestNetscapeACIv3_codecov(t *testing.T) {
 	_ = tr.String()
 
 	var atb ACIv3AttributeBindTypeOrValue
-	atb.parse("owner#USERDN", ACIv3BindUAT)
+	atb.Valid()
+	atb.Set()
+	atb.atbtv = new(atbtv)
+	_ = atb.atbtv.String()
+	atb.atbtv[0] = attr
+	atb.atbtv[1] = ACIv3BindUAT
+	_ = atb.atbtv.String()
+	var blarg string = "blarg"
+	atb.atbtv[1] = AttributeValue{&blarg}
+	_ = atb.atbtv.String()
+	atb.parse("owner#USERDN", ACIv3BindGAT)
+	_ = atb.atbtv.String()
 	atb.Eq()
 	atb.Ne()
 	atb.BRM()
+	atb.ACIv3BindKeyword = ACIv3BindGAT
+	atb.Keyword()
+	atb.ACIv3BindKeyword = ACIv3BindUAT
+	atb.Keyword()
+	marshalACIv3AttributeBindTypeOrValue("owner#USERDN")
+	marshalACIv3AttributeBindTypeOrValue("owner", "USERDN")
+	marshalACIv3AttributeBindTypeOrValue("owner", "USERDN")
+	marshalACIv3AttributeBindTypeOrValue("groupattr", atb)
+	marshalACIv3AttributeBindTypeOrValue(atb)
+	atb.Keyword()
+	atb.Set()
+	_ = atb.atbtv.String()
+	_, _ = parseATBTV("_#GROUPBLARG", ACIv3BindGDN)
 
 	var tri ACIv3TargetRuleItem
+	_ = tri.String()
 	tri.SetKeyword("nothing")
 	tri.SetOperator(".")
 	tri.SetExpression("nothing")
@@ -1061,27 +1273,53 @@ func TestNetscapeACIv3_codecov(t *testing.T) {
 	tri.SetQuotationStyle(0)
 	tri.SetQuotationStyle(1)
 	tr.Push(tri)
+	tr.aCITargetRule = &aCITargetRule{}
+	tr.aCITargetRule.slice = append(tr.aCITargetRule.slice, ACIv3TargetRuleItem{&aCITargetRuleItem{}})
+	tr.Valid()
+	tr.SetQuotationStyle(0)
+	tr.SetQuotationStyle(1)
+	newACIv3TargetRuleMethods(nil)
+	r.TargetRuleItem(ACIv3TargetScope, rune(22))
+	r.TargetRuleItem(ACIv3TargetKeyword(0x0), rune(22))
+	r.TargetRuleItem(ACIv3TargetKeyword(0x1), rune(22), rune(22))
 
 	tri, _ = r.TargetRuleItem(rune(0), rune(0), nil)
+	tri, _ = r.TargetRuleItem(ACIv3Target, ACIv3Eq, "bogus")
+	_ = tri.String()
 	tri, _ = r.TargetRuleItem(ACIv3Target, ACIv3Eq, "ldap:///cn=Manager")
+	_ = tri.String()
+	tri.aCITargetRuleItem.pad = true
+	_ = tri.String()
 
 	var bdn ACIv3BindDistinguishedName = ACIv3BindDistinguishedName{ACIv3BindUDN, &aCIDistinguishedName{slice: []string{"ldap:///all"}}}
 	bdn.Len()
 	bdn.Contains("nothing")
 	bdn.Eq()
 	bdn.Ne()
+	bdn.Push("nothing")
+	bdn.Index(0)
+
+	bdn.aCIDistinguishedName.string(true, false)
+	bdn.aCIDistinguishedName.string(false, true)
+	bdn.aCIDistinguishedName.string(false, false)
+	bdn.aCIDistinguishedName.string(true, true)
+	udn, _ := marshalDistinguishedName("cn=admin")
+	bdn.aCIDistinguishedName.contains(udn)
 
 	var tdn ACIv3TargetDistinguishedName = ACIv3TargetDistinguishedName{ACIv3Target, &aCIDistinguishedName{slice: []string{"ldap:///all"}}}
 	tdn.Len()
 	tdn.Contains("nothing")
 	tdn.Eq()
 	tdn.Ne()
+	tdn.Push("nothing")
+	tdn.Index(0)
 
 	trm = attr.TRM()
 	trm.Valid()
 	trm.Len()
 	trm.Index("=")
 	trm.Index(1)
+	trm.Index(1111)
 	trm.Index(ACIv3Eq)
 
 	_, _ = tokenizeACIv3TargetRule(`=!?`)
@@ -1092,6 +1330,7 @@ func TestNetscapeACIv3_codecov(t *testing.T) {
 	_, _, _ = tokenizeTargetRuleQuotedValue(1, 1, `"things"`, []aCITargetRuleToken{})
 	_, _, _ = tokenizeTargetRuleQuotedValue(1, 1, `"thi\"ngs\" are cool"`, []aCITargetRuleToken{})
 	_, _ = assertTargetValueByKeyword(ACIv3Target)
+	_, _ = assertTargetValueByKeyword(ACIv3TargetKeyword(99), "")
 	_, _ = assertTargetValueByKeyword(ACIv3TargetAttr, "owner#USERDN")
 	_, _ = assertTargetValueByKeyword(ACIv3TargetAttr, ACIv3Attribute{&aCIAttribute{all: true}})
 	_, _ = assertTargetValueByKeyword(ACIv3TargetAttr, ACIv3AttributeBindTypeOrValue{ACIv3BindUDN, &atbtv{}})
@@ -1871,6 +2110,17 @@ func TestACIv3Inheritance_codecov(t *testing.T) {
 	_ = inh.Positive("something awful")
 	_ = inh.Positive(ACIv3InheritanceLevel(^uint16(0)))
 	_ = inh.Positive(3.14159)
+	_, _ = marshalACIv3Inheritance()
+	_, _ = marshalACIv3Inheritance(rune(22))
+	_, _ = marshalACIv3Inheritance(rune(22))
+	_, _ = marshalACIv3Inheritance(ACIv3Inheritance{})
+	inh, _ = marshalACIv3Inheritance("parent[0,8].owner#USERDN")
+	_, _ = marshalACIv3Inheritance(inh)
+	_, _ = marshalACIv3Inheritance("owner#USERDN", 1, 2, 3)
+	_, _ = marshalACIv3Inheritance(rune(22), 1, 2, 3)
+	inh.Shift(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
+	inh.cast().Shift(13782)
+	inh.Valid()
 }
 
 func TestACIv3FQDN(t *testing.T) {
