@@ -74,6 +74,8 @@ func TestNetscapeACIv3_Instruction(t *testing.T) {
 	_, _ = r.Instruction("(targetattr=\"*\")", "my acl", pbr)
 	_, _ = r.Instruction(rune(22), "my acl", pbr)
 	_, _ = r.Instruction("(targetattr=\"*\")", "my acl", "allow(none) ssf>=128")
+	var ins ACIv3Instruction
+	_ = ins.OID()
 }
 
 func TestNetscapeACIv3_PermissionBindRuleItem(t *testing.T) {
@@ -970,13 +972,13 @@ func TestNetscapeACIv3_codecov(t *testing.T) {
 	r.AuthenticationMethod(1)
 
 	var dow ACIv3DayOfWeek
-	dow.Shift(Sun)
-	dow.Unshift(Sun)
+	dow.Shift(ACIv3Sunday)
+	dow.Unshift(ACIv3Sunday)
 	dow.Valid()
 	dow = newDoW()
 	dow.Valid()
-	dow.Shift(Sun)
-	dow.Unshift(Sat)
+	dow.Shift(ACIv3Sunday)
+	dow.Unshift(ACIv3Saturday)
 	dow.Unshift(7)
 	dow.Len()
 	dow.Valid()
@@ -989,11 +991,11 @@ func TestNetscapeACIv3_codecov(t *testing.T) {
 	dow.Keyword()
 	_ = matchDoW("sunday")
 	_ = matchDoW(1)
-	_ = matchDoW(Sun)
+	_ = matchDoW(ACIv3Sunday)
 	_, _ = r.DayOfWeek("sunday,monday")
 	_, _ = marshalACIv3DayOfWeek()
 	_, _ = marshalACIv3DayOfWeek("mon", "tues", "sun")
-	_, _ = marshalACIv3DayOfWeek(Sun)
+	_, _ = marshalACIv3DayOfWeek(ACIv3Sunday)
 
 	parseACIv3BindRuleExpression([]aCIBindRuleToken{{Type: 7, Value: "?"}})
 	parseACIv3BindRuleExpression([]aCIBindRuleToken{

@@ -21,7 +21,7 @@ Field T contains an [ACIv3TargetRule], which is always optional.
 
 Field A contains a string intended for a helpful "label" which differentiates the
 statement from other instructions -- a requirement of most directory implementations
-which honor the ACIv3 syntax. This is known as an "ACL", or "Access Control Label".
+which honor the ACIv3 syntax. This is known as the "ACL", or "Access Control Label".
 
 Field PB contains an instance of [ACIv3PermissionBindRule], which MUST contain at
 least one (1) [ACIv3PermissionBindRuleItem].
@@ -30,6 +30,13 @@ type ACIv3Instruction struct {
 	T  ACIv3TargetRule         // *0 ACIv3TargetRuleItem
 	A  string                  //  1 ACL
 	PB ACIv3PermissionBindRule // *1 ACIv3PermissionBindRuleItem
+}
+
+/*
+OID returns the official Netscape ACIv3 object identifier string literal "2.16.840.1.113730.3.1.55".
+*/
+func (r ACIv3Instruction) OID() string {
+	return `2.16.840.1.113730.3.1.55`
 }
 
 /*
@@ -236,7 +243,7 @@ control purposes SHOULD register and advertise this type in the directory schema
 
 Facts
 
-  - OID: 2.16.840.1.113730.3.1.55
+  - OID: 2.16.840.1.113730.3.1.55 ("aci")
   - Directory String SYNTAX
   - NO matching rules of any kind
   - directoryOperation USAGE
@@ -244,8 +251,9 @@ Facts
 const ACIv3AttributeTypeDescription = `( 2.16.840.1.113730.3.1.55 NAME 'aci' DESC 'Netscape defined access control information attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 USAGE directoryOperation X-ORIGIN 'Netscape/Sun Java Directory Servers' )`
 
 /*
-[ACIv3Right] constants are discrete left-shifted privilege aggregates that can be used in an additive (or
-subtractive) manner to form a complete [ACIv3Permission] statement.
+[ACIv3Right] constants are discrete left-shifted privilege aggregates that can be
+used in an additive (or subtractive) manner to form a complete [ACIv3Permission]
+statement.
 */
 const (
 	ACIv3ReadAccess      ACIv3Right = 1 << iota // 1
@@ -407,17 +415,17 @@ const (
 )
 
 /*
-Day constants can be shifted into an instance of [ACIv3DayOfWeek], allowing effective expressions such as [Sun],[Tues]. See the [ACIv3DayOfWeek.Shift] and [ACIv3DayOfWeek.Unshift] methods.
+Day constants can be shifted into an instance of [ACIv3DayOfWeek], allowing effective expressions such as [ACIv3Sunday],[ACIv3Tuesday]. See the [ACIv3DayOfWeek.Shift] and [ACIv3DayOfWeek.Unshift] methods.
 */
 const (
-	noDay ACIv3Day = 0         // 0 <invalid_day>
-	Sun   ACIv3Day = 1 << iota // 1
-	Mon                        // 2
-	Tues                       // 4
-	Wed                        // 8
-	Thur                       // 16
-	Fri                        // 32
-	Sat                        // 64
+	noDay ACIv3Day = 0               // 0 <invalid_day>
+	ACIv3Sunday ACIv3Day = 1 << iota // 1
+	ACIv3Monday                      // 2
+	ACIv3Tuesday                     // 4
+	ACIv3Wednesday                   // 8
+	ACIv3Thursday                    // 16
+	ACIv3Friday                      // 32
+	ACIv3Saturday                    // 64
 )
 
 var (
@@ -5565,19 +5573,19 @@ func matchStrDoW(d string) (D ACIv3Day) {
 	D = noDay
 	switch lc(d) {
 	case `sun`, `sunday`, `1`:
-		D = Sun
+		D = ACIv3Sunday
 	case `mon`, `monday`, `2`:
-		D = Mon
+		D = ACIv3Monday
 	case `tues`, `tuesday`, `3`:
-		D = Tues
+		D = ACIv3Tuesday
 	case `wed`, `wednesday`, `4`:
-		D = Wed
+		D = ACIv3Wednesday
 	case `thur`, `thurs`, `thursday`, `5`:
-		D = Thur
+		D = ACIv3Thursday
 	case `fri`, `friday`, `6`:
-		D = Fri
+		D = ACIv3Friday
 	case `sat`, `saturday`, `7`:
-		D = Sat
+		D = ACIv3Saturday
 	}
 
 	return
@@ -5587,19 +5595,19 @@ func matchIntDoW(d int) (D ACIv3Day) {
 	D = noDay
 	switch d {
 	case 1:
-		D = Sun
+		D = ACIv3Sunday
 	case 2:
-		D = Mon
+		D = ACIv3Monday
 	case 3:
-		D = Tues
+		D = ACIv3Tuesday
 	case 4:
-		D = Wed
+		D = ACIv3Wednesday
 	case 5:
-		D = Thur
+		D = ACIv3Thursday
 	case 6:
-		D = Fri
+		D = ACIv3Friday
 	case 7:
-		D = Sat
+		D = ACIv3Saturday
 	}
 
 	return
@@ -5622,7 +5630,7 @@ func (r ACIv3DayOfWeek) Keyword() ACIv3Keyword {
 /*
 Len returns the abstract integer length of the receiver, quantifying the number of [ACIv3Day] instances currently being expressed.
 
-For example, if the receiver instance has its [Mon] and [Fri] [ACIv3Day] bits enabled, this would represent an abstract length of two (2).
+For example, if the receiver instance has its [ACIv3Monday] and [ACIv3Friday] [ACIv3Day] bits enabled, this would represent an abstract length of two (2).
 */
 func (r ACIv3DayOfWeek) Len() int {
 	var D int
@@ -5636,24 +5644,25 @@ func (r ACIv3DayOfWeek) Len() int {
 }
 
 /*
-Weekdays is a convenient prefabricator function that returns an instance of [ACIv3BindRule] automatically assembled to express a sequence of weekdays. The sequence "[Mon] through [Fri]" can also be expressed via the bit-shifted value of sixty-two (62). See the [ACIv3Day] constants for the specific numerals used for summation in this manner.
+Weekdays is a convenient prefabricator function that returns an instance of [ACIv3BindRule] automatically assembled to express a sequence of weekdays. The sequence "[ACIv3Monday] through [ACIv3Friday]" can also be expressed via the bit-shifted value of sixty-two (62). See the [ACIv3Day] constants for the specific numerals used for summation in this manner.
 
 Supplying an invalid or nonapplicable [ACIv3Operator] to this method shall return a bogus [ACIv3BindRule] instance.
 */
 func (r NetscapeACIv3) WeekdaysBindRule(cop any) (b ACIv3BindRule) {
-	if c, meth := newDoW().Shift(Mon, Tues, Wed, Thur, Fri).BRM().index(cop); c.Valid() == nil {
+	if c, meth := newDoW().Shift(ACIv3Monday, ACIv3Tuesday, ACIv3Wednesday,
+		ACIv3Thursday, ACIv3Friday).BRM().index(cop); c.Valid() == nil {
 		b = meth()
 	}
 	return
 }
 
 /*
-Weekend is a convenient prefabricator function that returns an instance of [ACIv3BindRule] automatically assembled to express a sequence of [Sun] and [Sat] [ACIv3Day] instances. This sequence can also be expressed via the bit-shifted value of sixty-five (65). See the [ACIv3Day] constants for the specific numerals used for summation in this manner.
+Weekend is a convenient prefabricator function that returns an instance of [ACIv3BindRule] automatically assembled to express a sequence of [ACIv3Sunday] and [ACIv3Saturday] [ACIv3Day] instances. This sequence can also be expressed via the bit-shifted value of sixty-five (65). See the [ACIv3Day] constants for the specific numerals used for summation in this manner.
 
 Supplying an invalid or nonapplicable [ACIv3Operator] to this method shall return a bogus [ACIv3BindRule] instance.
 */
 func (r NetscapeACIv3) WeekendBindRule(cop any) (b ACIv3BindRule) {
-	if c, meth := newDoW().Shift(Sun, Sat).BRM().index(cop); c.Valid() == nil {
+	if c, meth := newDoW().Shift(ACIv3Sunday, ACIv3Saturday).BRM().index(cop); c.Valid() == nil {
 		b = meth()
 	}
 	return
@@ -5814,19 +5823,19 @@ String returns a single string name value for receiver instance of [ACIv3Day].
 func (r ACIv3Day) String() (day string) {
 	day = badDoWStr
 	switch r {
-	case Sun:
+	case ACIv3Sunday:
 		day = `Sun`
-	case Mon:
+	case ACIv3Monday:
 		day = `Mon`
-	case Tues:
+	case ACIv3Tuesday:
 		day = `Tues`
-	case Wed:
+	case ACIv3Wednesday:
 		day = `Wed`
-	case Thur:
+	case ACIv3Thursday:
 		day = `Thur`
-	case Fri:
+	case ACIv3Friday:
 		day = `Fri`
-	case Sat:
+	case ACIv3Saturday:
 		day = `Sat`
 	}
 
