@@ -3718,9 +3718,9 @@ func (r ACIv3AttributeBindTypeOrValue) String() string {
 		if at, ok := r.atbtv[0].(ACIv3Attribute); ok {
 			switch tv := r.atbtv[1].(type) {
 			case AttributeValue:
-				s = at.String() + `#` + (*tv.string)
+				s = at.Index(0) + `#` + (*tv.string)
 			case ACIv3BindType:
-				s = at.String() + `#` + tv.String()
+				s = at.Index(0) + `#` + tv.String()
 			}
 		}
 	}
