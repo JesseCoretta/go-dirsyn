@@ -1554,11 +1554,6 @@ type ACIv3BindRule interface {
 	// a [ACIv3BindRuleItem] qualifier, or some other issue.
 	Valid() error
 
-	// Compare returns a Boolean value indicative of a
-	// SHA-1 comparison between the receiver and input
-	// value x.
-	//Compare(any) bool
-
 	// differentiate from other interface types of a
 	// similar design.
 	isBindRule()
