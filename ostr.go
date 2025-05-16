@@ -30,7 +30,9 @@ func (r OctetString) Len() int { return len(r) }
 Size returns the summation of the ASN.1 OCTET STRING tag (4) and the byte
 size of the receiver instance
 */
-func (r OctetString) Size() int { return len(r) + tagOctetString }
+func (r OctetString) Size() int { return len(r) + int(r.tag()) }
+
+func (r OctetString) tag() uint64 { return uint64(tagOctetString) }
 
 /*
 OctetString returns an instance of [OctetString] alongside an error

@@ -14,6 +14,10 @@ From [§ 3.3.16 of RFC 4517]:
 */
 type Integer big.Int
 
+func (r Integer) tag() uint64 {
+	return uint64(tagInteger)
+}
+
 /*
 Integer returns an instance of Integer alongside an error following an
 analysis of x in the context of an ASN.1 Integer.
@@ -116,10 +120,15 @@ func (r *Integer) SetBytes(bts []byte) {
 }
 
 /*
-Size returns the byte size of the receiver instance.
+Size returns the summation of the receiver byte size and the ASN.1
+INTEGER tag value (2).
 */
 func (r Integer) Size() int {
-	return len(r.Bytes())
+	return r.sizeTagged(r.tag())
+}
+
+func (r Integer) sizeTagged(tag uint64) int {
+	return len(r.Bytes()) + int(tag)
 }
 
 /*

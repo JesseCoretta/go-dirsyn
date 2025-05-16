@@ -21,13 +21,15 @@ func TestBoolean_codecov(t *testing.T) {
 		"True",
 	} {
 		even := idx%2 == 0
-		_, err := r.Boolean(raw)
+		b, err := r.Boolean(raw)
 		ok := err == nil
 		if !ok && even {
 			t.Errorf("%s[%d] %T failed: %v", t.Name(), idx, raw, err)
 		} else if ok && !even {
 			t.Errorf("%s[%d] %T succeeded but should have failed", t.Name(), idx, raw)
 		}
+		b.Size()
+		b.tag()
 	}
 
 	var b Boolean

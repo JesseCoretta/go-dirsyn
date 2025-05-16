@@ -72,9 +72,12 @@ func TestInteger_codecov(t *testing.T) {
 		`abnfcjnsf`,
 		`#885`,
 	} {
-		if _, err := r.Integer(strint); err == nil {
+		if i, err := r.Integer(strint); err == nil {
 			t.Errorf("%s failed: expected error, got nil", t.Name())
 			return
+		} else {
+			i.Size()
+			i.tag()
 		}
 	}
 

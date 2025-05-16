@@ -20,6 +20,8 @@ func TestSubstringAssertion(t *testing.T) {
 		} else if got := ssa.String(); got != raw {
 			t.Errorf("%s[%d] failed:\n\twant:%s\n\tgot: %s\n",
 				t.Name(), idx, raw, got)
+		} else {
+			ssa.Size()
 		}
 	}
 }

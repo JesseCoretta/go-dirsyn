@@ -74,4 +74,7 @@ func TestOctetString(t *testing.T) {
 
 	_ = octetString([]byte{})
 	_ = octetString([]byte{0x0, 0x1, 0x2})
+
+	octet1.Size()
+	octet1.tag()
 }

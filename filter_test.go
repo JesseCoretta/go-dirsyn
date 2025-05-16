@@ -427,18 +427,22 @@ func TestFilter_codecov(t *testing.T) {
 	var av AssertionValue
 	av.Set([]byte(`hello`))
 	av.Set(struct{}{})
+	av.Size()
 
 	var ands FilterAnd
 	ands.isFilter()
 	ands.BER()
+	ands.Size()
 
 	var ors FilterOr
 	ors.isFilter()
 	ors.BER()
+	ors.Size()
 
 	var nots FilterNot
 	nots.isFilter()
 	nots.BER()
+	nots.Size()
 
 	var zerober *ber.Packet = &ber.Packet{}
 	unmarshalItemFilterBER(zerober)
@@ -480,6 +484,7 @@ func TestFilter_codecov(t *testing.T) {
 	gEqual.BER()
 	gEqual.tag()
 	gEqual.isFilter()
+	gEqual.Size()
 
 	var lEqual FilterLessOrEqual
 	_ = lEqual.String()
@@ -489,6 +494,7 @@ func TestFilter_codecov(t *testing.T) {
 	lEqual.BER()
 	lEqual.tag()
 	lEqual.isFilter()
+	lEqual.Size()
 
 	var exts FilterExtensibleMatch
 	exts.Index(9)
@@ -498,22 +504,28 @@ func TestFilter_codecov(t *testing.T) {
 	xber, _ := exts.BER()
 	_, _ = unmarshalExtensibleFilterBER(xber)
 	exts.tag()
+	exts.Size()
 	exts.isFilter()
 	exts.DNAttributes = true
 	_ = exts.String()
 	fext, _ := marshalFilter(`a:dn:1.2.3:=John`)
+	fext.Size()
+	MatchingRuleAssertion(fext.(FilterExtensibleMatch)).Size()
 	xber, _ = fext.BER()
 	xber.Children[0].Value = 1
 	_, _ = unmarshalExtensibleFilterBER(xber)
 	fext, _ = marshalFilter(`a:dn:1.2.3:=John`)
+	fext.Size()
 	xber, _ = fext.BER()
 	xber.Children[1].Value = 1
 	_, _ = unmarshalExtensibleFilterBER(xber)
 	fext, _ = marshalFilter(`a:dn:1.2.3:=John`)
+	fext.Size()
 	xber, _ = fext.BER()
 	xber.Children[2].Value = 1
 	_, _ = unmarshalExtensibleFilterBER(xber)
 	fext, _ = marshalFilter(`a:dn:1.2.3:=John`)
+	fext.Size()
 	xber, _ = fext.BER()
 	xber.Children[3].Value = 1
 	_, _ = unmarshalExtensibleFilterBER(xber)
@@ -524,6 +536,7 @@ func TestFilter_codecov(t *testing.T) {
 
 	var descr AttributeDescription = []byte("cn;lang-en")
 	_ = descr.Type()
+	descr.Size()
 
 	var substr FilterSubstrings
 	_ = substr.String()
@@ -539,6 +552,7 @@ func TestFilter_codecov(t *testing.T) {
 	sber, _ = substr.BER()
 	sber.Children[1].Children[0].Tag = 44
 	unmarshalFilterSubstringsBER(sber)
+	substr.Size()
 
 	substr.isFilter()
 	substr.Type = AttributeDescription(`cn`)
@@ -552,6 +566,7 @@ func TestFilter_codecov(t *testing.T) {
 	eqly.BER()
 	eqly.tag()
 	eqly.isFilter()
+	eqly.Size()
 
 	var pres FilterPresent
 	_ = pres.String()
@@ -560,6 +575,7 @@ func TestFilter_codecov(t *testing.T) {
 	pres.Len()
 	presber, _ := pres.BER()
 	unmarshalFilterPresentBER(presber)
+	pres.Size()
 
 	pres.tag()
 	pres.isFilter()
@@ -570,10 +586,12 @@ func TestFilter_codecov(t *testing.T) {
 	aprx.IsZero()
 	aprx.Len()
 	aprx.tag()
+	aprx.Size()
 	aprx.isFilter()
 	aprx.BER()
 
 	ff, _ := marshalFilter(`cn=Jesse`)
+	ff.Size()
 	ffber, _ := ff.BER()
 	ffber.Children[0].Value = "__blarg__"
 	_, _ = unmarshalEqualityFilterBER(ffber)
@@ -621,6 +639,7 @@ func TestFilter_codecov(t *testing.T) {
 	invalid.BER()
 	invalid.tag()
 	invalid.isFilter()
+	invalid.Size()
 
 	var attrdesc AttributeDescription
 	attrdesc = AttributeDescription(`cn;lang-cn`)
@@ -629,6 +648,23 @@ func TestFilter_codecov(t *testing.T) {
 			t.Name())
 		return
 	}
+
+	ava := AttributeValueAssertion{
+		Desc:  AttributeDescription(`cn`),
+		Value: AssertionValue([]byte(`sifjdsijo`)),
+	}
+	ava.Size()
+
+	mri := MatchingRuleID(`anid`)
+	mri.Size()
+
+	and, _ := marshalFilter(`(&(givenName=Jesse)(sn=Coretta))`)
+	and.Size()
+	or, _ := marshalFilter(`(|(givenName=Jesse)(sn=Coretta))`)
+	or.Size()
+
+	not := FilterNot{Filter: or}
+	not.Size()
 
 	checkParenEncaps(`(bdf`, `fdhjds`)
 	checkParenEncaps(`bdf`, `fdhjds)`)

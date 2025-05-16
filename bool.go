@@ -16,8 +16,10 @@ type Boolean struct {
 	*bool
 }
 
+func (r Boolean) tag() uint64 { return tagBoolean }
+
 /*
-Size returns an integer of one (1), which is the total number of bytes within an
+Size returns the summation of the ASN.1 BOOLEAN tag value and 1.
 instance of this type.
 
 If the receiver is uninitialized, an integer of zero (0) is returned.
@@ -25,7 +27,7 @@ If the receiver is uninitialized, an integer of zero (0) is returned.
 func (r Boolean) Size() int {
 	var n int
 	if !r.IsZero() {
-		n = 1
+		n = 1 + int(r.tag())
 	}
 	return n
 }
