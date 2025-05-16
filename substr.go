@@ -1,9 +1,9 @@
 package dirsyn
 
 const (
-        tagSubstringInitial                             = 0
-        tagSubstringAny                                 = 1
-        tagSubstringFinal                               = 2
+	tagSubstringInitial = 0
+	tagSubstringAny     = 1
+	tagSubstringFinal   = 2
 )
 
 /*
@@ -67,13 +67,13 @@ Size returns the summation of the underlying [AssertionValue] instance sizes.
 func (r SubstringAssertion) Size() int {
 	var size int
 	if len(r.Initial) > 0 {
-                size += r.Initial.sizeTagged(tagSubstringInitial)
+		size += r.Initial.sizeTagged(tagSubstringInitial)
 	}
 	if len(r.Any) > 0 {
-                size += r.Any.sizeTagged(tagSubstringAny)
+		size += r.Any.sizeTagged(tagSubstringAny)
 	}
 	if len(r.Final) > 0 {
-                size += r.Final.sizeTagged(tagSubstringAny)
+		size += r.Final.sizeTagged(tagSubstringAny)
 	}
 
 	return size

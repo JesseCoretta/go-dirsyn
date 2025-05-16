@@ -237,16 +237,16 @@ Size returns the integer summation of the underlying value sizes and the ASN.1 S
 */
 func (r AttributeValueAssertion) Size() int {
 	var size int
-        size += r.Desc.Size()
-        size += r.Value.Size()
-        size += sizeTagAndLength(tagSequence, size)
-        return size
+	size += r.Desc.Size()
+	size += r.Value.Size()
+	size += sizeTagAndLength(tagSequence, size)
+	return size
 }
 
 func (r AttributeValueAssertion) sizeTagged(tag uint64) int {
-        var size int
-        size += r.Desc.Size()
-        size += r.Value.Size()
+	var size int
+	size += r.Desc.Size()
+	size += r.Value.Size()
 	size += int(tag)
 	return size
 }
@@ -260,9 +260,9 @@ func (r MatchingRuleID) String() string { return string(r) }
 Size returns the integer summation of the MatchingRuleAssertionMatchingRule tag (1) and
 the byte size of the receiver instance
 */
-func (r MatchingRuleID) Size() int { return len(r)+tagMatchingRuleAssertionMatchingRule }
+func (r MatchingRuleID) Size() int { return len(r) + tagMatchingRuleAssertionMatchingRule }
 
-func (r MatchingRuleID) sizeTagged(tag uint64) int { return len(r)+int(tag) }
+func (r MatchingRuleID) sizeTagged(tag uint64) int { return len(r) + int(tag) }
 
 /*
 Kind returns the string literal "tag" to describe the kind of [AttributeOption]
@@ -889,24 +889,24 @@ func (r invalidFilter) Size() int { return 0 }
 Size returns the integer summation of the ASN.1 OCTET STRING tag (4) and the byte
 size of the receiver instance
 */
-func (r AssertionValue) Size() int { return len(r)+tagOctetString }
+func (r AssertionValue) Size() int { return len(r) + tagOctetString }
 
-func (r AssertionValue) sizeTagged(tag uint64) int { return len(r)+int(tag) }
+func (r AssertionValue) sizeTagged(tag uint64) int { return len(r) + int(tag) }
 
 /*
 Size returns the integer summation of the ASN.1 OCTET STRING tag (4) and the byte
 size of the receiver instance
 */
-func (r AttributeDescription) Size() int { return len(r)+tagOctetString }
+func (r AttributeDescription) Size() int { return len(r) + tagOctetString }
 
-func (r AttributeDescription) sizeTagged(tag uint64) int { return len(r)+int(tag) }
+func (r AttributeDescription) sizeTagged(tag uint64) int { return len(r) + int(tag) }
 
 /*
 Size returns the integer summation of the underlying [AttributeDescription] byte
 size and the [FilterPresent] tag (8).
 */
 func (r FilterPresent) Size() int {
-	return r.Desc.Size()+int(r.tag())
+	return r.Desc.Size() + int(r.tag())
 }
 
 /*
@@ -915,12 +915,12 @@ Size returns the integer summation of all underlying slice value sizes.
 func (r FilterAnd) Size() int {
 	var size int
 	if !r.IsZero() {
-        	for _, x := range r {
-        	        size += x.Size()
-        	}
-        	size += sizeTagAndLength(int(r.tag()), size)
+		for _, x := range r {
+			size += x.Size()
+		}
+		size += sizeTagAndLength(int(r.tag()), size)
 	}
-        return size
+	return size
 }
 
 /*
@@ -929,12 +929,12 @@ Size returns the integer summation of all underlying slice value sizes.
 func (r FilterOr) Size() int {
 	var size int
 	if !r.IsZero() {
-	        for _, x := range r {
+		for _, x := range r {
 			size += x.Size()
-        	}
-        	size += sizeTagAndLength(int(r.tag()), size)
+		}
+		size += sizeTagAndLength(int(r.tag()), size)
 	}
-        return size
+	return size
 }
 
 /*
@@ -943,9 +943,9 @@ Size returns the underlying [Filter] size value.
 func (r FilterNot) Size() int {
 	var size int
 	if !r.IsZero() {
-        	size = sizeTagAndLength(tagSequence, r.Filter.Size())
+		size = sizeTagAndLength(tagSequence, r.Filter.Size())
 	}
-        return size
+	return size
 }
 
 /*
@@ -1005,19 +1005,19 @@ func (r MatchingRuleAssertion) IsZero() bool {
 
 func (r MatchingRuleAssertion) sizeTagged(tag uint64) (size int) {
 	if !r.IsZero() {
-	        if r.MatchingRule != nil {
-	                size += r.MatchingRule.sizeTagged(tagMatchingRuleAssertionMatchingRule)
-	        }
-	        if len(r.Type) > 0 {
-	                size += r.Type.sizeTagged(tagMatchingRuleAssertionType)
-	        }
-	        size += r.MatchValue.sizeTagged(tagMatchingRuleAssertionMatchValue)
-	        if r.DNAttributes {
-	                size += 1+tagMatchingRuleAssertionDnAttributes
-	        }
-	        size += sizeTagAndLength(int(tag), size)
+		if r.MatchingRule != nil {
+			size += r.MatchingRule.sizeTagged(tagMatchingRuleAssertionMatchingRule)
+		}
+		if len(r.Type) > 0 {
+			size += r.Type.sizeTagged(tagMatchingRuleAssertionType)
+		}
+		size += r.MatchValue.sizeTagged(tagMatchingRuleAssertionMatchValue)
+		if r.DNAttributes {
+			size += 1 + tagMatchingRuleAssertionDnAttributes
+		}
+		size += sizeTagAndLength(int(tag), size)
 	}
-        return
+	return
 }
 
 /*
@@ -1025,16 +1025,16 @@ Size returns the integer summation of the underlying value byte sizes
 and their associated tags.
 */
 func (r FilterSubstrings) Size() (size int) {
-        return r.sizeTagged(tagSequence)
+	return r.sizeTagged(tagSequence)
 }
 
 func (r FilterSubstrings) sizeTagged(tag int) (size int) {
 	if !r.IsZero() {
-        	size += sizeTagAndLength(tagSequence, r.Substrings.Size())
-        	size += r.Type.Size()
-        	size += sizeTagAndLength(tag, size)
+		size += sizeTagAndLength(tagSequence, r.Substrings.Size())
+		size += r.Type.Size()
+		size += sizeTagAndLength(tag, size)
 	}
-        return
+	return
 }
 
 func parseSubFilter(x any) (filter Filter, err error) {
@@ -1913,9 +1913,8 @@ func dnAttrSplit(x string) (slice []string) {
 }
 
 const (
-        tagMatchingRuleAssertionMatchingRule            = 1
-        tagMatchingRuleAssertionType                    = 2
-        tagMatchingRuleAssertionMatchValue              = 3
-        tagMatchingRuleAssertionDnAttributes            = 4
+	tagMatchingRuleAssertionMatchingRule = 1
+	tagMatchingRuleAssertionType         = 2
+	tagMatchingRuleAssertionMatchValue   = 3
+	tagMatchingRuleAssertionDnAttributes = 4
 )
-
