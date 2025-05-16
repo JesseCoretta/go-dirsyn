@@ -96,6 +96,10 @@ type Filter interface {
 	// instance.
 	Len() int
 
+	// Size returns the integer summation of the tag value
+	// and the underlying byte value size(s).
+	Size() int
+
 	// Differentiate Filter qualifiers from other
 	// unrelated interfaces.
 	isFilter()
@@ -199,10 +203,10 @@ type FilterPresent struct {
 type MatchingRuleID LDAPString
 
 /*
-FilterExtensibleMatch aliases the [FilterMatchingRuleAssertion] to implement
+FilterExtensibleMatch aliases the [MatchingRuleAssertion] to implement
 the "extensibleMatch" CHOICE of an instance of [Filter].
 */
-type FilterExtensibleMatch FilterMatchingRuleAssertion
+type FilterExtensibleMatch MatchingRuleAssertion
 
 /*
 MatchingRuleAssertion implements the basis of [FilterExtensibleMatch].
@@ -213,7 +217,7 @@ MatchingRuleAssertion implements the basis of [FilterExtensibleMatch].
 	    matchValue      [3] AssertionValue,
 	    dnAttributes    [4] BOOLEAN DEFAULT FALSE }
 */
-type FilterMatchingRuleAssertion struct {
+type MatchingRuleAssertion struct {
 	MatchingRule MatchingRuleID       `asn1:"tag:1,optional"`
 	Type         AttributeDescription `asn1:"tag:2,optional"`
 	MatchValue   AssertionValue       `asn1:"tag:3"`
@@ -229,9 +233,36 @@ type FilterSubstrings struct {
 }
 
 /*
+Size returns the integer summation of the underlying value sizes and the ASN.1 SEQUENCE tag (16).
+*/
+func (r AttributeValueAssertion) Size() int {
+	var size int
+        size += r.Desc.Size()
+        size += r.Value.Size()
+        size += sizeTagAndLength(tagSequence, size)
+        return size
+}
+
+func (r AttributeValueAssertion) sizeTagged(tag uint64) int {
+        var size int
+        size += r.Desc.Size()
+        size += r.Value.Size()
+	size += int(tag)
+	return size
+}
+
+/*
 String returns the string representation of the receiver instance.
 */
 func (r MatchingRuleID) String() string { return string(r) }
+
+/*
+Size returns the integer summation of the MatchingRuleAssertionMatchingRule tag (1) and
+the byte size of the receiver instance
+*/
+func (r MatchingRuleID) Size() int { return len(r)+tagMatchingRuleAssertionMatchingRule }
+
+func (r MatchingRuleID) sizeTagged(tag uint64) int { return len(r)+int(tag) }
 
 /*
 Kind returns the string literal "tag" to describe the kind of [AttributeOption]
@@ -851,6 +882,160 @@ Len always returns one (1), as instances of this kind only contain a
 single value.
 */
 func (r FilterExtensibleMatch) Len() int { return 1 }
+
+func (r invalidFilter) Size() int { return 0 }
+
+/*
+Size returns the integer summation of the ASN.1 OCTET STRING tag (4) and the byte
+size of the receiver instance
+*/
+func (r AssertionValue) Size() int { return len(r)+tagOctetString }
+
+func (r AssertionValue) sizeTagged(tag uint64) int { return len(r)+int(tag) }
+
+/*
+Size returns the integer summation of the ASN.1 OCTET STRING tag (4) and the byte
+size of the receiver instance
+*/
+func (r AttributeDescription) Size() int { return len(r)+tagOctetString }
+
+func (r AttributeDescription) sizeTagged(tag uint64) int { return len(r)+int(tag) }
+
+/*
+Size returns the integer summation of the underlying [AttributeDescription] byte
+size and the [FilterPresent] tag (8).
+*/
+func (r FilterPresent) Size() int {
+	return r.Desc.Size()+int(r.tag())
+}
+
+/*
+Size returns the integer summation of all underlying slice value sizes.
+*/
+func (r FilterAnd) Size() int {
+	var size int
+	if !r.IsZero() {
+        	for _, x := range r {
+        	        size += x.Size()
+        	}
+        	size += sizeTagAndLength(int(r.tag()), size)
+	}
+        return size
+}
+
+/*
+Size returns the integer summation of all underlying slice value sizes.
+*/
+func (r FilterOr) Size() int {
+	var size int
+	if !r.IsZero() {
+	        for _, x := range r {
+			size += x.Size()
+        	}
+        	size += sizeTagAndLength(int(r.tag()), size)
+	}
+        return size
+}
+
+/*
+Size returns the underlying [Filter] size value.
+*/
+func (r FilterNot) Size() int {
+	var size int
+	if !r.IsZero() {
+        	size = sizeTagAndLength(tagSequence, r.Filter.Size())
+	}
+        return size
+}
+
+/*
+Size returns the integer summation of the underlying [AttributeDescription] and
+[AttributeValue] byte sizes and the [FilterApproximateMatch] tag (9).
+*/
+func (r FilterApproximateMatch) Size() int {
+	return AttributeValueAssertion(r).sizeTagged(r.tag())
+}
+
+/*
+Size returns the integer summation of the underlying [AttributeDescription] and
+[AttributeValue] byte sizes and the [FilterEqualityMatch] tag (4).
+*/
+func (r FilterEqualityMatch) Size() int {
+	return AttributeValueAssertion(r).sizeTagged(r.tag())
+}
+
+/*
+Size returns the integer summation of the underlying [AttributeDescription] and
+[AttributeValue] byte sizes and the [FilterLessOrEqual] tag (7).
+*/
+func (r FilterLessOrEqual) Size() int {
+	return AttributeValueAssertion(r).sizeTagged(r.tag())
+}
+
+/*
+Size returns the integer summation of the underlying [AttributeDescription] and
+[AttributeValue] byte sizes and the [FilterGreaterOrEqual] tag (6).
+*/
+func (r FilterGreaterOrEqual) Size() int {
+	return AttributeValueAssertion(r).sizeTagged(r.tag())
+}
+
+/*
+Size returns the integer summation of the underlying [AttributeDescription]
+and [AttributeValue] byte sizes and the [FilterExtensibleMatch] tag (10).
+*/
+func (r FilterExtensibleMatch) Size() int {
+	return MatchingRuleAssertion(r).sizeTagged(r.tag())
+}
+
+/*
+Size returns the integer summation of the underlying value byte sizes
+and their associated tags.
+*/
+func (r MatchingRuleAssertion) Size() int {
+	return r.sizeTagged(tagSequence)
+}
+
+func (r MatchingRuleAssertion) IsZero() bool {
+	return r.MatchingRule == nil &&
+		len(r.Type) == 0 &&
+		len(r.MatchValue) == 0 &&
+		!r.DNAttributes
+}
+
+func (r MatchingRuleAssertion) sizeTagged(tag uint64) (size int) {
+	if !r.IsZero() {
+	        if r.MatchingRule != nil {
+	                size += r.MatchingRule.sizeTagged(tagMatchingRuleAssertionMatchingRule)
+	        }
+	        if len(r.Type) > 0 {
+	                size += r.Type.sizeTagged(tagMatchingRuleAssertionType)
+	        }
+	        size += r.MatchValue.sizeTagged(tagMatchingRuleAssertionMatchValue)
+	        if r.DNAttributes {
+	                size += 1+tagMatchingRuleAssertionDnAttributes
+	        }
+	        size += sizeTagAndLength(int(tag), size)
+	}
+        return
+}
+
+/*
+Size returns the integer summation of the underlying value byte sizes
+and their associated tags.
+*/
+func (r FilterSubstrings) Size() (size int) {
+        return r.sizeTagged(tagSequence)
+}
+
+func (r FilterSubstrings) sizeTagged(tag int) (size int) {
+	if !r.IsZero() {
+        	size += sizeTagAndLength(tagSequence, r.Substrings.Size())
+        	size += r.Type.Size()
+        	size += sizeTagAndLength(tag, size)
+	}
+        return
+}
 
 func parseSubFilter(x any) (filter Filter, err error) {
 	var input string
@@ -1726,3 +1911,11 @@ func dnAttrSplit(x string) (slice []string) {
 
 	return
 }
+
+const (
+        tagMatchingRuleAssertionMatchingRule            = 1
+        tagMatchingRuleAssertionType                    = 2
+        tagMatchingRuleAssertionMatchValue              = 3
+        tagMatchingRuleAssertionDnAttributes            = 4
+)
+

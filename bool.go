@@ -17,6 +17,20 @@ type Boolean struct {
 }
 
 /*
+Size returns an integer of one (1), which is the total number of bytes within an
+instance of this type.
+
+If the receiver is uninitialized, an integer of zero (0) is returned.
+*/
+func (r Boolean) Size() int {
+	var n int
+	if !r.IsZero() {
+		n = 1
+	}
+	return n
+}
+
+/*
 Boolean returns an instance of [Boolean] alongside an error.
 
 Valid input types are native Go Booleans, string representations of

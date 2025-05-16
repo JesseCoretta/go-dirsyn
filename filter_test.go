@@ -49,6 +49,13 @@ func ExampleFilter_BER() {
 	// Output: equalityMatch: sn=Lu\c4\8di\c4\87
 }
 
+func ExampleFilter_size() {
+	var r RFC4515
+	f, _ := r.Filter(`(&(sn=Lučić)(objectClass=person))`)
+	fmt.Println(f.Size())
+	// Output: 52
+}
+
 /*
 This example demonstrates the means for accessing a specific slice index
 within the return instance of [Filter].

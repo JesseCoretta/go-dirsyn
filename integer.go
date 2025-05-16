@@ -116,6 +116,13 @@ func (r *Integer) SetBytes(bts []byte) {
 }
 
 /*
+Size returns the byte size of the receiver instance.
+*/
+func (r Integer) Size() int {
+	return len(r.Bytes())
+}
+
+/*
 IsZero returns a Boolean value indicative of a nil, or unset, receiver.
 */
 func (r Integer) IsZero() bool {
