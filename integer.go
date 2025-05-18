@@ -1,6 +1,9 @@
 package dirsyn
 
-import "math/big"
+import (
+	"encoding/asn1"
+	"math/big"
+)
 
 /*
 Integer aliases [big.Int] to implement an unbounded ASN.1 INTEGER syntax
@@ -19,8 +22,23 @@ func (r Integer) tag() uint64 {
 }
 
 /*
+DER returns the ASN.1 DER encoding of the receiver instance alongside an error.
+*/
+func (r Integer) DER() (der []byte, err error) {
+	var pkt *DERPacket = newDERPacket([]byte{})
+	if _, err = pkt.Write(r); err == nil {
+		der = pkt.data
+	}
+
+	return
+}
+
+/*
 Integer returns an instance of Integer alongside an error following an
 analysis of x in the context of an ASN.1 Integer.
+
+x may be any Go primitive number, *[big.Int], string or []byte.  If x
+is a []byte instance, it is assumed to be ASN.1 DER encoded bytes.
 */
 func (r RFC4517) Integer(x any) (Integer, error) {
 	return marshalInteger(x)
@@ -102,7 +120,7 @@ the number is unsigned (zero (0) or more) and is optional.
 */
 func (r *Integer) SetBytes(bts []byte) {
 	if len(bts) > 0 {
-		_r := big.NewInt(0)
+		_r := newBigInt(0)
 		var neg bool
 		if bts[0] == 0x01 {
 			bts = bts[1:]
@@ -128,7 +146,7 @@ func (r Integer) Size() int {
 }
 
 func (r Integer) sizeTagged(tag uint64) int {
-	return len(r.Bytes()) + int(tag)
+	return sizeTagAndLength(int(tag), len(r.Bytes()))
 }
 
 /*
@@ -151,18 +169,61 @@ func (r Integer) String() (s string) {
 	return
 }
 
+func derWriteInteger(der *DERPacket, content []byte) int {
+	// Append the DER-encoded integer bytes to the data slice.
+	der.data = append(der.data, content...)
+	der.offset = len(der.data)
+	return len(content)
+}
+
+func derReadInteger(x *Integer, der *DERPacket, tal TagAndLength) (err error) {
+	if tal.Tag != tagInteger {
+		err = errorTxt("expected INTEGER (tag 2), but got tag " + itoa(tal.Tag))
+		return
+	} else if der.offset+tal.Length > len(der.data) {
+		err = errorTxt("insufficient bytes for INTEGER")
+		return
+	}
+
+	encodedValue := der.data[der.offset : der.offset+tal.Length]
+	der.offset += tal.Length
+
+	// Convert to big.Int.
+	i := newBigInt(0)
+	i.SetBytes(encodedValue)
+
+	// Handle DER sign rules. If the first byte has MSB set (negative),
+	// we should ensure proper two's complement behavior.
+	if len(encodedValue) > 0 && encodedValue[0]&0x80 != 0 {
+		// Negative number.
+		i.SetBytes(encodedValue)
+		// Compute 2^(8*len(encodedValue)).
+		bitLen := uint(len(encodedValue) * 8)
+		twoPow := newBigInt(1)
+		twoPow.Lsh(twoPow, bitLen)
+		// Adjust: result = i - 2^(8*len).
+		i.Sub(i, twoPow)
+	} else {
+		i.SetBytes(encodedValue)
+	}
+
+	*x = Integer(*i)
+
+	return nil
+}
+
 func assertInt(x any) (i *big.Int, err error) {
 	switch tv := x.(type) {
 	case int:
-		i = big.NewInt(0).SetInt64(int64(tv))
+		i = newBigInt(0).SetInt64(int64(tv))
 	case int8:
-		i = big.NewInt(0).SetInt64(int64(tv))
+		i = newBigInt(0).SetInt64(int64(tv))
 	case int16:
-		i = big.NewInt(0).SetInt64(int64(tv))
+		i = newBigInt(0).SetInt64(int64(tv))
 	case int32:
-		i = big.NewInt(0).SetInt64(int64(tv))
+		i = newBigInt(0).SetInt64(int64(tv))
 	case int64:
-		i = big.NewInt(0).SetInt64(tv)
+		i = newBigInt(0).SetInt64(tv)
 	default:
 		err = errorBadType("Incompatible int")
 	}
@@ -173,15 +234,15 @@ func assertInt(x any) (i *big.Int, err error) {
 func assertUint(x any) (i *big.Int, err error) {
 	switch tv := x.(type) {
 	case uint:
-		i = big.NewInt(0).SetUint64(uint64(tv))
+		i = newBigInt(0).SetUint64(uint64(tv))
 	case uint8:
-		i = big.NewInt(0).SetUint64(uint64(tv))
+		i = newBigInt(0).SetUint64(uint64(tv))
 	case uint16:
-		i = big.NewInt(0).SetUint64(uint64(tv))
+		i = newBigInt(0).SetUint64(uint64(tv))
 	case uint32:
-		i = big.NewInt(0).SetUint64(uint64(tv))
+		i = newBigInt(0).SetUint64(uint64(tv))
 	case uint64:
-		i = big.NewInt(0).SetUint64(tv)
+		i = newBigInt(0).SetUint64(tv)
 	default:
 		err = errorBadType("Incompatible uint")
 	}
@@ -206,12 +267,15 @@ func assertNumber(x any) (i *big.Int, err error) {
 		}
 
 		var ok bool
-		i, ok = big.NewInt(0).SetString(tv, 10)
+		i, ok = newBigInt(0).SetString(tv, 10)
 		if !ok {
 			err = errorTxt("Unable to convert string '" + tv + "' to Integer")
 		} else if hasPfx(tv, `-`) {
 			i.Neg(i)
 		}
+	case []byte:
+		// assume DER-encoding
+		_, err = asn1.Unmarshal(tv, &i)
 	default:
 		err = errorBadType("Integer")
 	}

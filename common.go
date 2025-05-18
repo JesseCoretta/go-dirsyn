@@ -79,6 +79,14 @@ var (
 	uint16p    func([]byte, uint16)                      = binary.BigEndian.PutUint16
 )
 
+func bool2str(b bool) (s string) {
+	if s = `false`; b {
+		s = `true`
+	}
+
+	return
+}
+
 /*
 getStringer uses reflect to obtain and return a given
 type instance's String ("stringer") method, if present.
@@ -658,13 +666,6 @@ func splitAndTrim(s, sep string) []string {
 	}
 	return parts
 }
-
-/*
-LDAPString implements [§ 4.1.2 of RFC 4511].
-
-[§ 4.1.2 of RFC 4511]: https://datatracker.ietf.org/doc/html/rfc4511#section-4.1.2
-*/
-type LDAPString OctetString
 
 /*
 SyntaxVerification implements a closure function signature meant to be

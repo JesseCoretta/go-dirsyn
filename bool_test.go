@@ -25,11 +25,27 @@ func TestBoolean_codecov(t *testing.T) {
 		ok := err == nil
 		if !ok && even {
 			t.Errorf("%s[%d] %T failed: %v", t.Name(), idx, raw, err)
+			return
 		} else if ok && !even {
 			t.Errorf("%s[%d] %T succeeded but should have failed", t.Name(), idx, raw)
+			return
 		}
 		b.Size()
+		b.sizeTagged(13)
 		b.tag()
+
+		var der []byte
+		if der, err = b.DER(); err != nil {
+			t.Errorf("%s failed: %v", t.Name(), err)
+			return
+		}
+
+		_ = derReadBoolean(&b, &DERPacket{data: der}, TagAndLength{})
+		_ = derReadBoolean(&b, &DERPacket{data: der, offset: 1}, TagAndLength{Tag: 2, Length: 18})
+		_ = derReadBoolean(&b, &DERPacket{data: der, offset: 1}, TagAndLength{Tag: 1, Length: 18})
+		_ = derReadBoolean(&b, &DERPacket{data: []byte{0x1, 0x1, 0x0}}, TagAndLength{Tag: 1, Length: 3})
+		_ = derReadBoolean(&b, &DERPacket{data: []byte{0x1, 0x1, 0xa}}, TagAndLength{Tag: 1, Length: 3})
+		_ = derReadBoolean(&b, &DERPacket{data: []byte{0x1, 0x1, 0xff}}, TagAndLength{Tag: 1, Length: 3})
 	}
 
 	var b Boolean

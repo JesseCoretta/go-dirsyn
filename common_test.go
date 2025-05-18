@@ -18,6 +18,9 @@ func TestMisc_codecov(t *testing.T) {
 	hexEncode(`ABC`)
 	hexEncode(`##`)
 
+	_ = bool2str(true)
+	_ = bool2str(false)
+
 	hexDecode(``)
 	hexDecode(nil)
 	hexDecode([]byte{})

@@ -23,6 +23,19 @@ func TestOctetString(t *testing.T) {
 		} else if got := oct.String(); raw != got {
 			t.Errorf("%s failed:\nwant: %s\ngot:  %s",
 				t.Name(), raw, got)
+		} else {
+			var der []byte
+			if der, err = oct.DER(); err != nil {
+				t.Errorf("%s failed [DER]: %v", t.Name(), err)
+				return
+			}
+			// cov
+			oct.sizeTagged(16)
+			oct.sizeTagged(4)
+
+			_ = derReadOctetString(&oct, &DERPacket{data: der}, TagAndLength{})
+			_ = derReadOctetString(&oct, &DERPacket{data: der}, TagAndLength{Tag: 4})
+			_ = derReadOctetString(&oct, &DERPacket{data: der, offset: len(der)}, TagAndLength{Tag: 4, Length: 10})
 		}
 	}
 

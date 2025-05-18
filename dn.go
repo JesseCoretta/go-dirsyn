@@ -120,6 +120,16 @@ type DistinguishedName struct {
 	RDNs []*RelativeDistinguishedName
 }
 
+/*
+LDAPDN implements the string form of a distinguished name.
+*/
+type LDAPDN LDAPString
+
+/*
+RelativeLDAPDN implements the string form of a relative distinguished name.
+*/
+type RelativeLDAPDN LDAPString
+
 // String returns a normalized string representation of this distinguishedName which is the
 // join of all relative distinguishedNames with a ",".
 func (r DistinguishedName) String() string {

@@ -1,6 +1,10 @@
 package dirsyn
 
 /*
+ostr.go contains ASN.1 OCTET STRING types and methods.
+*/
+
+/*
 OctetString implements [§ 3.3.25 of RFC 4517]:
 
 	OctetString = *OCTET
@@ -13,6 +17,18 @@ type OctetString []byte
 IsZero returns a Boolean value indicative of a nil receiver state.
 */
 func (r OctetString) IsZero() bool { return r == nil }
+
+/*
+DER returns the ASN.1 DER encoding of the receiver instance alongside an error.
+*/
+func (r OctetString) DER() (der []byte, err error) {
+	var pkt *DERPacket = newDERPacket([]byte{})
+	if _, err = pkt.Write(r); err == nil {
+		der = pkt.data
+	}
+
+	return
+}
 
 /*
 String returns the string representation of the receiver instance.
@@ -30,7 +46,9 @@ func (r OctetString) Len() int { return len(r) }
 Size returns the summation of the ASN.1 OCTET STRING tag (4) and the byte
 size of the receiver instance
 */
-func (r OctetString) Size() int { return len(r) + int(r.tag()) }
+func (r OctetString) Size() int { return sizeTagAndLength(tagOctetString, len(r)) }
+
+func (r OctetString) sizeTagged(tag uint64) int { return sizePrimitiveSubBytes(int(tag), r) }
 
 func (r OctetString) tag() uint64 { return uint64(tagOctetString) }
 
@@ -58,12 +76,45 @@ func marshalOctetString(x any) (oct OctetString, err error) {
 	for i := 0; i < len(runes) && err == nil; i++ {
 		var char rune = runes[i]
 		if !ucIn(char, octRange) {
-			err = errorTxt("Incompatible Octet String character: " + string(char))
+			err = errorTxt("Incompatible Octet String character: " + itoa(int(char)))
 		}
 	}
 
 	if err == nil {
 		oct = OctetString(raw)
+	}
+
+	return
+}
+
+func derWriteOctetString(der *DERPacket, content []byte) int {
+	// The length of the value (raw bytes)
+	valLen := len(content)
+
+	// Write out the DER header: tag and length. The WriteTagAndLength
+	// method returns the number of header bytes written.
+	written := der.WriteTagAndLength(classUniversal, false, tagOctetString, valLen)
+
+	// Append the bytes of the OctetString. We use append so that even
+	// if r.data was initially empty or too short, it will grow.
+	der.data = append(der.data, content...)
+
+	// Update the offset.
+	der.offset = len(der.data)
+
+	// Total bytes written is the header length plus the value length.
+	return written + valLen
+}
+
+func derReadOctetString(x *OctetString, der *DERPacket, tal TagAndLength) (err error) {
+	if tal.Tag != tagOctetString {
+		err = errorTxt("expected OCTET STRING (tag 4) but got tag " + itoa(tal.Tag))
+	} else if der.offset+tal.Length > len(der.data) {
+		err = errorTxt("insufficient data for OCTETSTRING")
+	} else {
+		value := der.data[der.offset : der.offset+tal.Length]
+		der.offset += tal.Length
+		*x = OctetString(value)
 	}
 
 	return

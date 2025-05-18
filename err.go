@@ -23,6 +23,26 @@ func errorPrimerFailed(ls, mr int) (err error) {
 	return
 }
 
+func errorASN1Expect(a, b any, typ string) (err error) {
+	switch typ {
+	case "Tag", "Class":
+		i, j := a.(int), b.(int)
+		err = errorTxt("Expect" + typ + ": wrong tag: got " + itoa(j) + " (" +
+			TagNames[j] + "), want " + itoa(i) + " (" + TagNames[i] + ")")
+	case "Compound":
+		i, j := a.(bool), b.(bool)
+		err = errorTxt("Expect" + typ + ": wrong compound: got " + bool2str(j) + " (" +
+			CompoundNames[j] + "), want " + bool2str(i) + " (" + CompoundNames[i] + ")")
+	}
+	return
+}
+
+func errorASN1ConstructedTagClass(wantTAL, gotTAL TagAndLength) error {
+	return errorTxt("ReadConstructed: expected compound element with class " + itoa(wantTAL.Class) +
+		" and tag " + itoa(wantTAL.Tag) + ", got class " + itoa(gotTAL.Class) + " and tag " + itoa(gotTAL.Tag) +
+		", compound:" + bool2str(gotTAL.IsCompound))
+}
+
 var (
 	nilBEREncodeErr   error = mkerr("Cannot BER encode nil instance")
 	unknownBERPacket  error = mkerr("Unidentified BER packet; cannot process")

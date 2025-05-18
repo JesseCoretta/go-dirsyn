@@ -27,10 +27,12 @@ If the receiver is uninitialized, an integer of zero (0) is returned.
 func (r Boolean) Size() int {
 	var n int
 	if !r.IsZero() {
-		n = 1 + int(r.tag())
+		n = sizeTagAndLength(int(r.tag()), 1)
 	}
 	return n
 }
+
+func (r Boolean) sizeTagged(tag uint64) int { return sizePrimitiveSubBytes(int(tag), r) }
 
 /*
 Boolean returns an instance of [Boolean] alongside an error.
@@ -79,6 +81,18 @@ Undefined wraps [Boolean.IsZero] and indicates a state that is neither
 true nor false.
 */
 func (r Boolean) Undefined() bool { return r.IsZero() }
+
+/*
+DER returns the ASN.1 DER encoding of the receiver instance alongside an error.
+*/
+func (r Boolean) DER() (der []byte, err error) {
+	var pkt *DERPacket = newDERPacket([]byte{})
+	if _, err = pkt.Write(r); err == nil {
+		der = pkt.data
+	}
+
+	return
+}
 
 /*
 True returns a Boolean value indicative of a true receiver state.
@@ -203,6 +217,42 @@ func assertBoolean(x any) (b Boolean, err error) {
 	}
 
 	return
+}
+
+func derWriteBoolean(der *DERPacket, content byte) int {
+	// Write tag and length for a Boolean (universal class, tag 1, not compound, length 1).
+	written := der.WriteTagAndLength(classUniversal, false, tagBoolean, 1)
+
+	// Append the content byte.
+	der.data = append(der.data, content)
+	der.offset = len(der.data)
+
+	return written + 1
+}
+
+func derReadBoolean(x *Boolean, der *DERPacket, tal TagAndLength) (err error) {
+	if tal.Tag != tagBoolean {
+		err = errorTxt("expected BOOLEAN (tag 1) but got tag " + itoa(tal.Tag))
+		return
+	} else if der.offset+tal.Length > len(der.data) {
+		err = errorTxt("insufficient data for BOOLEAN")
+		return
+	}
+
+	value := der.data[der.offset : der.offset+tal.Length]
+	der.offset += tal.Length
+
+	var b bool
+	if value[len(value)-1] == 0x0 {
+		*x = Boolean{bool: &b}
+	} else if value[len(value)-1] == 0xff {
+		b = true
+		*x = Boolean{bool: &b}
+	} else {
+		err = errorTxt("Invalid byte value for Boolean " + itoa(int(value[0])))
+	}
+
+	return err
 }
 
 /*

@@ -8,7 +8,7 @@ import (
 func TestInteger(t *testing.T) {
 	var r RFC4517
 
-	for _, strint := range []any{
+	for idx, strint := range []any{
 		`1`,
 		0,
 		-38458953,
@@ -17,7 +17,7 @@ func TestInteger(t *testing.T) {
 		`-4839058392687026702779083590780972360798625907867923470670934207967924076924`,
 	} {
 		if i, err := r.Integer(strint); err != nil {
-			t.Errorf("%s failed: %v", t.Name(), err)
+			t.Errorf("%s[%d] [marshal] failed: %v", t.Name(), idx, err)
 			return
 		} else {
 			var i2 Integer
@@ -25,7 +25,26 @@ func TestInteger(t *testing.T) {
 
 			want := i.String()
 			if got := i2.String(); got != want {
-				t.Errorf("%s failed:\nwant: %s\ngot:  %s", t.Name(), want, got)
+				t.Errorf("%s[%d] [string] failed:\nwant: %s\ngot:  %s", t.Name(), idx, want, got)
+				return
+			}
+
+			var der []byte
+			der, err = i.DER()
+			if err != nil {
+				t.Errorf("%s[%d] [asn.1 marshal] failed: %v", t.Name(), idx, err)
+				return
+			}
+
+			i2, err = r.Integer(der)
+			if err != nil {
+				t.Errorf("%s[%d] [asn.1 unmarshal] failed: %v", t.Name(), idx, err)
+				return
+			}
+
+			want = i.String()
+			if got := i2.String(); got != want {
+				t.Errorf("%s[%d] failed:\nwant: %s\ngot:  %s", t.Name(), idx, want, got)
 				return
 			}
 		}
@@ -49,7 +68,7 @@ func ExampleInteger_UUID() {
 }
 
 func TestInteger_codecov(t *testing.T) {
-	var r RFC4517
+	var srcs Sources
 
 	assertNumber(6)
 	assertNumber(int8(6))
@@ -72,7 +91,7 @@ func TestInteger_codecov(t *testing.T) {
 		`abnfcjnsf`,
 		`#885`,
 	} {
-		if i, err := r.Integer(strint); err == nil {
+		if i, err := srcs.RFC4517().Integer(strint); err == nil {
 			t.Errorf("%s failed: expected error, got nil", t.Name())
 			return
 		} else {
@@ -81,9 +100,39 @@ func TestInteger_codecov(t *testing.T) {
 		}
 	}
 
-	i1, _ := r.Integer(4)
-	//i2, _ := r.Integer(5)
-	//i3, _ := r.Integer(6)
+	for _, num := range []int{
+		-5,
+		5,
+	} {
+		der, _ := srcs.X690().DER()
+		if _, err := der.writeInteger(num); err != nil {
+			t.Errorf("%s failed: %v", t.Name(), err)
+			return
+		}
+		der.SetOffset() // we're circumventing Write, so we have to do this manually.
+
+		var i2 Integer
+		tal, err := der.TagAndLength()
+		if err != nil {
+			t.Errorf("%s failed: %v", t.Name(), err)
+			return
+		} else if err = derReadInteger(&i2, der, tal); err != nil {
+			t.Errorf("%s failed: %v", t.Name(), err)
+			return
+		} else if got := i2.String(); got != itoa(num) {
+			t.Errorf("%s failed:\n\twant: -5\n\tgot:  %s", t.Name(), got)
+			return
+		}
+
+		_ = derReadInteger(&i2, der, TagAndLength{})
+		_ = derReadInteger(&i2, der, TagAndLength{Tag: 2, Length: 45})
+		_, _ = der.writeInteger(5)
+		_ = derReadInteger(&i2, der, tal)
+	}
+
+	i1, _ := srcs.RFC4517().Integer(4)
+	//i2, _ := srcs.RFC4517().Integer(5)
+	//i3, _ := srcs.RFC4517().Integer(6)
 
 	i1.IsZero()
 	_ = i1.String()
